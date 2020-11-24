@@ -1,0 +1,24 @@
+# pycharm nonsense
+.idea/
+
+# mac nonsense
+.DS_store
+
+# virtualenv directories
+env/
+venv/
+
+__pycache__
+
+# locally stored data used by the application
+# todo: generate a script that collects this data
+data/*
+dumps/*
+profiles/local_settings.py
+/indicators/data/
+
+# old version of indicators app
+api.bak
+
+# for now at least
+bin/

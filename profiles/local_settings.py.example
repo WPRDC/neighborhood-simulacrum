@@ -1,0 +1,21 @@
+"""
+local_settings.py.example
+
+Update the values below with your own and rename this file to local_settings.py
+
+These settings are imported into the standard django settings.py
+Store settings that shouldn't be shared on github here
+"""
+
+
+# you'll need a census api key to access census data in bulk
+# https://api.census.gov/data/key_signup.html
+CENSUS_API_KEY = 'YOUR_CENSUS_API_KEY'
+
+# you can generate one here:
+# https://www.miniwebtool.com/django-secret-key-generator/
+LOCAL_SECRET_KEY = 'DJANGO_SECRET_KEY'
+
+# the postgres database name and the user with privileges on that database
+DB_NAME = 'your_db_name'
+DB_USER = 'your_db_user'
