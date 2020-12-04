@@ -194,7 +194,7 @@ def get_variable_data(variable_name: str, indicator: Indicator, region: CensusGe
             denom_label = denom.name
             if denom_label not in denoms_dict:
                 denoms_dict[denom_label] = serialize_denom_variable(denom)
-            denoms_dict[denom_label][_DATA_LABEL][denom.source.year] = var._get_proportional_data(region, denom)
+            denoms_dict[denom_label][_DATA_LABEL][denom.source.year] = var.get_proportional_data(region, denom)
 
     # reconcile denoms_dict with main dict
     variable_dict[_DENOMS_LABEL] = []

@@ -1,13 +1,11 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from indicators.models import Domain, Subdomain, Indicator, CensusVariable, DataViz, Series, Variable
+from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis
 from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
-    SeriesPolymorphicSerializer
-from indicators.serializers import CensusVariableSerializer
+    TimeAxisPolymorphicSerializer
 from indicators.serializers.variable import VariablePolymorphicSerializer
-from indicators.serializers.viz import DataVizSerializer, DataVizWithDataPolymorphicSerializer, \
-    DataVizPolymorphicSerializer
+from indicators.serializers.viz import DataVizWithDataPolymorphicSerializer, DataVizPolymorphicSerializer
 from indicators.utils import is_valid_region_query_request, get_region_from_query_params
 
 
@@ -35,9 +33,9 @@ class VariableViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
 
-class SeriesViewSet(viewsets.ModelViewSet):
-    queryset = Series.objects.all()
-    serializer_class = SeriesPolymorphicSerializer
+class TimeAxisViewSet(viewsets.ModelViewSet):
+    queryset = TimeAxis.objects.all()
+    serializer_class = TimeAxisPolymorphicSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
 

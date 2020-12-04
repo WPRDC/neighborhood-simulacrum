@@ -2,11 +2,11 @@ import csv
 import json
 import os
 
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.exceptions import ObjectDoesNotExist
 from django.template.defaultfilters import slugify
 
 from indicators.models import (Indicator, CensusVariable, CensusSource, Subdomain, CensusVariableSource, Table,
-                               VizVariable, DataViz, YearSeries)
+                               VizVariable, DataViz, StaticTimeAxis)
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -38,7 +38,10 @@ def get_or_generate_table(indicator_description, indicator):
     try:
         table = Table.objects.get(slug=indicator_description['slug'])
     except ObjectDoesNotExist:
-        table = Table(name=indicator_description['name'], slug=indicator_description['slug'], indicator=indicator)
+        table = Table(name=indicator_description['name'],
+                      slug=indicator_description['slug'],
+                      indicator=indicator,
+                      time_axis=StaticTimeAxis.objects.get(slug='most-recent-census-acs-years'))
         table.save()
     return table
 
@@ -78,6 +81,7 @@ def load():
     DataViz.objects.all().delete()
     CensusVariable.objects.all().delete()
     CensusVariableSource.objects.all().delete()
+
     for indicator_name in CURRENT_INDICATORS:
         desc_file = os.path.join(DATA_DIR, 'indicator_definitions', f'{indicator_name}.json')
         data_file = os.path.join(DATA_DIR, 'indicator_data', f'{indicator_name}.csv')
@@ -117,8 +121,6 @@ def load():
 
                 # create table if necessary
                 table = get_or_generate_table(indicator_description, indicator)
-                table.series.set(YearSeries.objects.filter(year__in=years))
-                table.save()
 
                 # add variable to table through VizVariable
                 VizVariable.objects.create(data_viz=table, variable=cur_var, order=i)

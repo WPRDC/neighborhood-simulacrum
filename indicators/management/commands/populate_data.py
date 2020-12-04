@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from geo.models import County, CensusGeography, Tract
 from indicators.models import CensusValue, CensusVariable, CensusSource
@@ -74,13 +75,11 @@ class Command(BaseCommand):
         acs_2017_tables = set()
 
         for census_variable in CensusVariable.objects.all():
-            tables = census_variable.all_census_tables
-            if '2010-decennial-census' in tables:
-                for table in tables['2010-decennial-census']:
-                    cen_2010_tables.add(table)
-            if '2017-acs-5yr' in tables:
-                for table in tables['2017-acs-5yr']:
-                    acs_2017_tables.add(table)
+            for table in census_variable.get_formula_parts_at_time_point(timezone.datetime(2010, 1, 1)):
+                cen_2010_tables.add(table)
+            for table in census_variable.get_formula_parts_at_time_point(timezone.datetime(2017, 1, 1)):
+                acs_2017_tables.add(table)
+
         print('Removing old census values')
         CensusValue.objects.all().delete()
         for county in current_counties:

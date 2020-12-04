@@ -1,13 +1,13 @@
 from django.contrib import admin
 
-from .series import SeriesAdmin, YearSeriesAdmin
+from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin, CKANGeomSourceAdmin
 from .variable import VariableAdmin, CensusValueAdmin, CensusVariableAdmin, CKANVariableAdmin
 from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
 
 from ..models import Indicator, Subdomain, Domain, Value
 
-import nested_admin
+import nested_admin  # todo: think about removing this as a dependence once we develop our own backend interface
 
 
 class IndicatorInline(admin.StackedInline):

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from indicators.models import Domain, Subdomain, Indicator
-from .series import SeriesSerializer, YearSeriesSerializer, SeriesPolymorphicSerializer
+from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import (
     CensusSourceSerializer,
     CKANSourceSerializer,
@@ -62,5 +62,3 @@ class DomainSerializer(serializers.ModelSerializer):
             'description',
             'subdomains',
         )
-
-# Value is model is for backend only

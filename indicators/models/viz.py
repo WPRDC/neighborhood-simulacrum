@@ -1,7 +1,7 @@
 from typing import List
 
 from django.db import models
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
 from polymorphic.models import PolymorphicModel
 
 from geo.models import CensusGeography
@@ -9,8 +9,8 @@ from indicators.helpers import clean_sql
 from indicators.models.abstract import Described
 
 
-class DataViz(Described, PolymorphicModel):
-    series = models.ManyToManyField('Series', related_name='data_vizes')
+class DataViz(PolymorphicModel, Described):
+    time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)
     vars = models.ManyToManyField('Variable', through='VizVariable')
     indicator = models.ForeignKey('Indicator', related_name='data_vizes', on_delete=models.CASCADE)
 
@@ -51,8 +51,8 @@ class MiniMap(DataViz):
     carto_table = models.CharField(max_length=80)
     fields = ArrayField(models.CharField(max_length=80), blank=True)
     geom_field = models.CharField(max_length=40, default="the_geom")
-    paint = JSONField(null=True, blank=True)
-    layout = JSONField(null=True, blank=True)
+    paint = models.JSONField(null=True, blank=True)
+    layout = models.JSONField(null=True, blank=True)
     filter = models.TextField(null=True, blank=True)
 
     @property
@@ -77,13 +77,12 @@ class MiniMap(DataViz):
 
 class Table(DataViz):
     """
-                | series A  | series B
+                | t1  | t2
         cat A   | data      | data
         cat B   | data      | data
     """
     transpose = models.BooleanField(default=False)
     show_percent = models.BooleanField(default=True)
-    pass
 
     @property
     def variables(self):
@@ -94,3 +93,76 @@ class Table(DataViz):
         for variable in self.variables.order_by('variable_to_viz'):
             data.append(variable.get_table_row(self, region))
         return data
+
+
+class Chart(DataViz):
+    """
+    Abstract base class for charts
+    """
+    HORIZONTAL = 'horizontal'
+    VERTICAL = 'vertical'
+    LAYOUT_CHOICES = ((HORIZONTAL, 'Horizontal'), (VERTICAL, 'Vertical'))
+
+    LINE = 'line'
+    SQUARE = 'square'
+    RECT = 'rect'
+    CIRCLE = 'circle'
+    CROSS = 'cross'
+    DIAMOND = 'diamond'
+    STAR = 'star'
+    TRIANGLE = 'triangle'
+    WYE = 'wye'
+    NONE = 'none'
+    LEGEND_TYPE_CHOICES = (
+        (LINE, 'Line'),
+        (SQUARE, 'Square'),
+        (RECT, 'Rectangle'),
+        (CIRCLE, 'Circle'),
+        (CROSS, 'Cross'),
+        (DIAMOND, 'Diamond'),
+        (STAR, 'Star'),
+        (TRIANGLE, 'Triangle'),
+        (WYE, 'Wye'),
+        (NONE, 'None'),
+    )
+    legendType = models.CharField(max_length=10, choices=LEGEND_TYPE_CHOICES, default='circle')
+
+    @property
+    def variables(self):
+        return self.vars.order_by('variable_to_viz')
+
+    def get_chart_data(self, region: CensusGeography) -> List[dict]:
+        data = []
+        for variable in self.variables.order_by('variable_to_viz'):
+            data.append(variable.get_chart_record(self, region))
+        return data
+
+    class Meta:
+        abstract = True
+
+
+class BarChart(Chart):
+    layout = models.CharField(
+        max_length=10,
+        choices=Chart.LAYOUT_CHOICES,
+        default=Chart.HORIZONTAL)
+
+
+class PieChart(Chart):
+    """
+    see: http://recharts.org/en-US/api/Pie
+    """
+    pass
+
+
+class LineChart(Chart):
+    """
+    """
+    layout = models.CharField(
+        max_length=10,
+        choices=Chart.LAYOUT_CHOICES,
+        default=Chart.HORIZONTAL)
+
+
+class PopulationPyramidChart(Chart):
+    pass
