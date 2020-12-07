@@ -2,7 +2,7 @@ import os
 import json
 
 from django.db.utils import IntegrityError
-from indicators.models.ckan import CKANGeomSource
+from indicators.models import CKANGeomSource
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),

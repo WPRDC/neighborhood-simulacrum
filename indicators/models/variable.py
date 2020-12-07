@@ -69,6 +69,12 @@ class Variable(PolymorphicModel, Described):
 
         return data
 
+    def can_handle_time_part(self, time_part: TimeAxis.TimePart) -> bool:
+        for source in self.sources.all():
+            if source.can_handle_time_part(time_part):
+                return True
+        return False
+
 
 class CensusVariable(Variable):
     sources = models.ManyToManyField(
@@ -76,12 +82,6 @@ class CensusVariable(Variable):
         related_name='census_variables',
         through='CensusVariableSource'
     )
-
-    def all_census_tables(self, time_points: [timezone.datetime]):
-        return {
-            self.get_source_for_time_point(time_point).slug: self.get_formula_parts_at_time_point(time_point)
-            for time_point in time_points
-        }
 
     def get_table_row(self, data_viz: DataViz, region: CensusGeography) -> Dict[str, Union[dict, None]]:
         """
@@ -116,7 +116,7 @@ class CensusVariable(Variable):
         value: float = 0
         moe: float = 0
 
-        source = self.get_source_for_time_point(time_part.time_point)
+        source = self._get_source_for_time_point(time_part.time_point)
 
         for part in self.get_formula_parts_at_time_point(time_part.time_point):
             census_value = self._get_or_create_census_value(part, region, source).value
@@ -140,27 +140,27 @@ class CensusVariable(Variable):
         return {**self.get_value_and_moe(region, time_part),
                 **self.get_proportional_data(region, time_part)}
 
-    def get_source_for_time_point(self, time_point: timezone.datetime) -> CensusSource:
+    def get_formula_parts_at_time_point(self, time_point: timezone.datetime) -> List[str]:
+        return self._split_formula(self._get_formula_at_time_point(time_point),
+                                   self._get_source_for_time_point(time_point))
+
+    def _get_source_for_time_point(self, time_point: timezone.datetime) -> CensusSource:
         # fixme: come up with a  better solution for this
         is_decade = not time_point.year % 10
         if is_decade:
             return self.sources.filter(dataset='CEN')[0]
         return self.sources.filter(dataset='ACS5')[0]
 
-    def get_formula_parts_at_time_point(self, time_point: timezone.datetime) -> List[str]:
-        return self._split_formula(self.get_formula_at_time_point(time_point),
-                                   self.get_source_for_time_point(time_point))
-
-    def get_formula_at_time_point(self, time_point: timezone.datetime) -> Union[str, None]:
+    def _get_formula_at_time_point(self, time_point: timezone.datetime) -> Union[str, None]:
         formula: Union[str, None] = None
         try:
-            source: CensusSource = self.get_source_for_time_point(time_point)
+            source: CensusSource = self._get_source_for_time_point(time_point)
             formula = source.source_to_variable.get(variable=self).formula
         finally:
             return formula
 
     def _fetch_data_for_region(self, formula_parts: List[str], region: CensusGeography, time_point: timezone.datetime):
-        source = self.get_source_for_time_point(time_point)
+        source = self._get_source_for_time_point(time_point)
         return source.get_data(formula_parts, region)
 
     @staticmethod
@@ -262,26 +262,28 @@ class CKANVariable(Variable):
     )
     sql_filter = models.TextField(help_text='SQL clause that will be used to filter data.', null=True, blank=True)
 
-    # Data Viz
     def get_table_row(self, data_viz: DataViz, region: CensusGeography) -> Dict[str, Union[dict, None]]:
         """
         Gets the data for a table row. Data is collected for each series (column) in `data_viz`.
             If denominators are provided, sub rows will also be provided.
         """
         row = {}
-        for time_frame in data_viz.time_frames.all():
-            values = self._get_values_for_region_over_time_frame(region, time_frame)
+        for time_part in data_viz.time_axis.time_parts:
+            values = self.get_all_values_at_region_and_time_part(region, time_part)
             if values is not None:
-                row[time_frame.slug] = values
+                row[time_part.slug] = values
         return row
 
     def get_chart_record(self, data_viz: DataViz, region: CensusGeography) -> Dict[str, any]:
+        """
+        Gets the data for one record displayed in a chart.
+            {name: variable.name, [series.name]: f(value, series) }
+        """
         record: Dict[str, any] = {'name': self.name}
-        time_point: timezone.datetime
-        for time_frame in data_viz.time_frames.all():
-            value = self.get_primary_value(region, time_frame)
+        for time_part in data_viz.time_axis.time_parts:
+            value = self.get_primary_value(region, time_part)
             if value is not None:
-                record[time_frame.slug] = value
+                record[time_part.slug] = value
         return record
 
     def get_primary_value(self, region: CensusGeography, time_part: TimeAxis.TimePart) -> any:
@@ -337,23 +339,27 @@ class CKANVariable(Variable):
         Query CKAN for some aggregation of this variable within its region.
         (e.g. mean housing sale price in Bloomfield)
         """
-        join_statement = ''  # todo if necessary
-
         aggregation_method = self.aggregation_method if self.aggregation_method != 'NONE' else ''
         target_field = self.field if self.field in ('*',) else f'"{self.field}"'
         source = self._get_source_for_time_point(time_part.time_point)
 
+        std_query = source.standardization_query
+
         cast = '::int' if aggregation_method in ('COUNT',) else ''
 
+        # is empty if source only covers one time chunk
+        geom_select = f', {source.get_geoid_field(region)}'
+        time_select = f', {source.std_time_sql_identifier}' if source.std_time_sql_identifier else ''
+
         geom_filter_clause = source.get_geom_filter_sql(region)
-        time_filter_clause = source.get_time_filter_sql(time_part)
+        time_filter_clause = f'AND {source.get_time_filter_sql(time_part)}' if time_select else ''
 
         # generate sql query to send to `/datastore_search_sql` endpoint
         # noinspection SqlResolve
         query = f"""
-        SELECT {aggregation_method}({target_field}){cast} as "v", {source.std_time_sql_identifier}
-        FROM {f'({join_statement}) as sub_query' if join_statement else f'"{source.resource_id}"'}
+        SELECT {aggregation_method}({target_field}){cast} as "v" {time_select}
+        FROM {f'({std_query}) as sub_query' if std_query else f'"{source.resource_id}"'}
         WHERE  {f'{self.sql_filter} AND' if self.sql_filter else ''}
-            {geom_filter_clause} AND {time_filter_clause}
+            {geom_filter_clause} {time_filter_clause}
         """
         return self._query_datastore(query)

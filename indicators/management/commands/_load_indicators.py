@@ -5,7 +5,8 @@ import os
 from django.core.exceptions import ObjectDoesNotExist
 from django.template.defaultfilters import slugify
 
-from indicators.models import (Indicator, CensusVariable, CensusSource, Subdomain, CensusVariableSource, Table,
+from indicators.models import (Indicator, CensusVariable, CensusSource,
+                               Subdomain, CensusVariableSource, Table,
                                VizVariable, DataViz, StaticTimeAxis)
 
 DATA_DIR = os.path.join(
@@ -34,14 +35,14 @@ def get_or_generate_subdomain(subdomain_title):
     return subdomain
 
 
-def get_or_generate_table(indicator_description, indicator):
+def get_or_generate_table(indicator_description, indicator, time_axis):
     try:
         table = Table.objects.get(slug=indicator_description['slug'])
     except ObjectDoesNotExist:
         table = Table(name=indicator_description['name'],
                       slug=indicator_description['slug'],
                       indicator=indicator,
-                      time_axis=StaticTimeAxis.objects.get(slug='most-recent-census-acs-years'))
+                      time_axis=time_axis)
         table.save()
     return table
 
@@ -106,10 +107,12 @@ def load():
                     depth=row['indent'],
                 )
                 cur_var.save()
-
+                time_axis_slug = 'most-recent-acs-year'
                 # link variable to sources through CensusVariableSource
                 for source in SOURCES:
                     if source in row:
+                        if source == 'census_2010':
+                            time_axis_slug = 'most-recent-census-year-and-most-recent-acs-year'
                         years.add(get_year(source))
                         CensusVariableSource.objects.create(
                             variable=cur_var,
@@ -119,8 +122,10 @@ def load():
 
                 cur_var.save()
 
+
                 # create table if necessary
-                table = get_or_generate_table(indicator_description, indicator)
+                time_axis = StaticTimeAxis.objects.get(slug=time_axis_slug)
+                table = get_or_generate_table(indicator_description, indicator, time_axis)
 
                 # add variable to table through VizVariable
                 VizVariable.objects.create(data_viz=table, variable=cur_var, order=i)

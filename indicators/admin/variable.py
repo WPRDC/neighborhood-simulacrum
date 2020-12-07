@@ -11,7 +11,12 @@ class VariableAdmin(PolymorphicParentModelAdmin):
     child_models = (CKANVariable, CensusVariable,)
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
-
+    list_display = (
+        'slug',
+        'name',
+        'title',
+        'id'
+    )
 
 class VariableChildAdmin(PolymorphicChildModelAdmin):
     base_model = Variable

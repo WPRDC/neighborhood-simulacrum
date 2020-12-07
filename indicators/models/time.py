@@ -20,15 +20,39 @@ def m2q(m: int):
 
 class TimeAxis(PolymorphicModel, Described):
     """ Base class for time axes. """
-    # the values of these constants map to their associated argument in the timedelta constructor
-    # simply removing the trailing 's' will give you the `datepart` string used in `trunc_date` in postgres
-    MINUTE = 'minutes'
-    HOUR = 'hours'
-    DAY = 'days'
-    WEEK = 'weeks'
-    MONTH = 'months'
-    QUARTER = 'quarters'
-    YEAR = 'years'
+
+    @dataclass
+    class TimePart(object):
+        """ Holds what's necessary to describe one continuous chunk of time"""
+        slug: str
+        name: str
+        time_point: timezone.datetime
+        time_unit: int
+
+        @property
+        def trunc_str(self):
+            trunc_field = TimeAxis.UNIT_FIELDS[self.time_unit]
+            return f""" date_trunc('{trunc_field}', '{self.time_point}') """
+
+    # If another time unit is added somehow, make sure its value reflects its relative specificity
+    # By comparing specificity, we can tell which units can be rolled up into other, larger ones.
+    MINUTE = 1
+    HOUR = 2
+    DAY = 3
+    WEEK = 4
+    MONTH = 5
+    QUARTER = 6
+    YEAR = 7
+
+    UNIT_FIELDS = {
+        MINUTE: 'minute',
+        HOUR: 'hour',
+        DAY: 'day',
+        WEEK: 'week',
+        MONTH: 'month',
+        QUARTER: 'quarter',
+        YEAR: 'year',
+    }
 
     REAL_TIME_PERIODS = [MINUTE, HOUR, DAY, WEEK]  # based on a set number of milliseconds
     CALENDAR_TIME_PERIODS = [MONTH, QUARTER, YEAR]  # based on values in calendar rep of date
@@ -43,26 +67,14 @@ class TimeAxis(PolymorphicModel, Described):
         (YEAR, 'Yearly'),
     )
 
-    @dataclass
-    class TimePart(object):
-        slug: str
-        name: str
-        time_point: timezone.datetime
-        time_unit: str
-
-        @property
-        def trunc_str(self):
-            trunc_field = self.time_unit[:-1]  # remove plural 's' to work in `date_trunc`
-            return f""" date_trunc('{trunc_field}', '{self.time_point}') """
-
-    unit = models.CharField(max_length=12, choices=UNIT_CHOICES)
+    unit = models.IntegerField(choices=UNIT_CHOICES)
 
     @property
     def time_points(self) -> list[timezone.datetime]:
         return []
 
     @property
-    def time_parts(self, ):
+    def time_parts(self):
         return [TimeAxis.TimePart(slug=self._get_slug_for_time_point(time_point),
                                   name=self._get_name_for_time_point(time_point),
                                   time_point=time_point,
@@ -71,7 +83,7 @@ class TimeAxis(PolymorphicModel, Described):
     def _get_slug_for_time_point(self, time_point: timezone.datetime):
         if self.unit == self.QUARTER:
             return f'{self.slug}:Q{m2q(time_point.month)}'
-        date_part = self.unit[:-1]  # removes the plural 's'
+        date_part = self.UNIT_FIELDS[self.unit]
         return f'{self.slug}:{getattr(time_point, date_part)}'
 
     def _get_name_for_time_point(self, time_point: timezone.datetime):
@@ -89,7 +101,7 @@ class TimeAxis(PolymorphicModel, Described):
             return time_point.isoformat(sep=' ', timespec='minutes')
 
     def _get_offset_datetime(self,
-                             period: str,
+                             period: int,
                              ref_date: timezone.datetime,
                              displacement: int) -> timezone.datetime:
         if period == self.QUARTER:

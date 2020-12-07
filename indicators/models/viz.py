@@ -1,7 +1,10 @@
 from typing import List
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 from polymorphic.models import PolymorphicModel
 
 from geo.models import CensusGeography
@@ -21,6 +24,7 @@ class DataViz(PolymorphicModel, Described):
     @property
     def variables(self):
         return self.vars.order_by('variable_to_viz')
+
 
 
 class VizVariable(models.Model):
@@ -166,3 +170,13 @@ class LineChart(Chart):
 
 class PopulationPyramidChart(Chart):
     pass
+
+
+@receiver(m2m_changed, sender=DataViz.vars.through, dispatch_uid="check_var_timing")
+def check_var_timing(sender, instance: DataViz, **kwargs):
+    for var in instance.vars.all():
+        print(var)
+        for time_part in instance.time_axis.time_parts:
+            if not var.can_handle_time_part(time_part):
+                raise ValidationError(f'{var.slug} is not available in time {time_part.slug}')
+
