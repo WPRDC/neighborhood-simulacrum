@@ -9,7 +9,6 @@ from polymorphic.models import PolymorphicModel
 from geo.models import CensusGeography
 from indicators.models import TimeAxis
 from indicators.models.abstract import Described
-from indicators.utils import GeoIDFixes
 
 
 class Source(PolymorphicModel, Described):
@@ -51,6 +50,7 @@ class CensusSource(Source):
     def get_data(self, formula_parts: Union[List[str], str], region: CensusGeography) -> []:
         tables = [formula_parts] if type(formula_parts) is str else formula_parts
         getter = self._get_api_caller()
+        print(tables, region.census_geo)
         return getter.get(tables, region.census_geo)
 
     def _get_api_caller(self):
@@ -162,6 +162,7 @@ class CKANGeomSource(CKANSource):
             {self.geom_field}
         )"""
 
+
 class CKANRegionalSource(CKANSource):
     blockgroup_field = models.CharField(max_length=100, null=True, blank=True)
     blockgroup_field_is_sql = models.BooleanField(default=False)
@@ -179,8 +180,7 @@ class CKANRegionalSource(CKANSource):
     neighborhood_field_is_sql = models.BooleanField(default=False)
 
     def can_handle_geography(self, geog: CensusGeography):
-        test_field = getattr(self, f'{geog.TYPE}_field')
-        return bool(test_field)
+        return bool(self.get_geoid_field(geog))
 
     def get_geom_filter_sql(self, region: CensusGeography) -> str:
         """
@@ -199,5 +199,5 @@ class CKANRegionalSource(CKANSource):
         return f""" {source_region_field} LIKE '{region.geoid}' """
 
     def get_geoid_field(self, region: CensusGeography):
-        geoid_field = getattr(self, f'{region.TYPE}_field')
+        geoid_field = getattr(self, f'{region.TYPE}_field', None)
         return geoid_field

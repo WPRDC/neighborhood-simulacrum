@@ -18,6 +18,7 @@ class VariableAdmin(PolymorphicParentModelAdmin):
         'id'
     )
 
+
 class VariableChildAdmin(PolymorphicChildModelAdmin):
     base_model = Variable
     prepopulated_fields = {"slug": ("name",)}
@@ -41,9 +42,9 @@ class CensusVariableAdmin(VariableChildAdmin):
 
 @admin.register(CensusValue)
 class CensusValueAdmin(admin.ModelAdmin):
-    list_display = ('census_table', 'region', 'value')
+    list_display = ('census_table', 'geography', 'value')
     search_fields = ('census_table',)
-    autocomplete_fields = ('region',)
+    autocomplete_fields = ('geography',)
 
 
 @admin.register(CKANVariable)

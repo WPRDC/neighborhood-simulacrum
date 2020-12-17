@@ -1,3 +1,5 @@
+from typing import List
+
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -10,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 MAX_COUNT = 100  # stupid large number for steps on an axis.  anything near this size would be impractical.
 
 
-def m2q(m: int):
+def m2q(m: int) -> int:
     """
     Convert month(1-index) to quarter(1-index)
     i.e. m2q(jan) is m2q(1) = 1
@@ -33,6 +35,9 @@ class TimeAxis(PolymorphicModel, Described):
         def trunc_str(self):
             trunc_field = TimeAxis.UNIT_FIELDS[self.time_unit]
             return f""" date_trunc('{trunc_field}', '{self.time_point}') """
+
+        def __hash__(self):
+            return hash((self.slug, self.time_point, self.time_unit))
 
     # If another time unit is added somehow, make sure its value reflects its relative specificity
     # By comparing specificity, we can tell which units can be rolled up into other, larger ones.
@@ -70,7 +75,7 @@ class TimeAxis(PolymorphicModel, Described):
     unit = models.IntegerField(choices=UNIT_CHOICES)
 
     @property
-    def time_points(self) -> list[timezone.datetime]:
+    def time_points(self) -> List[timezone.datetime]:
         return []
 
     @property
@@ -120,7 +125,7 @@ class StaticTimeAxis(TimeAxis):
     dates = ArrayField(models.DateTimeField())
 
     @property
-    def time_points(self) -> list[timezone.datetime]:
+    def time_points(self) -> List[timezone.datetime]:
         return self.dates
 
 
@@ -131,7 +136,7 @@ class StaticConsecutiveTimeAxis(TimeAxis):
     ticks = models.IntegerField()
 
     @property
-    def time_points(self) -> list[timezone.datetime]:
+    def time_points(self) -> List[timezone.datetime]:
         count = self.ticks if self.ticks else MAX_COUNT
         start_dt = self.start if self.start else self.end
         end_dt = self.end
@@ -164,7 +169,7 @@ class RelativeTimeAxis(TimeAxis):
     direction = models.IntegerField(choices=DIRECTIONS, default=-1)
 
     @property
-    def time_points(self) -> list[timezone.datetime]:
+    def time_points(self) -> List[timezone.datetime]:
         count = self.ticks if self.ticks else MAX_COUNT
         start_dt = self._get_offset_datetime(
             self.unit,

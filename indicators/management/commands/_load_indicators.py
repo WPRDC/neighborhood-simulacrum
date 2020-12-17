@@ -122,7 +122,6 @@ def load():
 
                 cur_var.save()
 
-
                 # create table if necessary
                 time_axis = StaticTimeAxis.objects.get(slug=time_axis_slug)
                 table = get_or_generate_table(indicator_description, indicator, time_axis)

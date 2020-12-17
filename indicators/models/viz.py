@@ -1,15 +1,21 @@
-from typing import List
+from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.db.models import QuerySet
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
+
 from polymorphic.models import PolymorphicModel
 
-from geo.models import CensusGeography
 from indicators.helpers import clean_sql
 from indicators.models.abstract import Described
+from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
+
+if TYPE_CHECKING:
+    from indicators.models import Variable
+    from geo.models import CensusGeography
 
 
 class DataViz(PolymorphicModel, Described):
@@ -17,14 +23,29 @@ class DataViz(PolymorphicModel, Described):
     vars = models.ManyToManyField('Variable', through='VizVariable')
     indicator = models.ForeignKey('Indicator', related_name='data_vizes', on_delete=models.CASCADE)
 
+    @property
+    def variables(self) -> QuerySet['Variable']:
+        return self.vars.order_by('variable_to_viz')
+
+    def can_handle_geography(self, geog: 'CensusGeography') -> bool:
+        var: 'Variable'
+        for var in self.vars.all():
+            if var.can_handle_geography(geog):
+                return True
+        return False
+
+    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        if hasattr(self, 'get_table_data'):
+            return self.get_table_data(geog)
+        if hasattr(self, 'get_chart_data'):
+            return self.get_chart_data(geog)
+        return DataResponse(data=None,
+                            error=ErrorResponse(level=ErrorLevel.ERROR,
+                                                message='Data Viz has no data getter.'))
+
     class Meta:
         verbose_name = "Data Visualization"
         verbose_name_plural = "Data Visualizations"
-
-    @property
-    def variables(self):
-        return self.vars.order_by('variable_to_viz')
-
 
 
 class VizVariable(models.Model):
@@ -63,7 +84,7 @@ class MiniMap(DataViz):
     def unfiltered_sql(self):
         return f"SELECT {self.fields.join(', ')} FROM {self.carto_table}"
 
-    def get_sql_for_region(self, region: CensusGeography) -> str:
+    def get_sql_for_region(self, region: 'CensusGeography') -> str:
         # noinspection SqlResolve
         sql = f"""
                 SELECT {', '.join(self.fields)} , {self.geom_field}, the_geom_webmercator
@@ -92,11 +113,17 @@ class Table(DataViz):
     def variables(self):
         return self.vars.order_by('variable_to_viz')
 
-    def get_table_data(self, region: CensusGeography) -> List[dict]:
+    def get_table_data(self, geog: 'CensusGeography') -> DataResponse:
         data = []
-        for variable in self.variables.order_by('variable_to_viz'):
-            data.append(variable.get_table_row(self, region))
-        return data
+        error: ErrorResponse
+        if self.can_handle_geography(geog):
+            for variable in self.variables.order_by('variable_to_viz'):
+                data.append(variable.get_table_row(self, geog))
+            error = ErrorResponse(level=ErrorLevel.OK, message=None)
+        else:
+            error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Table is not available for {geog.name}.')
+
+        return DataResponse(data=data, error=error)
 
 
 class Chart(DataViz):
@@ -135,11 +162,16 @@ class Chart(DataViz):
     def variables(self):
         return self.vars.order_by('variable_to_viz')
 
-    def get_chart_data(self, region: CensusGeography) -> List[dict]:
+    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
         data = []
-        for variable in self.variables.order_by('variable_to_viz'):
-            data.append(variable.get_chart_record(self, region))
-        return data
+        error: ErrorResponse
+        if self.can_handle_geography(region):
+            for variable in self.variables.order_by('variable_to_viz'):
+                data.append(variable.get_chart_record(self, region))
+            error = ErrorResponse(level=ErrorLevel.OK, message=f'This Chart is not available for this {region.name}.')
+        else:
+            error = ErrorResponse(level=ErrorLevel.EMPTY, message=None)
+        return DataResponse(data=data, error=error)
 
     class Meta:
         abstract = True
@@ -175,8 +207,7 @@ class PopulationPyramidChart(Chart):
 @receiver(m2m_changed, sender=DataViz.vars.through, dispatch_uid="check_var_timing")
 def check_var_timing(sender, instance: DataViz, **kwargs):
     for var in instance.vars.all():
-        print(var)
+        var: 'Variable'
         for time_part in instance.time_axis.time_parts:
             if not var.can_handle_time_part(time_part):
                 raise ValidationError(f'{var.slug} is not available in time {time_part.slug}')
-

@@ -1,12 +1,14 @@
-from abc import ABC
+from functools import lru_cache
 
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
+from geo.models import CensusGeography
 from . import TimeAxisPolymorphicSerializer
 from .variable import BriefVariablePolymorphicSerializer
 from ..models import DataViz, Table
 from ..models.viz import BarChart, PopulationPyramidChart, PieChart, LineChart
+from ..utils import DataResponse, ErrorResponse, ErrorLevel
 
 
 class DataVizSerializer(serializers.HyperlinkedModelSerializer):
@@ -68,53 +70,63 @@ class DataVizPolymorphicSerializer(PolymorphicSerializer):
 
 # ---
 # with data
+
 class WithData(serializers.Serializer):
     data = serializers.SerializerMethodField()
+    error = serializers.SerializerMethodField()
+
+    class Meta:
+        fields = ('data', 'error')
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    @lru_cache
+    def _get_data_response(self, viz: DataViz, geog: CensusGeography) -> DataResponse:
+        return viz.get_viz_data(geog)
+
+    def get_data(self, obj: DataViz):
+        if 'error' in self.context:
+            return []
+        return self._get_data_response(obj, self.context['geography']).data
+
+    def get_error(self, obj: DataViz):
+        if 'error' in self.context:
+            return self.context['error']
+        return self._get_data_response(obj, self.context['geography']).error.as_dict()
 
 
 class TableWithDataSerializer(TableSerializer, WithData):
     class Meta:
         model = Table
-        fields = TableSerializer.Meta.fields + ('data',)
-
-    def get_data(self, obj: Table):
-        return obj.get_table_data(self.context['region'])
+        fields = TableSerializer.Meta.fields + WithData.Meta.fields
 
 
 class BarChartWithDataSerializer(BarChartSerializer, WithData):
     class Meta:
         model = BarChart
-        fields = BarChartSerializer.Meta.fields + ('data',)
-
-    def get_data(self, obj: BarChart):
-        return obj.get_chart_data(self.context['region'])
+        fields = BarChartSerializer.Meta.fields + WithData.Meta.fields
 
 
 class LineChartWithDataSerializer(LineChartSerializer, WithData):
     class Meta:
         model = LineChart
-        fields = LineChartSerializer.Meta.fields + ('data',)
-
-    def get_data(self, obj: LineChart):
-        return obj.get_chart_data(self.context['region'])
+        fields = LineChartSerializer.Meta.fields + WithData.Meta.fields
 
 
 class PieChartWithDataSerializer(PieChartSerializer, WithData):
     class Meta:
         model = PieChart
-        fields = PieChartSerializer.Meta.fields + ('data',)
-
-    def get_data(self, obj: PieChart):
-        return obj.get_chart_data(self.context['region'])
+        fields = PieChartSerializer.Meta.fields + WithData.Meta.fields
 
 
 class PopulationPyramidChartWithDataSerializer(PopulationPyramidChartSerializer, WithData):
     class Meta:
         model = PopulationPyramidChart
-        fields = PopulationPyramidChartSerializer.Meta.fields + ('data',)
-
-    def get_data(self, obj: PopulationPyramidChart):
-        return obj.get_chart_data(self.context['region'])
+        fields = PopulationPyramidChartSerializer.Meta.fields + WithData.Meta.fields
 
 
 class DataVizWithDataPolymorphicSerializer(PolymorphicSerializer):
@@ -123,7 +135,8 @@ class DataVizWithDataPolymorphicSerializer(PolymorphicSerializer):
         BarChart: BarChartWithDataSerializer,
         LineChart: LineChartWithDataSerializer,
         PieChart: PieChartWithDataSerializer,
-        PopulationPyramidChart: PopulationPyramidChartWithDataSerializer, }
+        PopulationPyramidChart: PopulationPyramidChartWithDataSerializer,
+    }
 
 
 # ---

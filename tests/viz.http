@@ -1,0 +1,12 @@
+# Mismatched regionType and geoid
+GET http://localhost:8000/data-viz/57/?regionType=tract&geoid=42003
+Accept: application/json
+
+
+
+###
+# Good Dataviz data Request
+GET http://localhost:8000/data-viz/57/?regionType=tract&geoid=42003070900
+Accept: application/json
+
+###
