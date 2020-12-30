@@ -2,7 +2,7 @@ import { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from 'utils/@reduxjs/toolkit';
 import { ContainerState, GeoLayer } from './types';
 import { DEFAULT_GEO_CATEGORY } from '../../settings';
-import { Region, RegionID, Taxonomy } from '../../types';
+import { Region, RegionDescriptor, Taxonomy } from '../../types';
 
 // The initial state of the Explorer container
 export const initialState: ContainerState = {
@@ -16,7 +16,7 @@ export const initialState: ContainerState = {
 
   // menu state
   selectedGeoLayer: DEFAULT_GEO_CATEGORY,
-  selectedRegionID: undefined,
+  selectedRegionDescriptor: undefined,
 };
 
 const explorerSlice = createSlice({
@@ -36,7 +36,7 @@ const explorerSlice = createSlice({
       state.taxonomyLoadError = action.payload;
     },
 
-    requestRegionDetails(state, action: PayloadAction<RegionID>) {
+    requestRegionDetails(state, action: PayloadAction<RegionDescriptor>) {
       state.currentRegion = undefined;
       state.currentRegionIsLoading = true;
     },
@@ -54,8 +54,8 @@ const explorerSlice = createSlice({
     selectGeoLayer(state, action: PayloadAction<GeoLayer>) {
       state.selectedGeoLayer = action.payload;
     },
-    selectRegion(state, action: PayloadAction<RegionID>) {
-      state.selectedRegionID = action.payload;
+    selectRegion(state, action: PayloadAction<RegionDescriptor>) {
+      state.selectedRegionDescriptor = action.payload;
     },
   },
 });

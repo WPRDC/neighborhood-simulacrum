@@ -45,7 +45,7 @@ export const selectSelectedGeoLayer = createSelector(
   explorerState => explorerState.selectedGeoLayer,
 );
 
-export const selectSelectedRegionID = createSelector(
+export const selectSelectedRegionDescriptor = createSelector(
   [selectExplorer],
-  explorerState => explorerState.selectedRegionID,
+  explorerState => explorerState.selectedRegionDescriptor,
 );

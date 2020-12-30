@@ -11,7 +11,7 @@ const census: MenuLayer = {
     minzoom: 0,
     maxzoom: 11,
     source: 'census_county',
-    sql: `SELECT *, 'county' as regionType FROM census_county WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT *, 'county' as regionType, geoid as regionID FROM census_county WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
@@ -24,7 +24,7 @@ const census: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.hoverColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionID', ''],
     },
     {
       id: `${MenuLayers.County}/selected`,
@@ -36,7 +36,7 @@ const census: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.selectedColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionID', ''],
     },
     {
       id: `${MenuLayers.County}/borders`,

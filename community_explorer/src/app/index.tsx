@@ -29,8 +29,7 @@ export function App() {
         <Flex height="100vh" direction="column">
           <TopBar />
           <Switch>
-            {/*<Route path={['/', '/:regionType/:geoid']}>*/}
-            <Route path="/:regionType?/:geoid?">
+            <Route path="/:regionType?/:regionID?">
               <Explorer />
             </Route>
             <Route component={NotFoundPage} />

@@ -11,7 +11,7 @@ export const blockGroup: MenuLayer = {
     minzoom: 0,
     maxzoom: 11,
     source: 'census_blockgroup',
-    sql: `SELECT * , 'blockgroup' as regionType FROM census_blockgroup WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT * , 'blockGroup' as regionType, geoid as regionID FROM census_blockgroup WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
@@ -24,7 +24,7 @@ export const blockGroup: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.hoverColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionid', ''],
     },
     {
       id: `${MenuLayers.BlockGroup}/selected`,
@@ -36,7 +36,7 @@ export const blockGroup: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.selectedColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionid', ''],
     },
     {
       id: `${MenuLayers.BlockGroup}/borders`,

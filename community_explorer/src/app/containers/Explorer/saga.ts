@@ -4,7 +4,7 @@ import { PayloadAction } from '@reduxjs/toolkit';
 import Api from '../../api';
 
 import { actions } from './slice';
-import { RegionID } from '../../types';
+import { RegionDescriptor } from '../../types';
 
 function* handleFetchTaxonomy(/* action */) {
   try {
@@ -22,7 +22,7 @@ function* handleFetchTaxonomy(/* action */) {
   }
 }
 
-function* handleFetchRegionDescription(action: PayloadAction<RegionID>) {
+function* handleFetchRegionDescription(action: PayloadAction<RegionDescriptor>) {
   const regionID = action.payload;
   try {
     const response = yield call(Api.requestRegionDescription, regionID);

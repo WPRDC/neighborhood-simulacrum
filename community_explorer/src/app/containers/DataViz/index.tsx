@@ -13,7 +13,7 @@ import { actions } from './slice';
 import { dataVizSaga } from './saga';
 import { View } from '@react-spectrum/view';
 import { makeSelectDataVizData } from './selectors';
-import { selectSelectedRegionID } from '../Explorer/selectors';
+import { selectSelectedRegionDescriptor } from '../Explorer/selectors';
 import { getSpecificDataViz } from './util';
 
 import { DataVizID } from '../../types';
@@ -33,7 +33,7 @@ export function DataViz(props: Props) {
   const dispatch = useDispatch();
 
   /* Instance state */
-  const regionID = useSelector(selectSelectedRegionID);
+  const regionDescriptor = useSelector(selectSelectedRegionDescriptor);
   const selectDataVizDataRecord = React.useMemo(makeSelectDataVizData, []);
   const dataVizDataRecord = useSelector(state =>
     selectDataVizDataRecord(state, { dataVizID: dataVizID }),
@@ -42,10 +42,10 @@ export function DataViz(props: Props) {
   // when this badboy renders, we need to get its data.
   React.useEffect(() => {
     const hasData = !!dataVizDataRecord && !!dataVizDataRecord.dataViz;
-    if (!!regionID && !hasData) {
-      dispatch(actions.requestDataViz({ dataVizID, regionID }));
+    if (!!regionDescriptor && !hasData) {
+      dispatch(actions.requestDataViz({ dataVizID, regionDescriptor }));
     }
-  }, [regionID]);
+  }, [regionDescriptor]);
 
   if (!dataVizDataRecord) return null;
 

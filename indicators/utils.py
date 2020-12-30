@@ -12,13 +12,13 @@ CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
 REGION_TYPE_LABEL = 'regionType'
-REGION_ID_LABEL = 'geoid'
+REGION_ID_LABEL = 'regionID'
 
 REGION_MODEL_MAPPING = {
     'tract': Tract,
     'county': County,
-    'blockgroup': BlockGroup,
-    'countysubdivision': CountySubdivision,
+    'blockGroup': BlockGroup,
+    'countySubdivision': CountySubdivision,
 }
 
 

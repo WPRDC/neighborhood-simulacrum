@@ -9,7 +9,9 @@ class HierarchySerializer(serializers.ModelSerializer):
         model = CensusGeography
         fields = (
             'id',
-            'title'
+            'title',
+            'region_type',
+            'regionID'
         )
 
 
@@ -21,61 +23,38 @@ class CensusGeographySerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'title',
+            'region_type',
+            'regionID',
             'hierarchy',
         )
 
 
-class CountySerializer(serializers.ModelSerializer):
-    hierarchy = HierarchySerializer(many=True)
-
+class CountySerializer(CensusGeographySerializer):
     class Meta:
         model = County
-        fields = (
-            'id',
-            'title',
-            'hierarchy',
-        )
+        fields = CensusGeographySerializer.Meta.fields
 
 
-class CountySubdivisionSerializer(serializers.ModelSerializer):
-    hierarchy = HierarchySerializer(many=True)
-
+class CountySubdivisionSerializer(CensusGeographySerializer):
     class Meta:
         model = CountySubdivision
-        fields = (
-            'id',
-            'title',
-            'hierarchy',
-        )
+        fields = CensusGeographySerializer.Meta.fields
 
 
-class TractSerializer(serializers.ModelSerializer):
-    hierarchy = HierarchySerializer(many=True)
-
+class TractSerializer(CensusGeographySerializer):
     class Meta:
         model = Tract
-        fields = (
-            'id',
-            'title',
-            'hierarchy',
-        )
+        fields = CensusGeographySerializer.Meta.fields
 
 
-class BlockGroupSerializer(serializers.ModelSerializer):
-    hierarchy = HierarchySerializer(many=True)
-
+class BlockGroupSerializer(CensusGeographySerializer):
     class Meta:
         model = BlockGroup
-        fields = (
-            'id',
-            'title',
-            'hierarchy',
-        )
+        fields = CensusGeographySerializer.Meta.fields
 
 
 class CensusGeographyPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
-        CensusGeography: CensusGeographySerializer,
         County: CountySerializer,
         Tract: TractSerializer,
         CountySubdivision: CountySubdivisionSerializer,

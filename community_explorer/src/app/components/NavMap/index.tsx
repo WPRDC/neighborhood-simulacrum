@@ -16,7 +16,7 @@ interface Props {
   menuLayer: GeoLayer;
   onClick: (selection: {
     regionType: string;
-    geoid: string;
+    regionID: string;
     name: string;
   }) => void;
 }
@@ -66,8 +66,8 @@ export function NavMap(props: Props) {
 
   function handleHover(e) {
     if (e.features.length) {
-      const { geoid } = e.features[0].properties;
-      setHoveredFilter(filterLayerByGeoid(geoid));
+      const { regionid: regionID } = e.features[0].properties;
+      setHoveredFilter(filterLayerByRegionID(regionID));
     } else {
       setHoveredFilter(clearLayerFilter());
     }
@@ -75,9 +75,13 @@ export function NavMap(props: Props) {
 
   function handleClick(e) {
     if (e && e.features && e.features.length) {
-      const { regiontype: regionType, geoid, name } = e.features[0].properties;
-      setSelectedFilter(filterLayerByGeoid(geoid));
-      onClick({ regionType, geoid, name });
+      const {
+        regiontype: regionType,
+        regionid: regionID,
+        name,
+      } = e.features[0].properties;
+      setSelectedFilter(filterLayerByRegionID(regionID));
+      onClick({ regionType, regionID, name });
     } else {
       setSelectedFilter(clearLayerFilter());
     }
@@ -105,12 +109,12 @@ const layerType = l => l.id.split('/')[1];
 
 const layerFilter = l => layerType(l) === 'fill';
 
-function filterLayerByGeoid(geoid: string) {
-  return ['==', 'geoid', geoid];
+function filterLayerByRegionID(regionID: string) {
+  return ['==', 'regionid', regionID];
 }
 
 function clearLayerFilter() {
-  return ['==', 'geoid', 'w00t'];
+  return ['==', 'regionid', 'w00t'];
 }
 
 function filteredLayers(

@@ -11,7 +11,7 @@ const tract: MenuLayer = {
     minzoom: 0,
     maxzoom: 11,
     source: 'census_tract',
-    sql: `SELECT *, 'tract' as regionType FROM census_tract WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT *, 'tract' as regionType, geoid as regionID FROM census_tract WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
@@ -24,7 +24,7 @@ const tract: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.hoverColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionID', ''],
     },
     {
       id: `${MenuLayers.Tract}/selected`,
@@ -36,7 +36,7 @@ const tract: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.selectedColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionID', ''],
     },
     {
       id: `${MenuLayers.Tract}/borders`,

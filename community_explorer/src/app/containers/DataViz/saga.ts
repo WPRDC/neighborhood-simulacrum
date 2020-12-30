@@ -6,12 +6,12 @@ import Api from '../../api';
 import { PayloadAction } from '@reduxjs/toolkit';
 
 function* handleRequestDataVizData(action: PayloadAction<DataVizRequest>) {
-  const { dataVizID, regionID } = action.payload;
+  const { dataVizID, regionDescriptor } = action.payload;
   try {
     const response: Response = yield call(
       Api.requestDataViz,
       dataVizID,
-      regionID,
+      regionDescriptor,
     );
 
     if (response.ok) {
@@ -21,19 +21,19 @@ function* handleRequestDataVizData(action: PayloadAction<DataVizRequest>) {
         yield put(
           actions.dataVizRequestError({
             dataVizID,
-            regionID,
+            regionDescriptor,
             errorMsg: data.error.message,
           }),
         );
       } else {
-        yield put(actions.loadDataViz({ dataVizID, regionID, data }));
+        yield put(actions.loadDataViz({ dataVizID, regionDescriptor, data }));
       }
     } else {
       console.warn(response.statusText);
       yield put(
         actions.dataVizRequestError({
           dataVizID,
-          regionID,
+          regionDescriptor,
           errorMsg: response.statusText,
         }),
       );
@@ -43,7 +43,7 @@ function* handleRequestDataVizData(action: PayloadAction<DataVizRequest>) {
     yield put(
       actions.dataVizRequestError({
         dataVizID,
-        regionID,
+        regionDescriptor,
         errorMsg: err.toString(),
       }),
     );

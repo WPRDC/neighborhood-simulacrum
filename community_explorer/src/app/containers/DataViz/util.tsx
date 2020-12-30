@@ -4,7 +4,7 @@ import {
   DataVizID,
   DataVizDataPoint,
   DataVizResourceType,
-  RegionID,
+  RegionDescriptor,
   TableData,
   DataVisualization,
   TableViz,
@@ -15,8 +15,8 @@ import { Column, Row } from 'wprdc-components';
 import styled, { css } from 'styled-components';
 import { Table } from '../../components/Table';
 
-export function makeKey(dataVizID: DataVizID, region: RegionID) {
-  return `${dataVizID.slug}@${region.regionType}/${region.geoid}`;
+export function makeKey(dataVizID: DataVizID, region: RegionDescriptor) {
+  return `${dataVizID.slug}@${region.regionType}/${region.regionID}`;
 }
 
 const MoEWrapper = styled.span`

@@ -1,7 +1,7 @@
 import {
   DataVizID,
   DataVizData,
-  RegionID,
+  RegionDescriptor,
   // DataVisualization,
 } from '../../types';
 
@@ -21,7 +21,7 @@ export type DataVizDataCache = Record<string, DataVizDataRecord<DataVizData>>;
 
 export interface DataVizRequest {
   dataVizID: DataVizID;
-  regionID: RegionID;
+  regionDescriptor: RegionDescriptor;
 }
 
 export type ContainerState = DataVizState;

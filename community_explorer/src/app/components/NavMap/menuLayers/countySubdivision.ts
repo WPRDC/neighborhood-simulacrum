@@ -11,7 +11,7 @@ const countySubdivision: MenuLayer = {
     minzoom: 0,
     maxzoom: 11,
     source: 'census_county_subdivision',
-    sql: `SELECT * , 'countysubdivision' as regionType FROM census_county_subdivision WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT * , 'countysubdivision' as regionType, geoid as regionID FROM census_county_subdivision WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
@@ -24,7 +24,7 @@ const countySubdivision: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.hoverColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionID', ''],
     },
     {
       id: `${MenuLayers.CountySubdivision}/selected`,
@@ -36,7 +36,7 @@ const countySubdivision: MenuLayer = {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.selectedColor,
       },
-      filter: ['==', 'geoid', ''],
+      filter: ['==', 'regionID', ''],
     },
     {
       id: `${MenuLayers.CountySubdivision}/borders`,

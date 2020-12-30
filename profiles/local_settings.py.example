@@ -19,3 +19,6 @@ LOCAL_SECRET_KEY = 'DJANGO_SECRET_KEY'
 # the postgres database name and the user with privileges on that database
 DB_NAME = 'your_db_name'
 DB_USER = 'your_db_user'
+
+# You'll want to set this to false for your production version(s) of this file
+LOCAL_DEBUG = True

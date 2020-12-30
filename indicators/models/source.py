@@ -179,25 +179,30 @@ class CKANRegionalSource(CKANSource):
     neighborhood_field = models.CharField(max_length=100, null=True, blank=True)
     neighborhood_field_is_sql = models.BooleanField(default=False)
 
+    @staticmethod
+    def get_field_for_geoid_field_for_geog(geog: CensusGeography):
+        return f'{geog.region_type}_field'.lower()
+
     def can_handle_geography(self, geog: CensusGeography):
         return bool(self.get_geoid_field(geog))
 
-    def get_geom_filter_sql(self, region: CensusGeography) -> str:
+    def get_geom_filter_sql(self, geog: CensusGeography) -> str:
         """
         Creates a chunk of SQL to be used in the WHERE clause that
         filters a dataset described by `source` to data within the
         geography described by `region`
         """
         # based on the region's type, pick which field in the source we want
-        field_type = f'{region.TYPE}_field'
-        source_region_field = getattr(self, field_type)
-        is_sql = getattr(self, f'{field_type}_is_sql')
+        field_for_geoid_field = self.get_field_for_geoid_field_for_geog(geog)
+        source_region_field = getattr(self, field_for_geoid_field)
+        is_sql = getattr(self, f'{field_for_geoid_field}_is_sql')
 
         if not is_sql:
             source_region_field = f'"{source_region_field}"'  # add double quotes to ensure case sensitivity
 
-        return f""" {source_region_field} LIKE '{region.geoid}' """
+        return f""" {source_region_field} LIKE '{geog.geoid}' """
 
-    def get_geoid_field(self, region: CensusGeography):
-        geoid_field = getattr(self, f'{region.TYPE}_field', None)
+    def get_geoid_field(self, geog: CensusGeography):
+        field_for_geoid_field = self.get_field_for_geoid_field_for_geog(geog)
+        geoid_field = getattr(self, field_for_geoid_field, None)
         return geoid_field

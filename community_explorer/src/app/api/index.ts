@@ -5,10 +5,10 @@
  * Functions that handle communicating with backend.
  *
  */
-import { DataVizID, RegionID } from '../types';
+import { DataVizID, RegionDescriptor } from '../types';
 
-// const HOST = 'http://localhost:8000';
-const HOST = 'http://api.profiles.wprdc.org';
+const HOST = 'http://localhost:8000';
+// const HOST = 'http://api.profiles.wprdc.org';
 
 /**
  * Enum for API endpoints.
@@ -112,18 +112,21 @@ function requestTaxonomy() {
   return callApi(Endpoint.Domain, Method.GET);
 }
 
-function requestDataViz(dataVizID: DataVizID, regionID: RegionID) {
-  const { regionType, geoid } = regionID;
+function requestDataViz(
+  dataVizID: DataVizID,
+  regionDescriptor: RegionDescriptor,
+) {
+  const { regionType, regionID } = regionDescriptor;
   return callApi(Endpoint.DataViz, Method.GET, {
     id: dataVizID.id,
-    params: { regionType, geoid },
+    params: { regionType, regionID },
   });
 }
 
-function requestRegionDescription(regionID: RegionID) {
-  const { regionType, geoid } = regionID;
+function requestRegionDescription(regionDescriptor: RegionDescriptor) {
+  const { regionType, regionID } = regionDescriptor;
   return callApi(Endpoint.Region, Method.GET, {
-    params: { regionType, geoid },
+    params: { regionType, regionID },
   });
 }
 

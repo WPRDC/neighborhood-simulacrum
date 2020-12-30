@@ -7,7 +7,7 @@ import {
   DataVizRequest,
 } from './types';
 import { makeKey } from './util';
-import { DataVizData, DataVizID, RegionID } from '../../types';
+import { DataVizData, DataVizID, RegionDescriptor } from '../../types';
 
 // The initial state of the DataViz container
 export const initialState: ContainerState = {
@@ -19,16 +19,16 @@ export const initialState: ContainerState = {
  * Updated data cache record for dataViz with id dataVizID at region
  * @param cache
  * @param dataVizID
- * @param region
+ * @param regionDescriptor
  * @param update
  */
 function updateData(
   cache: DataVizDataCache,
   dataVizID: DataVizID,
-  regionID: RegionID,
+  regionDescriptor: RegionDescriptor,
   update: Partial<DataVizDataRecord<Partial<DataVizData>>>,
 ) {
-  const key = makeKey(dataVizID, regionID);
+  const key = makeKey(dataVizID, regionDescriptor);
   return Object.assign({}, cache, {
     [key]: update,
   });
@@ -39,11 +39,11 @@ const dataVizSlice = createSlice({
   initialState,
   reducers: {
     requestDataViz(state, action: PayloadAction<DataVizRequest>) {
-      const { dataVizID, regionID } = action.payload;
+      const { dataVizID, regionDescriptor } = action.payload;
       state.dataVizDataCache = updateData(
         state.dataVizDataCache,
         dataVizID,
-        regionID,
+        regionDescriptor,
         {
           isLoading: true,
           error: undefined,
@@ -51,11 +51,11 @@ const dataVizSlice = createSlice({
       );
     },
     loadDataViz(state, action: PayloadAction<DataVizRequest & { data: any }>) {
-      const { dataVizID, regionID, data } = action.payload;
+      const { dataVizID, regionDescriptor, data } = action.payload;
       state.dataVizDataCache = updateData(
         state.dataVizDataCache,
         dataVizID,
-        regionID,
+        regionDescriptor,
         {
           dataViz: data,
           isLoading: false,
@@ -67,11 +67,11 @@ const dataVizSlice = createSlice({
       state,
       action: PayloadAction<DataVizRequest & { errorMsg: string }>,
     ) {
-      const { dataVizID, regionID, errorMsg } = action.payload;
+      const { dataVizID, regionDescriptor, errorMsg } = action.payload;
       state.dataVizDataCache = updateData(
         state.dataVizDataCache,
         dataVizID,
-        regionID,
+        regionDescriptor,
         {
           isLoading: false,
           error: errorMsg,

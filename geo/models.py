@@ -67,12 +67,25 @@ class CensusGeography(Geography, PolymorphicModel):
     carto_geom_field: str = 'the_geom'
     carto_geom_webmercator_field: str = 'the_geom_webmercator'
 
-    # Abstract fields
-    geoid: models.CharField
     affgeoid = models.CharField(max_length=21, unique=True)
     lsad = models.CharField(max_length=2)
     aland = models.BigIntegerField('Area (land)')
     awater = models.BigIntegerField('Area (water)')
+
+    @property
+    def region_type(self) -> str:
+        return self.TYPE
+
+    @property
+    def regionID(self) -> str:
+        """ Alias for region_id. Workaround for camel case plugin to have ID instead of Id """
+        return self.region_id
+
+    @property
+    def region_id(self) -> str:
+        if self.geoid:
+            return self.geoid
+        raise NotImplementedError('Geographies without a `geoid` field must override `region_id`')
 
     # Abstract properties
     @property
@@ -113,7 +126,7 @@ class CensusGeography(Geography, PolymorphicModel):
 
 
 class BlockGroup(CensusGeography):
-    TYPE = "block group"
+    TYPE = "blockGroup"
     TITLE = "Block Group"
     carto_table = "census_blockgroup"
 
@@ -125,7 +138,7 @@ class BlockGroup(CensusGeography):
 
     @property
     def title(self):
-        return f'BlockGroup {self.name}'
+        return f'Block Group {self.name}'
 
     @property
     def subtitle(self):
@@ -154,6 +167,7 @@ class Tract(CensusGeography):
     TYPE = "tract"
     TITLE = 'Tract'
     carto_table = "census_tract"
+    region_type = TYPE
 
     geoid = models.CharField(max_length=12, primary_key=True)
 
@@ -186,9 +200,10 @@ class Tract(CensusGeography):
 
 
 class CountySubdivision(CensusGeography):
-    TYPE = "county subdivision"
+    TYPE = "countyGubdivision"
     TITLE = 'County Subdivision'
     carto_table = "census_county_subdivision"
+    region_type = TYPE
 
     geoid = models.CharField(max_length=12, primary_key=True)
 
@@ -221,126 +236,11 @@ class CountySubdivision(CensusGeography):
         return f'County Subdivision {self.geoid}'
 
 
-class Place(CensusGeography):
-    TYPE = "place"
-    TITLE = 'Place'
-    carto_table = 'census_place'
-
-    geoid = models.CharField(max_length=12, primary_key=True)
-
-    statefp = models.CharField(max_length=2)
-    placefp = models.CharField(max_length=5)
-    placens = models.CharField(max_length=8)
-
-    @property
-    def census_geo(self):
-        return {'for': f'tract:{self.placefp}',
-                'in': f'state:{self.statefp}'}
-
-    class Meta:
-        verbose_name_plural = "Places"
-
-    def __str__(self):
-        return f'Place {self.geoid}'
-
-
-class Puma(CensusGeography):
-    TYPE = "puma"
-    TITLE = "PUMA"
-    carto_table = 'census_puma'
-
-    geoid = models.CharField(max_length=12, primary_key=True)
-
-    statefp = models.CharField(max_length=2)
-    pumace = models.CharField(max_length=5)
-
-    @property
-    def census_geo(self):
-        return {'for': f'tract:{self.pumace}',
-                'in': f'state:{self.statefp}'}
-
-    class Meta:
-        verbose_name = "PUMA"
-        verbose_name_plural = "PUMAS"
-
-    def __str__(self):
-        return f'PUMA {self.geoid}'
-
-
-class SchoolDistrict(CensusGeography):
-    TYPE = "school district"
-    TITLE = "School District"
-    carto_table = 'census_school_districts'
-
-    geoid = models.CharField(max_length=12, primary_key=True)
-
-    statefp = models.CharField(max_length=2)
-    unsdlea = models.CharField(max_length=5)
-    placens = models.CharField(max_length=8)
-
-    @property
-    def census_geo(self):
-        return {'for': f'tract:{self.unsdlea}',
-                'in': f'state:{self.statefp}'}
-
-    class Meta:
-        verbose_name_plural = "School Districts"
-
-    def __str__(self):
-        return f'{self.name} School District - {self.geoid}'
-
-
-class StateHouse(CensusGeography):
-    TYPE = "lower state legislative district"
-    TITLE = "State House"
-    carto_table = 'census_pa_house'
-
-    geoid = models.CharField(max_length=12, primary_key=True)
-
-    statefp = models.CharField(max_length=2)
-    sldlst = models.CharField(max_length=5)
-
-    lsy = models.CharField(max_length=4)
-
-    @property
-    def census_geo(self):
-        return {'for': f'tract:{self.sldlst}',
-                'in': f'state:{self.statefp}'}
-
-    class Meta:
-        verbose_name = "State House District"
-        verbose_name_plural = "State House Districts"
-
-    def __str__(self):
-        return f'State House - {self.geoid}'
-
-
-class StateSenate(CensusGeography):
-    TYPE = "upper state legislative district"
-    TITLE = "State Senate"
-    carto_table = 'census_pa_senate'
-
-    geoid = models.CharField(max_length=12, primary_key=True)
-
-    statefp = models.CharField(max_length=2)
-    sldust = models.CharField(max_length=5)
-
-    lsy = models.CharField(max_length=4)
-
-    @property
-    def census_geo(self):
-        return {'for': f'tract:{self.sldust}',
-                'in': f'state:{self.statefp}'}
-
-    class Meta:
-        verbose_name = "State Senate District"
-        verbose_name_plural = "State Senate Districts"
-
-
 class County(CensusGeography):
     TYPE = "county"
     TITLE = "County"
     carto_table = 'census_county'
+    region_type = TYPE
 
     geoid = models.CharField(max_length=12, primary_key=True)
     statefp = models.CharField(max_length=2)
@@ -369,3 +269,125 @@ class County(CensusGeography):
 
     def __str__(self):
         return f'{self.name} County'
+
+
+# Todo: Use these
+class Place(CensusGeography):
+    TYPE = "place"
+    TITLE = 'Place'
+    carto_table = 'census_place'
+    region_type = TYPE
+
+    geoid = models.CharField(max_length=12, primary_key=True)
+
+    statefp = models.CharField(max_length=2)
+    placefp = models.CharField(max_length=5)
+    placens = models.CharField(max_length=8)
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.placefp}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name_plural = "Places"
+
+    def __str__(self):
+        return f'Place {self.geoid}'
+
+
+class Puma(CensusGeography):
+    TYPE = "puma"
+    TITLE = "PUMA"
+    carto_table = 'census_puma'
+    region_type = TYPE
+
+    geoid = models.CharField(max_length=12, primary_key=True)
+
+    statefp = models.CharField(max_length=2)
+    pumace = models.CharField(max_length=5)
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.pumace}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name = "PUMA"
+        verbose_name_plural = "PUMAS"
+
+    def __str__(self):
+        return f'PUMA {self.geoid}'
+
+
+class SchoolDistrict(CensusGeography):
+    TYPE = "schoolDistrict"
+    TITLE = "School District"
+    carto_table = 'census_school_districts'
+    region_type = TYPE
+
+    geoid = models.CharField(max_length=12, primary_key=True)
+
+    statefp = models.CharField(max_length=2)
+    unsdlea = models.CharField(max_length=5)
+    placens = models.CharField(max_length=8)
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.unsdlea}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name_plural = "School Districts"
+
+    def __str__(self):
+        return f'{self.name} School District - {self.geoid}'
+
+
+class StateHouse(CensusGeography):
+    TYPE = "stateHouse"
+    TITLE = "State House"
+    carto_table = 'census_pa_house'
+    region_type = TYPE
+
+    geoid = models.CharField(max_length=12, primary_key=True)
+
+    statefp = models.CharField(max_length=2)
+    sldlst = models.CharField(max_length=5)
+
+    lsy = models.CharField(max_length=4)
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.sldlst}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name = "State House District"
+        verbose_name_plural = "State House Districts"
+
+    def __str__(self):
+        return f'State House - {self.geoid}'
+
+
+class StateSenate(CensusGeography):
+    TYPE = "stateSenate"
+    TITLE = "State Senate"
+    carto_table = 'census_pa_senate'
+    region_type = TYPE
+
+    geoid = models.CharField(max_length=12, primary_key=True)
+
+    statefp = models.CharField(max_length=2)
+    sldust = models.CharField(max_length=5)
+
+    lsy = models.CharField(max_length=4)
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.sldust}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name = "State Senate District"
+        verbose_name_plural = "State Senate Districts"

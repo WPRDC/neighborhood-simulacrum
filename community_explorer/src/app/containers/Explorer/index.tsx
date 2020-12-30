@@ -32,7 +32,7 @@ import { NavMap } from '../../components/NavMap';
 import { NavMenu } from '../../components/NavMenu';
 import { RegionDashboard } from '../../components/RegionDashboard';
 import { GeoLayer } from './types';
-import { RegionID } from '../../types';
+import { RegionDescriptor } from '../../types';
 
 export function Explorer() {
   useInjectReducer({ key: sliceKey, reducer: reducer });
@@ -42,7 +42,7 @@ export function Explorer() {
 
   // routing
   const history = useHistory();
-  const { regionType, geoid } = useParams();
+  const { regionType, regionID } = useParams();
 
   const taxonomy = useSelector(selectTaxonomy);
   const taxonomyIsLoading = useSelector(selectTaxonomyIsLoading);
@@ -63,18 +63,20 @@ export function Explorer() {
   }, []);
 
   React.useEffect(() => {
-    if (!!regionType && !!geoid) {
-      handleRegionChange({ regionType, geoid });
+    if (!!regionType && !!regionID) {
+      handleRegionChange({ regionType, regionID });
     }
-  }, [regionType, geoid]);
+  }, [regionType, regionID]);
 
-  function handleMapClick(regionID: RegionID) {
-    history.push(`/${regionID.regionType}/${regionID.geoid}`);
+  function handleMapClick(regionDescriptor: RegionDescriptor) {
+    history.push(
+      `/${regionDescriptor.regionType}/${regionDescriptor.regionID}`,
+    );
   }
 
-  function handleRegionChange(regionID: RegionID) {
-    dispatch(actions.selectRegion(regionID));
-    dispatch(actions.requestRegionDetails(regionID));
+  function handleRegionChange(regionDescriptor: RegionDescriptor) {
+    dispatch(actions.selectRegion(regionDescriptor));
+    dispatch(actions.requestRegionDetails(regionDescriptor));
   }
 
   function handleSelectGeoLayer(geoLayer: GeoLayer) {

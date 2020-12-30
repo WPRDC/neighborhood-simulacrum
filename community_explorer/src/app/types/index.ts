@@ -28,11 +28,13 @@ export interface Region extends Described, RegionBase {
 interface HierarchyItem {
   id: string | number;
   title: string;
+  regionType: RegionType;
+  regionID: string;
 }
 
-export interface RegionID {
-  regionType: string; // todo: define list of regiontypes
-  geoid: string | number;
+export interface RegionDescriptor {
+  regionType: RegionType;
+  regionID: string | number;
   name?: string;
 }
 
@@ -41,3 +43,6 @@ export interface RegionBase {
   slug: string;
   description?: string;
 }
+
+// todo: define list of regiontypes
+export type RegionType = string;

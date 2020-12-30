@@ -1,4 +1,4 @@
-import { Region, RegionID, Taxonomy } from '../../types';
+import { Region, RegionDescriptor, Taxonomy } from '../../types';
 
 export interface ExplorerState {
   taxonomy?: Taxonomy;
@@ -10,7 +10,7 @@ export interface ExplorerState {
   currentRegionLoadError?: string;
 
   selectedGeoLayer: GeoLayer;
-  selectedRegionID?: RegionID;
+  selectedRegionDescriptor?: RegionDescriptor;
 }
 
 export type ContainerState = ExplorerState;
