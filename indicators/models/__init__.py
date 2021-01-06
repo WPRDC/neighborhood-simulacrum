@@ -24,6 +24,13 @@ class Subdomain(Described):
 
 
 class Indicator(Described):
+    LAYOUT_CHOICES = (
+        ('A', 'Style A'),
+        ('B', 'Style B'),
+        ('C', 'Style C'),
+        ('D', 'Style D'),
+    )
+
     """ Indicators """
     long_description = models.TextField(
         help_text='A thorough description for long-form representation.',
@@ -58,11 +65,7 @@ class Indicator(Described):
         null=True,
     )
 
-    # available_regions = models.ManyToManyField(
-    #     'geo.Geography',
-    #     related_name='%(class)s',
-    #     blank=True
-    # )
+    layout = models.CharField(max_length=3, choices=LAYOUT_CHOICES, default='A')
 
     def __str__(self):
         return f'{self.name} ({self.id})'

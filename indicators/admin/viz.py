@@ -5,11 +5,12 @@ from indicators.models import MiniMap, DataViz, Table, VizVariable
 
 import nested_admin
 
-from indicators.models.viz import BarChart, LineChart, PieChart, PopulationPyramidChart
+from indicators.models.viz import BarChart, LineChart, PieChart, PopulationPyramidChart, BigValue, Sentence
 
 
 class VizVariableInline(nested_admin.NestedTabularInline):
     model = VizVariable
+    autocomplete_fields = ('variable',)
 
 
 @admin.register(DataViz)
@@ -38,6 +39,22 @@ class MiniMapAdmin(DataVizChildAdmin):
 
 @admin.register(Table)
 class TableAdmin(DataVizChildAdmin):
+    list_display = (
+        'name',
+    )
+    search_fields = ('name',)
+
+
+@admin.register(BigValue)
+class BigValueAdmin(DataVizChildAdmin):
+    list_display = (
+        'name',
+    )
+    search_fields = ('name',)
+
+
+@admin.register(Sentence)
+class SentenceAdmin(DataVizChildAdmin):
     list_display = (
         'name',
     )
@@ -85,8 +102,16 @@ class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
         model = Table
         inlines = (VizVariableInline,)
 
-    class BarCharInline(nested_admin.NestedStackedPolymorphicInline.Child):
+    class BarChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
         model = BarChart
+        inlines = (VizVariableInline,)
+
+    class BigValueInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = BigValue
+        inlines = (VizVariableInline,)
+
+    class SentenceInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = Sentence
         inlines = (VizVariableInline,)
 
     class LineChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
@@ -105,7 +130,9 @@ class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
     child_inlines = (
         MiniMapInline,
         TableInline,
-        BarCharInline,
+        BigValueInline,
+        SentenceInline,
+        BarChartInline,
         LineChartInline,
         PieChartInline,
         PopulationPyramidChartInline,

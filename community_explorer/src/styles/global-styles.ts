@@ -26,4 +26,8 @@ export const GlobalStyle = createGlobalStyle`
     font-family: inherit;
     font-size: inherit;
   }
+
+  .rc-table-row-level-1 {
+    color: #4a4a4a;
+  }
 `;

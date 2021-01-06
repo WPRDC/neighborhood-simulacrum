@@ -9,11 +9,101 @@ import {
   DataVisualization,
   TableViz,
   Downloaded,
+  Variable,
+  PieChartViz,
+  ChartData,
+  SentenceViz,
+  SentenceData,
+  BigValueViz,
+  BigValueData,
 } from '../../types';
 
-import { Column, Row } from 'wprdc-components';
 import styled, { css } from 'styled-components';
 import { Table } from '../../components/Table';
+
+import { Column as ColumnType, RowRecord } from 'wprdc-components';
+import { PieChart } from '../../components/PieChart';
+import { Sentence } from '../../components/Sentence';
+import BigValue from '../../components/BigValue';
+
+type DownloadedTable = Downloaded<TableViz, TableData>;
+type Row = RowRecord;
+type Column = ColumnType<Row>;
+
+export function getSpecificDataViz(dataViz?: DataVisualization) {
+  if (!dataViz) {
+    return null;
+  }
+  switch (dataViz.resourcetype) {
+    case DataVizResourceType.Table:
+      const { columns, data: tableData } = generateTableProps(
+        dataViz as Downloaded<TableViz, TableData>,
+      );
+      return <Table columns={columns} data={tableData} />;
+
+    case DataVizResourceType.PieChart:
+      let { data: chartData, dataKey } = generatePieChartProps(
+        dataViz as Downloaded<PieChartViz, ChartData>,
+      );
+      return <PieChart data={chartData} dataKey={dataKey} />;
+
+    case DataVizResourceType.Sentence:
+      const { text, sentenceData } = generateSentenceProps(
+        dataViz as Downloaded<SentenceViz, SentenceData>,
+      );
+      return <Sentence text={text} data={sentenceData} />;
+
+    case DataVizResourceType.BigValue:
+      const { note, data: bigValueData } = dataViz as Downloaded<
+        BigValueViz,
+        BigValueData
+      >;
+      return <BigValue data={bigValueData} note={note} />;
+
+    default:
+      return null;
+  }
+}
+
+function generateSentenceProps(dataViz: Downloaded<SentenceViz, SentenceData>) {
+  const { text, data } = dataViz;
+  return {
+    text,
+    sentenceData: data,
+  };
+}
+
+function generateTableProps(
+  table: DownloadedTable,
+): { columns: Column[]; data: Row[] } {
+  // map data from API to format for Table
+
+  const columns: Column[] = [
+    {
+      accessor: 'label',
+      id: 'category',
+    },
+    ...table.timeAxis.timeParts.map(timePart => ({
+      Header: timePart.name,
+      accessor: timePart.slug,
+    })),
+  ];
+
+  // todo: add denominator rows
+  const data: Row[] = table.variables.map((variable, idx) => ({
+    key: `${table.slug}/${variable.slug}`,
+    label: variable.name,
+    ...table.timeAxis.timeParts.reduce(rowValuesReducer(table, idx), {}),
+    subRows: getPercentRows(table, variable, idx),
+    expanded: true,
+  }));
+
+  return { columns, data };
+}
+
+function generatePieChartProps(response: Downloaded<PieChartViz, ChartData>) {
+  return { data: response.data, dataKey: response.timeAxis.timeParts[0].slug };
+}
 
 export function makeKey(dataVizID: DataVizID, region: RegionDescriptor) {
   return `${dataVizID.slug}@${region.regionType}/${region.regionID}`;
@@ -34,64 +124,53 @@ function MoE({ moe }: { moe: number }) {
   );
 }
 
-function generateCellValue(d: DataVizDataPoint) {
+function makeCellValue(d: DataVizDataPoint) {
+  let displayValue = d.v;
+  if (typeof d.v === 'number') {
+    displayValue = d.v.toLocaleString();
+  }
   return (
     <>
-      {d.v}
+      {displayValue}
       {(d.m || d.m === 0) && <MoE moe={d.m} />}
     </>
   );
 }
 
-function generateTableProps(
-  table: Downloaded<TableViz, TableData>,
-): { columns: Column[]; rows: Row[] } {
-  // for the category column
-  const catHeader = { label: '', key: `${table.slug}/category` };
-
-  const columns: Column[] = [
-    catHeader,
-    ...table.timeAxis.timeParts.map(timePart => ({
-      label: timePart.name,
-      key: `${table.slug}/${timePart.slug}`,
-    })),
-  ];
-
-  const rows: Row[] = table.variables.map((variable, i) => ({
-    key: `${table.slug}/${variable.slug}`,
-    cells: [
-      {
-        key: `${table.slug}/${variable.slug}/label`,
-        value: variable.name,
-      },
-      ...table.timeAxis.timeParts.map(timePart => ({
-        key: `${table.slug}/${variable.slug}@${timePart.slug}`,
-        value: generateCellValue(table.data[i][timePart.slug]),
-      })),
-    ],
-  }));
-
-  return { columns, rows };
+function getPercentValue(table: DownloadedTable, idx, denom, cur) {
+  const percentValue: number = table.data[idx][cur.slug][denom.slug];
+  return percentValue.toLocaleString(undefined, {
+    style: 'percent',
+    minimumSignificantDigits: 1,
+    maximumSignificantDigits: 3,
+  });
 }
 
-export function getSpecificDataViz(dataViz?: DataVisualization) {
-  if (!dataViz) {
-    return null;
-  }
-  switch (dataViz.resourcetype) {
-    case DataVizResourceType.Table:
-      // get columns and rows from the data
-      const { columns, rows } = generateTableProps(
-        dataViz as Downloaded<TableViz, TableData>,
-      );
-      return <Table columns={columns} rows={rows} />;
-    case DataVizResourceType.PieChart:
-      // todo: implement chart stuff
-      return null;
-    case DataVizResourceType.MiniMap:
-      // todo: implement map vizes
-      return null;
-    default:
-      return null;
-  }
+const rowValuesReducer = (table: DownloadedTable, idx) => (acc, cur) => ({
+  ...acc,
+  [cur.slug]: makeCellValue(table.data[idx][cur.slug]),
+});
+
+const percentRowValuesReducer = (table: DownloadedTable, idx, denom) => (
+  acc,
+  cur,
+) => ({
+  ...acc,
+  [cur.slug]: getPercentValue(table, idx, denom, cur),
+});
+
+function getPercentRows(
+  table: DownloadedTable,
+  variable: Variable,
+  idx: number,
+) {
+  return variable.denominators.map(denom => ({
+    key: `${table.slug}/${variable.slug}/${denom.slug}`,
+    label: denom.percentLabel,
+    ...table.timeAxis.timeParts.reduce(
+      percentRowValuesReducer(table, idx, denom),
+      {},
+    ),
+    className: 'subrow',
+  }));
 }

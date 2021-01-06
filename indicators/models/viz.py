@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
+import re
 
+import pystache
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
@@ -35,10 +37,6 @@ class DataViz(PolymorphicModel, Described):
         return False
 
     def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
-        if hasattr(self, 'get_table_data'):
-            return self.get_table_data(geog)
-        if hasattr(self, 'get_chart_data'):
-            return self.get_chart_data(geog)
         return DataResponse(data=None,
                             error=ErrorResponse(level=ErrorLevel.ERROR,
                                                 message='Data Viz has no data getter.'))
@@ -125,6 +123,64 @@ class Table(DataViz):
 
         return DataResponse(data=data, error=error)
 
+    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self.get_table_data(geog)
+
+
+class BigValue(DataViz):
+    note = models.TextField(blank=True, null=True)
+
+    def get_value_data(self, geog: 'CensusGeography') -> DataResponse:
+        data = None
+        error: ErrorResponse
+        only_time_part = self.time_axis.time_parts[0]
+        if self.can_handle_geography(geog):
+            for variable in self.variables.order_by('variable_to_viz'):
+                # fixme: this is wasteful since get_table_row is calculating data we don't use
+                data = variable.get_table_row(self, geog)[only_time_part.slug]
+            error = ErrorResponse(level=ErrorLevel.OK, message=None)
+        else:
+            error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')
+
+        return DataResponse(data=data, error=error)
+
+    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self.get_value_data(geog)
+
+
+class Sentence(DataViz):
+    text = models.TextField(
+        help_text='To place a value in your sentence, use {order}. e.g. "There are {1} cats and {2} dogs in town."')
+
+    def get_text_data(self, geog: 'CensusGeography') -> DataResponse:
+        data = ''
+        fields = {}
+        error: ErrorResponse
+        only_time_part = self.time_axis.time_parts[0]
+
+        if self.can_handle_geography(geog):
+            fields = {'geo': geog.title, }
+            try:
+                for variable in self.vars.all():
+                    order = VizVariable.objects.filter(data_viz=self, variable=variable)[0].order
+                    val = variable.get_table_row(self, geog)[only_time_part.slug]['v']
+                    fields[f'v{order}'] = f"<strong>{val}</strong>"
+                    denoms = variable.denominators.all()
+                    if denoms:
+                        d_val = variable.get_proportional_datum(geog, only_time_part, denoms[0])
+                        fields[f'v{order}d'] = f"{d_val:.2%}"
+                data = pystache.render(self.text, fields)
+                error = ErrorResponse(level=ErrorLevel.OK, message=None)
+            except Exception as e:
+                error = ErrorResponse(level=ErrorLevel.ERROR, message=str(e))
+        else:
+            error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Sentence is not available for {geog.name}.')
+
+        return DataResponse(data=data, error=error)
+
+    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self.get_text_data(geog)
+
 
 class Chart(DataViz):
     """
@@ -172,6 +228,9 @@ class Chart(DataViz):
         else:
             error = ErrorResponse(level=ErrorLevel.EMPTY, message=None)
         return DataResponse(data=data, error=error)
+
+    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self.get_chart_data(geog)
 
     class Meta:
         abstract = True

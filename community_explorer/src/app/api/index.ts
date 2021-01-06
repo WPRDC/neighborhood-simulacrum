@@ -7,8 +7,7 @@
  */
 import { DataVizID, RegionDescriptor } from '../types';
 
-const HOST = 'http://localhost:8000';
-// const HOST = 'http://api.profiles.wprdc.org';
+const HOST = 'http://api.profiles.wprdc.org';
 
 /**
  * Enum for API endpoints.

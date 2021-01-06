@@ -3,6 +3,7 @@
  * Common types
  *
  */
+import * as React from 'react';
 
 export interface Described {
   id: string | number;
@@ -10,3 +11,5 @@ export interface Described {
   slug: string;
   description?: string;
 }
+
+export type Datum = number | string | React.ReactNode;

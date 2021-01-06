@@ -4,30 +4,44 @@
  *
  */
 
-import { Described } from './common';
+import { Datum, Described } from './common';
 import { TimeAxis } from './time';
 import { Variable } from './variable';
 
 export type DataVizID = Described;
 
-export type DataVisualization = TableViz | PieChartViz | MiniMapViz;
+export type DataVisualization =
+  | TableViz
+  | PieChartViz
+  | MiniMapViz
+  | SentenceViz
+  | BigValueViz;
 
 export enum DataVizResourceType {
   Table = 'Table',
   PieChart = 'PieChart',
   MiniMap = 'MiniMap',
-  DataViz = 'DataViz', // todo: ensure that this can be removed.  backend shouldn't share any dataviz's without a type
+  Sentence = 'Sentence',
+  BigValue = 'BigValue',
 }
 
-type DataVizDataPointPart = 'v' | 'm' | string; // v - value; m - margin o' error
+type DataVizDataPointPart<T = string> = 'v' | 'm' | T; // v - value; m - margin o' error
 
 export type DataVizDataPoint = Record<DataVizDataPointPart, any>;
 
+// Response data formats
 export type TableData = Record<string, DataVizDataPoint>[];
 export type ChartData = Record<string, DataVizDataPoint>[];
 export type MapData = any;
+export type SentenceData = string;
+export type BigValueData = DataVizDataPoint;
 
-export type DataVizData = TableData | ChartData | MapData;
+export type DataVizData =
+  | TableData
+  | ChartData
+  | MapData
+  | SentenceData
+  | BigValueData;
 
 /** T with `data` required */
 export type Downloaded<T extends DataVizBase, D extends DataVizData> = T & {
@@ -47,6 +61,19 @@ export interface PieChartViz extends DataVizBase {
 export interface MiniMapViz extends DataVizBase {
   data?: MapData;
   resourcetype: DataVizResourceType.MiniMap;
+}
+
+export interface SentenceViz extends DataVizBase {
+  text: string;
+  sentence_parts: string[];
+  data?: SentenceData;
+  resourcetype: DataVizResourceType.Sentence;
+}
+
+export interface BigValueViz extends DataVizBase {
+  note?: string;
+  data?: BigValueData;
+  resourcetype: DataVizResourceType.BigValue;
 }
 
 export interface DataVizBase extends Described {

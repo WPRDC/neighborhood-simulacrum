@@ -5,6 +5,9 @@ from enum import Enum
 from rest_framework.request import Request
 from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography
 
+if TYPE_CHECKING:
+    from indicators.models import CensusVariable, TimeAxis
+
 # Constants
 # =-=-=-=-=
 
@@ -47,7 +50,7 @@ class ErrorResponse:
 
 @dataclass
 class DataResponse:
-    data: Optional[List[dict]]
+    data: Optional[Union[List[dict], dict]]
     error: ErrorResponse
 
     def as_dict(self):
@@ -85,6 +88,5 @@ def get_region_from_query_params(request: Request) -> CensusGeography:
     region_model = get_region_model(region)
     region = region_model.objects.get(geoid=geoid)
     return region
-
 
 

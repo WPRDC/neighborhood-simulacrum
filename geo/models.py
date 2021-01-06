@@ -5,6 +5,7 @@ from django.contrib.gis.db import models
 from polymorphic.managers import PolymorphicManager
 from polymorphic.models import PolymorphicModel
 
+from geo.util import get_population, get_kid_population
 from indicators.helpers import clean_sql
 
 
@@ -123,6 +124,14 @@ class CensusGeography(Geography, PolymorphicModel):
                     FROM {self.carto_table}
                     WHERE {self.carto_geoid_field} = '{self.geoid}'
                     """)
+
+    @property
+    def population(self):
+        return get_population(self)
+
+    @property
+    def kid_population(self):
+        return get_kid_population(self)
 
 
 class BlockGroup(CensusGeography):

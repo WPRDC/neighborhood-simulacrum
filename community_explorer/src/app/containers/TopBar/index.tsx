@@ -30,7 +30,7 @@ export function TopBar(props: Props) {
     <View
       padding="size-150"
       height="size-1250"
-      backgroundColor="indigo-400"
+      backgroundColor="static-blue-200"
       borderBottomWidth="thick"
     >
       <Heading level={1} alignSelf={'center'}>

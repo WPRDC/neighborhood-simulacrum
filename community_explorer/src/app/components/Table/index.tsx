@@ -3,58 +3,15 @@
  * Table
  *
  */
-import React, { ReactNode } from 'react';
+import React from 'react';
 
-import {
-  Table as RSTable,
-  TableHeader,
-  TableBody,
-  Column,
-  Row,
-  Cell,
-} from '@react-spectrum/table';
-
-interface Props {}
+import { Table as WTable, Column, RowRecord } from 'wprdc-components';
 
 interface Props {
-  columns: ColumnData[];
-  rows: RowData[];
+  columns: Column<RowRecord>[];
+  data: RowRecord[];
 }
-
-interface ColumnData {
-  label: ReactNode;
-  key?: string;
-}
-
-interface RowData {
-  key?: string;
-  cells: CellData[];
-}
-
-type CellData = {
-  key?: string;
-  value: ReactNode;
-};
 
 export function Table(props: Props) {
-  const { columns, rows } = props;
-
-  return (
-    <RSTable>
-      <TableHeader>
-        {columns.map(column => (
-          <Column key={column.key}>{column.label}</Column>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {rows.map(row => (
-          <Row key={row.key}>
-            {row.cells.map(cell => (
-              <Cell key={cell.key}>{cell.value}</Cell>
-            ))}
-          </Row>
-        ))}
-      </TableBody>
-    </RSTable>
-  );
+  return <WTable {...props} />;
 }

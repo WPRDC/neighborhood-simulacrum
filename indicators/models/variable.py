@@ -65,8 +65,8 @@ class Variable(PolymorphicModel, Described):
         return {**self.get_value_and_moe(geog, time_part),
                 **self.get_proportional_data(geog, time_part)}
 
-    def _get_proportional_datum(self, geog: CensusGeography, time_part: TimeAxis.TimePart,
-                                denom_variable: "Variable") -> Union[float, None]:
+    def get_proportional_datum(self, geog: CensusGeography, time_part: TimeAxis.TimePart,
+                               denom_variable: "Variable") -> Union[float, None]:
         """ Get or calculate comparison of variable to one of its denominators"""
         # todo: make a `get_value` method to cut out this MoE cruft
         val_and_moe = self.get_value_and_moe(geog, time_part)
@@ -74,13 +74,13 @@ class Variable(PolymorphicModel, Described):
         if val_and_moe['v'] is None or denom_val_and_moe['v'] in [None, 0]:
             return None
         else:
-            return 100 * float(val_and_moe['v']) / float(denom_val_and_moe['v'])
+            return float(val_and_moe['v']) / float(denom_val_and_moe['v'])
 
     def get_proportional_data(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> dict:
         """ Get or calculate comparison of variable to its denominators """
         data = {}
         for denom_variable in self.denominators.all():
-            data[denom_variable.slug] = self._get_proportional_datum(geog, time_part, denom_variable)
+            data[denom_variable.slug] = self.get_proportional_datum(geog, time_part, denom_variable)
 
         return data
 
@@ -95,6 +95,9 @@ class Variable(PolymorphicModel, Described):
             if source.can_handle_geography(geog):
                 return True
         return False
+
+    def __str__(self):
+        return f'{self.name} ({self.slug})'
 
 
 class CensusVariable(Variable):
@@ -124,12 +127,12 @@ class CensusVariable(Variable):
         """
         record: Dict[str, any] = {'name': self.name}
         for time_part in data_viz.time_axis.time_parts:
-            value = self._get_primary_value(geog, time_part)
+            value = self.get_primary_value(geog, time_part)
             if value is not None:
                 record[time_part.slug] = value
         return record
 
-    def _get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
+    def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
         """  Gets the primary value """
         return self.get_value_and_moe(geog, time_part)['v']
 
@@ -206,9 +209,6 @@ class CensusVariable(Variable):
             cv = CensusValue(census_table=table, geography=geog, value=value)
             cv.save()
             return cv
-
-    def __str__(self):
-        return f'{self.slug}'
 
 
 class CensusVariableSource(models.Model):

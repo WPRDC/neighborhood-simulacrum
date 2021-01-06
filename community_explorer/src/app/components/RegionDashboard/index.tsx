@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import styled from 'styled-components/macro';
-import { Heading } from '@react-spectrum/text';
+import { Text, Heading } from '@react-spectrum/text';
 import { ProgressCircle } from '@react-spectrum/progress';
 import { Content, View } from '@react-spectrum/view';
 import { Tabs } from '@react-spectrum/tabs';
@@ -14,6 +14,10 @@ import { Item } from '@react-spectrum/breadcrumbs';
 import SubdomainSection from './SubdomainSection';
 import { Region, Taxonomy } from '../../types';
 import { useHistory } from 'react-router-dom';
+import { DataChip } from '../DataChip';
+
+import PeopleGroup from '@spectrum-icons/workflow/PeopleGroup';
+import { Flex } from '@adobe/react-spectrum';
 
 interface Props {
   taxonomy: Taxonomy;
@@ -92,6 +96,28 @@ export function RegionDashboard(props: Props) {
             Loading...
           </Heading>
         )}
+        <View>
+          <Flex>
+            <View>
+              {!!region && region.population >= 0 && (
+                <DataChip
+                  title="Population"
+                  icon={<PeopleGroup size="S" />}
+                  value={region.population}
+                />
+              )}
+            </View>
+            <View>
+              {!!region && region.kidPopulation >= 0 && (
+                <DataChip
+                  title="Population under 18"
+                  icon={<PeopleGroup size="S" />}
+                  value={region.kidPopulation}
+                />
+              )}
+            </View>
+          </Flex>
+        </View>
       </View>
       <Tabs
         onSelectionChange={handleTabChange}
@@ -101,6 +127,8 @@ export function RegionDashboard(props: Props) {
         {taxonomy.map(domain => (
           <Item title={domain.name} key={domain.slug}>
             <Content margin="size-100">
+              <Heading level={3}>{domain.name}</Heading>
+              <Text>{domain.description}</Text>
               {domain.subdomains.map(subdomain => (
                 <SubdomainSection key={subdomain.slug} subdomain={subdomain} />
               ))}

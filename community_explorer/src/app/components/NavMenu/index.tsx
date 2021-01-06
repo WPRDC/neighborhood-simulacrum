@@ -31,7 +31,7 @@ export function NavMenu(props: Props) {
         and hypnosis.
       </Text>
       <View paddingTop="size-200">
-        <Text>Select the type of region</Text>
+        <Text>Area category</Text>
         <Select
           isSearchable={false}
           isClearable={false}

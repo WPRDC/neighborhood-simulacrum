@@ -7,8 +7,8 @@ from geo.models import CensusGeography
 from . import TimeAxisPolymorphicSerializer
 from .variable import BriefVariablePolymorphicSerializer
 from ..models import DataViz, Table
-from ..models.viz import BarChart, PopulationPyramidChart, PieChart, LineChart
-from ..utils import DataResponse, ErrorResponse, ErrorLevel
+from ..models.viz import BarChart, PopulationPyramidChart, PieChart, LineChart, BigValue, Sentence
+from ..utils import DataResponse
 
 
 class DataVizSerializer(serializers.HyperlinkedModelSerializer):
@@ -43,6 +43,22 @@ class BarChartSerializer(DataVizSerializer):
         )
 
 
+class BigValueSerializer(DataVizSerializer):
+    class Meta:
+        model = BigValue
+        fields = DataVizSerializer.Meta.fields + (
+            'note',
+        )
+
+
+class SentenceSerializer(DataVizSerializer):
+    class Meta:
+        model = Sentence
+        fields = DataVizSerializer.Meta.fields + (
+            'text',
+        )
+
+
 class LineChartSerializer(DataVizSerializer):
     class Meta(DataVizSerializer.Meta):
         model = LineChart
@@ -62,6 +78,8 @@ class DataVizPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         Table: TableSerializer,
         BarChart: BarChartSerializer,
+        BigValue: BigValueSerializer,
+        Sentence: SentenceSerializer,
         LineChart: LineChartSerializer,
         PieChart: PieChartSerializer,
         PopulationPyramidChart: PopulationPyramidChartSerializer,
@@ -111,6 +129,18 @@ class BarChartWithDataSerializer(BarChartSerializer, WithData):
         fields = BarChartSerializer.Meta.fields + WithData.Meta.fields
 
 
+class BigValueWithDataSerializer(BigValueSerializer, WithData):
+    class Meta:
+        model = BigValue
+        fields = BigValueSerializer.Meta.fields + WithData.Meta.fields
+
+
+class SentenceWithDataSerializer(SentenceSerializer, WithData):
+    class Meta:
+        model = Sentence
+        fields = SentenceSerializer.Meta.fields + WithData.Meta.fields
+
+
 class LineChartWithDataSerializer(LineChartSerializer, WithData):
     class Meta:
         model = LineChart
@@ -133,6 +163,8 @@ class DataVizWithDataPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         Table: TableWithDataSerializer,
         BarChart: BarChartWithDataSerializer,
+        BigValue: BigValueWithDataSerializer,
+        Sentence: SentenceWithDataSerializer,
         LineChart: LineChartWithDataSerializer,
         PieChart: PieChartWithDataSerializer,
         PopulationPyramidChart: PopulationPyramidChartWithDataSerializer,
@@ -164,6 +196,18 @@ class BarChartIdentifiersSerializer(DataVizIdentifiersSerializer):
         fields = DataVizIdentifiersSerializer.Meta.fields
 
 
+class BigValueIdentifiersSerializer(DataVizIdentifiersSerializer):
+    class Meta:
+        model = BigValue
+        fields = DataVizIdentifiersSerializer.Meta.fields
+
+
+class SentenceIdentifiersSerializer(DataVizIdentifiersSerializer):
+    class Meta:
+        model = Sentence
+        fields = DataVizIdentifiersSerializer.Meta.fields
+
+
 class LineChartIdentifiersSerializer(DataVizIdentifiersSerializer):
     class Meta:
         model = LineChart
@@ -186,6 +230,8 @@ class DataVizIdentifiersPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         Table: TableIdentifiersSerializer,
         BarChart: BarChartIdentifiersSerializer,
+        BigValue: BigValueIdentifiersSerializer,
+        Sentence: SentenceIdentifiersSerializer,
         LineChart: LineChartIdentifiersSerializer,
         PieChart: PieChartIdentifiersSerializer,
         PopulationPyramidChart: PopulationPyramidChartIdentifiersSerializer,

@@ -22,6 +22,7 @@ class VariableAdmin(PolymorphicParentModelAdmin):
 class VariableChildAdmin(PolymorphicChildModelAdmin):
     base_model = Variable
     prepopulated_fields = {"slug": ("name",)}
+    autocomplete_fields = ('denominators',)
 
 
 class CensusVariableSourceInline(admin.TabularInline):
@@ -38,6 +39,7 @@ class CensusVariableAdmin(VariableChildAdmin):
     list_filter = ('sources',)
     search_fields = ('name',)
     inlines = (CensusVariableSourceInline,)
+    autocomplete_fields = ('denominators',)
 
 
 @admin.register(CensusValue)
@@ -56,3 +58,4 @@ class CKANVariableAdmin(VariableChildAdmin):
     )
     list_filter = ('sources',)
     search_fields = ('name',)
+    autocomplete_fields = ('denominators',)

@@ -26,6 +26,8 @@ class CensusGeographySerializer(serializers.ModelSerializer):
             'region_type',
             'regionID',
             'hierarchy',
+            'population',
+            'kid_population',
         )
 
 

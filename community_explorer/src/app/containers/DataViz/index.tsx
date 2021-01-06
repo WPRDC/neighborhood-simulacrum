@@ -56,7 +56,7 @@ export function DataViz(props: Props) {
   return (
     <View>
       {!!dataVizDataRecord && (
-        <View maxHeight="size-3600" overflow="auto">
+        <View maxHeight="size-5000" overflow="auto">
           {isLoading && <LoadingMessage />}
           {!!error && <Text>{dataVizDataRecord.error}</Text>}
           {!!dataViz && getSpecificDataViz(dataViz)}

@@ -91,7 +91,7 @@ export function Explorer() {
       </Helmet>
       <Grid
         areas={['sidebar  content', 'map content']}
-        columns={['1fr', '2fr']}
+        columns={['3fr', '5fr']}
         rows={['1fr', '2fr']}
         flex
         minHeight="0px"
@@ -120,7 +120,7 @@ export function Explorer() {
       </Grid>
 
       <Div>
-        <Text>Hello</Text>
+        <Text>&copy; 2021 Western Pennsylvania Regional Data Center</Text>
       </Div>
     </>
   );
