@@ -15,7 +15,7 @@ class IndicatorInline(admin.StackedInline):
 
 
 @admin.register(Indicator)
-class IndicatorAdmin(nested_admin.NestedPolymorphicInlineSupportMixin, admin.ModelAdmin):
+class IndicatorAdmin(nested_admin.NestedPolymorphicModelAdmin):
     list_display = (
         'name',
         'description',

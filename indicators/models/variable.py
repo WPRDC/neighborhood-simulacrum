@@ -254,22 +254,51 @@ class CKANVariable(Variable):
         (MIN, 'Minimum'),
     )
 
-    sources = models.ManyToManyField(
-        'CKANSource',
-        related_name='ckan_variables',
-    )
-
+    # todo: currently everything has been built with aggregation in mind.  selecting 'None' will mean that the variable
+    #   will return a list and not a single value. Data Presentations may require certain return values or behave
+    #   different depending on the variable return type
     aggregation_method = models.CharField(
         max_length=5,
         choices=AGGR_CHOICES,
         default=COUNT,
     )
 
+    sources = models.ManyToManyField(
+        'CKANSource',
+        related_name='ckan_variables',
+    )
     field = models.CharField(
         help_text='field in source to aggregate',
         max_length=100
     )
     sql_filter = models.TextField(help_text='SQL clause that will be used to filter data.', null=True, blank=True)
+
+    # Carto fields and overrides
+    carto_table = models.CharField(
+        verbose_name='Carto Table',
+        max_length=60,
+        blank=True, null=True,
+    )
+    field_in_carto = models.CharField(
+        verbose_name='Carto field',
+        max_length=60,
+        help_text='If left blank, the value for "field" will be used.',
+        blank=True, null=True,
+    )
+    sql_filter_for_carto = models.TextField(
+        verbose_name="Carto SQL Filter",
+        help_text='If left blank, the value for "sql filter" will be used.',
+        null=True, blank=True
+    )
+
+    @property
+    def carto_field(self):
+        return self.field_in_carto or self.field
+
+    @property
+    def carto_sql_filter(self):
+        return self.sql_filter_for_carto or self.sql_filter
+
 
     def get_table_row(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, Union[dict, None]]:
         """
