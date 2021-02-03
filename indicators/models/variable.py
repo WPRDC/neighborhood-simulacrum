@@ -15,8 +15,26 @@ from indicators.models.time import TimeAxis
 from indicators.models.source import CensusSource, CKANSource
 from indicators.models.abstract import Described
 
+from census_data.models import CensusValue, CensusTable, CensusTablePointer
+
 CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
+
+
+def split_formula(formula: str, source: 'CensusSource') -> List[str]:
+    """
+    Splits up the formula into a list of its table_ids
+        for datasets with margins of error, it creates and adds the value and moe table_ids to the list
+    """
+    result = []
+    clean_formula = ''.join(formula.split())
+    for part in clean_formula.split('+'):
+        if source.dataset == 'CEN':
+            result.append(part)
+        else:
+            result.append(part + 'E')
+            result.append(part + 'M')
+    return result
 
 
 class Variable(PolymorphicModel, Described):
@@ -112,7 +130,6 @@ class CensusVariable(Variable):
         Gets the data for a table row. Data is collected for each series (column) in `data_viz`.
             If denominators are provided, sub rows will also be provided.
         """
-
         row = {}
         for time_part in data_viz.time_axis.time_parts:
             values = self._get_all_values_at_geog_and_time_part(geog, time_part)
@@ -140,27 +157,26 @@ class CensusVariable(Variable):
         """ Find and return the value and margin of error for the variable at a geography and series """
         value: float = 0
         moe: float = 0
-
+        na_flag = False
         source = self._get_source_for_time_point(time_part.time_point)
 
-        for part in self.get_formula_parts_at_time_point(time_part.time_point):
-            census_value = self._get_or_create_census_value(part, geog, source).value
-            if part[-1] == 'M':
-                moe += census_value if census_value > 0 else 0  # todo: handle census MOE special values
-            else:
-                value += float(census_value)
+        # get census tables for time_point
+        # get census table pointers for this variable
+        pointers = source.source_to_variable.get(variable=self).census_table_pointers.all()
+        for ct_pointer in pointers:
+            v, m = ct_pointer.get_values_at_geog(geog)
+            value += v
+            moe += m if m is not None else 0
+            if m is None:
+                na_flag = True
+
         return {'v': value, 'm': moe}
 
-    def get_formula_parts_at_time_point(self, time_point: timezone.datetime) -> List[str]:
-        return self._split_formula(self._get_formula_at_time_point(time_point),
-                                   self._get_source_for_time_point(time_point))
-
-    def _get_source_for_time_point(self, time_point: timezone.datetime) -> CensusSource:
-        # fixme: come up with a  better solution for this
+    def _get_source_for_time_point(self, time_point: timezone.datetime) -> 'CensusSource':
         is_decade = not time_point.year % 10
         if is_decade:
             return self.sources.filter(dataset='CEN')[0]
-        return self.sources.filter(dataset='ACS5')[0]
+        return self.sources.filter(dataset='ACS5')[0]  # fixme to handle actual cases
 
     def _get_formula_at_time_point(self, time_point: timezone.datetime) -> Union[str, None]:
         formula: Union[str, None] = None
@@ -174,22 +190,6 @@ class CensusVariable(Variable):
         source = self._get_source_for_time_point(time_point)
         return source.get_data(formula_parts, geog)
 
-    @staticmethod
-    def _split_formula(formula: str, source: CensusSource) -> List[str]:
-        """
-        Splits up the formula into a list of its table_ids
-            for datasets with margins of error, it creates and adds the value and moe table_ids to the list
-        """
-        result = []
-        clean_formula = ''.join(formula.split())
-        for part in clean_formula.split('+'):
-            if source.dataset == 'CEN':
-                result.append(part)
-            else:
-                result.append(part + 'E')
-                result.append(part + 'M')
-        return result
-
     def _extract_values_from_api_response(self, geog: CensusGeography, response_data: dict) -> None:
         """
         Take response data and store it into a CensusValue object that is linked to this variable
@@ -201,7 +201,7 @@ class CensusVariable(Variable):
                 cv.save()
 
     @staticmethod
-    def _get_or_create_census_value(table: str, geog: CensusGeography, source: CensusSource):
+    def _get_or_create_census_value(table: CensusTable, geog: CensusGeography, source: CensusSource):
         try:
             return CensusValue.objects.filter(census_table=table, geography=geog)[0]  # fixme: should be get
         except (ObjectDoesNotExist, IndexError):
@@ -215,25 +215,28 @@ class CensusVariableSource(models.Model):
     """ for linking Census variables to their sources while keeping track of the census formula format for that combo"""
     variable = models.ForeignKey('CensusVariable', on_delete=models.CASCADE, related_name='variable_to_source')
     source = models.ForeignKey('CensusSource', on_delete=models.CASCADE, related_name='source_to_variable')
-    formula = models.TextField()
+    formula = models.TextField(null=True, blank=True)
+    census_table_pointers = models.ManyToManyField('census_data.CensusTablePointer')
 
-
-class CensusValue(models.Model):
-    """
-    stores a single (geography, table, value) tuple
-    the the values stored here are a function of the Variable, the Series, and the Geography
-    the census table is unique to a Variable-Series combination and is where they're effect comes in
-    """
-    geography = models.ForeignKey('geo.Geography', on_delete=models.CASCADE, db_index=True)
-    census_table = models.CharField(max_length=15, db_index=True)  # the census table is a function of the series
-    value = models.FloatField(null=True, blank=True)
-
-    class Meta:
-        index_together = ('geography', 'census_table',)
-        unique_together = ('geography', 'census_table',)
-
-    def __str__(self):
-        return f'{self.census_table}/{self.geography} ({self.value})'
+    # def save(self, *args, **kwargs):
+    #     f_parts = ''.join(self.formula.split()).split('+')
+    #     year = self.source.time_coverage_start.year
+    #     dataset = self.source.dataset
+    #     if dataset[0:3] == 'ACS':
+    #         for f_part in f_parts:
+    #             value_table_id, moe_table_id = (f'{f_part}{mode}' for mode in ('E', 'M'))
+    #             value_table = CensusTable.objects.get(year=year, dataset=dataset, table_id=value_table_id)
+    #             try:
+    #                 moe_table = CensusTable.objects.get(year=year, dataset=dataset, table_id=moe_table_id)
+    #             except ObjectDoesNotExist:
+    #                 print(moe_table_id)
+    #                 moe_table = None
+    #             census_table_pointer, created = CensusTablePointer.objects.get_or_create(
+    #                 value_table=value_table,
+    #                 moe_table=moe_table,
+    #                 dataset=dataset)
+    #             self.census_table_pointers.add(census_table_pointer)
+    #     super(CensusVariableSource, self).save(*args, **kwargs)
 
 
 class CKANVariable(Variable):
@@ -298,7 +301,6 @@ class CKANVariable(Variable):
     @property
     def carto_sql_filter(self):
         return self.sql_filter_for_carto or self.sql_filter
-
 
     def get_table_row(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, Union[dict, None]]:
         """

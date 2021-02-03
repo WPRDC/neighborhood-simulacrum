@@ -2,14 +2,14 @@ from django.contrib import admin
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin
 
 from indicators.models import Variable, CensusVariable, CKANVariable
-from indicators.models.variable import CensusValue, CensusVariableSource
+from indicators.models.variable import CensusVariableSource
 
 
 @admin.register(Variable)
 class VariableAdmin(PolymorphicParentModelAdmin):
     base_model = Variable
     child_models = (CKANVariable, CensusVariable,)
-    search_fields = ('name',)
+    search_fields = ('name', 'slug')
     prepopulated_fields = {"slug": ("name",)}
     list_display = (
         'slug',
@@ -27,6 +27,7 @@ class VariableChildAdmin(PolymorphicChildModelAdmin):
 
 class CensusVariableSourceInline(admin.TabularInline):
     model = CensusVariableSource
+    autocomplete_fields = ('census_table_pointers',)
 
 
 @admin.register(CensusVariable)
@@ -37,16 +38,9 @@ class CensusVariableAdmin(VariableChildAdmin):
         'title',
     )
     list_filter = ('sources',)
-    search_fields = ('name',)
+    search_fields = ('name', 'slug')
     inlines = (CensusVariableSourceInline,)
     autocomplete_fields = ('denominators',)
-
-
-@admin.register(CensusValue)
-class CensusValueAdmin(admin.ModelAdmin):
-    list_display = ('census_table', 'geography', 'value')
-    search_fields = ('census_table',)
-    autocomplete_fields = ('geography',)
 
 
 @admin.register(CKANVariable)
@@ -57,5 +51,5 @@ class CKANVariableAdmin(VariableChildAdmin):
         'title',
     )
     list_filter = ('sources',)
-    search_fields = ('name',)
+    search_fields = ('name', 'slug',)
     autocomplete_fields = ('denominators',)

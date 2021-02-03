@@ -30,6 +30,7 @@ type DownloadedTable = Downloaded<TableViz, TableData>;
 type Row = RowRecord;
 type Column = ColumnType<Row>;
 
+// fixme:  too much important work is being done by this random function and its awkward to read
 export function getSpecificDataViz(dataViz?: DataVisualization) {
   if (!dataViz) {
     return null;
@@ -89,7 +90,6 @@ function generateTableProps(
     })),
   ];
 
-  // todo: add denominator rows
   const data: Row[] = table.variables.map((variable, idx) => ({
     key: `${table.slug}/${variable.slug}`,
     label: variable.name,

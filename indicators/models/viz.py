@@ -68,8 +68,10 @@ class MapLayer(PolymorphicModel, OrderedVariable):
     limit_to_target_geog = models.BooleanField(default=True)
 
     # mapbox style
-    custom_paint = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/')
-    custom_layout = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/')
+    custom_paint = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',
+                                    blank=True, null=True)
+    custom_layout = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',
+                                     blank=True, null=True)
 
     # properties of the variable limit possible display states
     # variables without a aggregation method can be used for placing markers
@@ -84,6 +86,10 @@ class ChoroplethLayer(MapLayer):
     #   * carto table for the variable
     #   * SELECT cartodb_id, the_geom, the_geom_webmercator, {variable.carto_field} FROM {join_statement} WHERE {sql_filter}
     # style properties
+
+    def get_carto_sql(self, geog: 'CensusGeography'):
+        return f'SELECT  '
+
     pass
 
 
@@ -157,13 +163,13 @@ class Table(DataViz):
 
     @property
     def variables(self):
-        return self.vars.order_by('variable_to_viz')
+        return self.vars.order_by('variable_to_table')
 
     def get_table_data(self, geog: 'CensusGeography') -> DataResponse:
         data = []
         error: ErrorResponse
         if self.can_handle_geography(geog):
-            for variable in self.variables.order_by('variable_to_viz'):
+            for variable in self.variables.order_by('variable_to_table'):
                 data.append(variable.get_table_row(self, geog))
             error = ErrorResponse(level=ErrorLevel.OK, message=None)
         else:
@@ -211,15 +217,14 @@ class Chart(DataViz):
     )
     legendType = models.CharField(max_length=10, choices=LEGEND_TYPE_CHOICES, default='circle')
 
-    @property
-    def variables(self):
-        return self.vars.order_by('variable_to_viz')
-
     def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
+        raise NotImplementedError('Each type of chart must define how to get chart data.')
+
+    def _get_chart_data(self, region: 'CensusGeography', through: str) -> DataResponse:
         data = []
         error: ErrorResponse
         if self.can_handle_geography(region):
-            for variable in self.variables.order_by('variable_to_viz'):
+            for variable in self.variables.order_by(through):
                 data.append(variable.get_chart_record(self, region))
             error = ErrorResponse(level=ErrorLevel.OK, message=f'This Chart is not available for this {region.name}.')
         else:
@@ -237,6 +242,10 @@ class BarChartPart(OrderedVariable):
     chart = models.ForeignKey('BarChart', on_delete=models.CASCADE, related_name='bar_chart_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_bar_chart')
 
+    @property
+    def variables(self):
+        return self.vars.order_by('variable_to_viz')
+
     class Meta:
         unique_together = ('chart', 'variable', 'order',)
 
@@ -247,6 +256,13 @@ class BarChart(Chart):
         max_length=10,
         choices=Chart.LAYOUT_CHOICES,
         default=Chart.HORIZONTAL)
+
+    @property
+    def variables(self):
+        return self.vars.order_by('variable_to_bar_chart')
+
+    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(region, 'variable_to_bar_chart')
 
 
 class PieChartPart(OrderedVariable):
@@ -262,6 +278,13 @@ class PieChart(Chart):
     see: http://recharts.org/en-US/api/Pie
     """
     vars = models.ManyToManyField('Variable', through=PieChartPart)
+
+    @property
+    def variables(self):
+        return self.vars.order_by('variable_to_pie_chart')
+
+    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(region, 'variable_to_pie_chart')
 
 
 class LineChartPart(OrderedVariable):
@@ -281,6 +304,13 @@ class LineChart(Chart):
         choices=Chart.LAYOUT_CHOICES,
         default=Chart.HORIZONTAL)
 
+    @property
+    def variables(self):
+        return self.vars.order_by('variable_to_line_chart')
+
+    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(region, 'variable_to_line_chart')
+
 
 class PopulationPyramidChartPart(OrderedVariable):
     chart = models.ForeignKey('PopulationPyramidChart', on_delete=models.CASCADE,
@@ -294,7 +324,9 @@ class PopulationPyramidChartPart(OrderedVariable):
 
 class PopulationPyramidChart(Chart):
     vars = models.ManyToManyField('Variable', through=PopulationPyramidChartPart)
-    pass
+
+    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(region, 'variable_to_population_pyramid_chart')
 
 
 # ==================
@@ -322,7 +354,7 @@ class BigValue(DataViz):
         error: ErrorResponse
         only_time_part = self.time_axis.time_parts[0]
         if self.can_handle_geography(geog):
-            for variable in self.variables.order_by('variable_to_viz'):
+            for variable in self.variables.order_by('variable_to_big_value'):
                 # fixme: this is wasteful since get_table_row is calculating data we don't use
                 data = variable.get_table_row(self, geog)[only_time_part.slug]
             error = ErrorResponse(level=ErrorLevel.OK, message=None)
@@ -358,7 +390,7 @@ class Sentence(DataViz):
             fields = {'geo': geog.title, }
             try:
                 for variable in self.vars.all():
-                    order = OrderedVariable.objects.filter(data_viz=self, variable=variable)[0].order
+                    order = SentenceVariable.objects.filter(alphanumeric=self, variable=variable)[0].order
                     val = variable.get_table_row(self, geog)[only_time_part.slug]['v']
                     fields[f'v{order}'] = f"<strong>{val}</strong>"
                     denoms = variable.denominators.all()

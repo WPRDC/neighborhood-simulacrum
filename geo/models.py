@@ -55,11 +55,10 @@ class Geography(models.Model):
         return self.name
 
 
-class CensusGeography(Geography, PolymorphicModel):
+class CensusGeography(PolymorphicModel, Geography):
     """
     Base class for Census Geographies.
     """
-    objects = PolymorphicManager()
     # Class fields
     TYPE: str
     TITLE: str
@@ -68,6 +67,7 @@ class CensusGeography(Geography, PolymorphicModel):
     carto_geom_field: str = 'the_geom'
     carto_geom_webmercator_field: str = 'the_geom_webmercator'
 
+    common_geoid = models.CharField(max_length=21, null=True, blank=True)
     affgeoid = models.CharField(max_length=21, unique=True)
     lsad = models.CharField(max_length=2)
     aland = models.BigIntegerField('Area (land)')
@@ -294,6 +294,23 @@ class Place(CensusGeography):
     placens = models.CharField(max_length=8)
 
     @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([region.title for region in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
+
+    @property
+    def census_geo(self):
+        return {'for': f'county subdivision:{self.cousubfp}',
+                'in': f'state:{self.statefp} county:{self.countyfp}'}
+
+    @property
     def census_geo(self):
         return {'for': f'tract:{self.placefp}',
                 'in': f'state:{self.statefp}'}
@@ -315,6 +332,18 @@ class Puma(CensusGeography):
 
     statefp = models.CharField(max_length=2)
     pumace = models.CharField(max_length=5)
+
+    @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([region.title for region in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
 
     @property
     def census_geo(self):
@@ -342,6 +371,18 @@ class SchoolDistrict(CensusGeography):
     placens = models.CharField(max_length=8)
 
     @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([region.title for region in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
+
+    @property
     def census_geo(self):
         return {'for': f'tract:{self.unsdlea}',
                 'in': f'state:{self.statefp}'}
@@ -365,6 +406,18 @@ class StateHouse(CensusGeography):
     sldlst = models.CharField(max_length=5)
 
     lsy = models.CharField(max_length=4)
+
+    @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([region.title for region in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
 
     @property
     def census_geo(self):
@@ -391,6 +444,18 @@ class StateSenate(CensusGeography):
     sldust = models.CharField(max_length=5)
 
     lsy = models.CharField(max_length=4)
+
+    @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([region.title for region in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
 
     @property
     def census_geo(self):

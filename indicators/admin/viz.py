@@ -45,30 +45,37 @@ class MapLayerInline(nested_admin.NestedStackedPolymorphicInline):
 
 
 class TableRowInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = TableRow
 
 
 class BarChartPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = BarChartPart
 
 
 class LineChartPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = LineChartPart
 
 
 class PieChartPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = PieChartPart
 
 
 class BigValueVariableInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = BigValueVariable
 
 
 class SentenceVariableInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = SentenceVariable
 
 
 class PopulationPyramidChartPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = PopulationPyramidChartPart
 
 

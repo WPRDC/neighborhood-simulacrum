@@ -12,8 +12,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 
 import os
 
-from .local_settings import LOCAL_SECRET_KEY, DB_USER, DB_NAME, CENSUS_API_KEY, LOCAL_DEBUG
-
+from .local_settings import LOCAL_SECRET_KEY, DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,9 +23,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = LOCAL_SECRET_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = LOCAL_DEBUG
+DEBUG = True
 
-ALLOWED_HOSTS = ['localhost:3000', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['api.profiles.wprdc.org', '127.0.0.1', 'localhost']
 
 # Application definition
 
@@ -35,23 +34,25 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'polymorphic',
+    'corsheaders',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
     'django_extensions',
-    'corsheaders',
     'rest_framework',
     'nested_admin',
     'indicators',
     'geo',
+    'census_data',
+
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -86,8 +87,11 @@ WSGI_APPLICATION = 'profiles.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
         'NAME': DB_NAME,
         'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
     },
 }
 
@@ -109,6 +113,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'LOCATION': '127.0.0.1:11211',
+    }
+}
+
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
 
@@ -127,21 +138,20 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'theme'),
-]
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
-    ),
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ],
+
     'DEFAULT_RENDERER_CLASSES': (
         'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
         'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
     ),
+
     'DEFAULT_PARSER_CLASSES': (
         'djangorestframework_camel_case.parser.CamelCaseFormParser',
         'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
@@ -152,15 +162,10 @@ REST_FRAMEWORK = {
     },
 }
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-    }
-}
-
 CORS_ORIGIN_ALLOW_ALL = True
 
-# Grappelli Settings
+CENSUS_API_KEY = "8a372db17e2cb7f5cbabe97fead2658cd0ec9276"
+
 GRAPPELLI_ADMIN_TITLE = 'Profiles II'
 
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+DATA_UPLOAD_MAX_NUMBER_FIELDS = None

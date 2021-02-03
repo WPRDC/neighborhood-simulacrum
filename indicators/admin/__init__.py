@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin, CKANGeomSourceAdmin
-from .variable import VariableAdmin, CensusValueAdmin, CensusVariableAdmin, CKANVariableAdmin
+from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
 from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
 
 from ..models import Indicator, Subdomain, Domain, Value
