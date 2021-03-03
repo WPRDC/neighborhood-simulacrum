@@ -8,7 +8,7 @@
 import { MenuLayers } from './containers/Explorer/types';
 
 export const MAPBOX_API_TOKEN =
-  'pk.eyJ1Ijoic3RldmVuZHNheWxvciIsImEiOiJjazZxd2kyZGgwMTI3M250YWU5ZGhjemp1In0.YApLjyNK1QH77QnhRMdkKg';
+  'pk.eyJ1Ijoic3RldmVuZHNheWxvciIsImEiOiJja2xtdTluczcwY3U0Mm5rMGw2ZXFkNjJxIn0.dw1OGgmTsSUP1A-zCsAGQw';
 
 // todo: maybe  replace with call to backend.
 export const GEO_CATEGORIES: {

@@ -1,21 +1,27 @@
 import React from 'react';
 
 import {
-  DataVizID,
-  DataVizDataPoint,
-  DataVizResourceType,
-  RegionDescriptor,
-  TableData,
-  DataVisualization,
-  TableViz,
-  Downloaded,
-  Variable,
-  PieChartViz,
-  ChartData,
-  SentenceViz,
-  SentenceData,
-  BigValueViz,
+  BarChartViz,
   BigValueData,
+  BigValueViz,
+  ChartData,
+  DataVisualization,
+  DataVizBase,
+  DataVizData,
+  DataVizDataPoint,
+  DataVizID,
+  DataVizResourceType,
+  Downloaded,
+  LineChartViz,
+  MiniMapData,
+  MiniMapViz,
+  PieChartViz,
+  RegionDescriptor,
+  SentenceData,
+  SentenceViz,
+  TableData,
+  TableViz,
+  Variable,
 } from '../../types';
 
 import styled, { css } from 'styled-components';
@@ -25,60 +31,55 @@ import { Column as ColumnType, RowRecord } from 'wprdc-components';
 import { PieChart } from '../../components/PieChart';
 import { Sentence } from '../../components/Sentence';
 import BigValue from '../../components/BigValue';
+import { BarChart } from '../../components/BarChart';
+import { LineChart } from '../../components/LineChart';
+import { MiniMap } from '../../components/MiniMap';
 
 type DownloadedTable = Downloaded<TableViz, TableData>;
 type Row = RowRecord;
 type Column = ColumnType<Row>;
 
-// fixme:  too much important work is being done by this random function and its awkward to read
-export function getSpecificDataViz(dataViz?: DataVisualization) {
+type VizGenerator<T extends DataVizBase, D extends DataVizData> = (
+  dataViz: Downloaded<T, D>,
+) => JSX.Element | null;
+
+export function getSpecificDataViz(
+  dataViz?: Downloaded<DataVizBase, DataVizData>,
+) {
   if (!dataViz) {
     return null;
   }
-  switch (dataViz.resourcetype) {
-    case DataVizResourceType.Table:
-      const { columns, data: tableData } = generateTableProps(
-        dataViz as Downloaded<TableViz, TableData>,
-      );
-      return <Table columns={columns} data={tableData} />;
-
-    case DataVizResourceType.PieChart:
-      let { data: chartData, dataKey } = generatePieChartProps(
-        dataViz as Downloaded<PieChartViz, ChartData>,
-      );
-      return <PieChart data={chartData} dataKey={dataKey} />;
-
-    case DataVizResourceType.Sentence:
-      const { text, sentenceData } = generateSentenceProps(
-        dataViz as Downloaded<SentenceViz, SentenceData>,
-      );
-      return <Sentence text={text} data={sentenceData} />;
-
-    case DataVizResourceType.BigValue:
-      const { note, data: bigValueData } = dataViz as Downloaded<
-        BigValueViz,
-        BigValueData
-      >;
-      return <BigValue data={bigValueData} note={note} />;
-
-    default:
-      return null;
-  }
-}
-
-function generateSentenceProps(dataViz: Downloaded<SentenceViz, SentenceData>) {
-  const { text, data } = dataViz;
-  return {
-    text,
-    sentenceData: data,
+  const generators: Record<DataVizResourceType, VizGenerator<any, any>> = {
+    [DataVizResourceType.Sentence]: generateSentence,
+    [DataVizResourceType.BigValue]: generateBigValue,
+    [DataVizResourceType.MiniMap]: generateMiniMap,
+    [DataVizResourceType.Table]: generateTable,
+    [DataVizResourceType.PieChart]: generatePieChart,
+    [DataVizResourceType.LineChart]: generateLineChart,
+    [DataVizResourceType.LineChart]: generateLineChart,
+    [DataVizResourceType.BarChart]: generateBarChart,
   };
+  const generator = generators[dataViz.resourcetype];
+  return generator(dataViz);
 }
 
-function generateTableProps(
-  table: DownloadedTable,
-): { columns: Column[]; data: Row[] } {
-  // map data from API to format for Table
+/*
+ * Data Viz Generators
+ */
+const generateSentence: VizGenerator<SentenceViz, SentenceData> = dataViz => (
+  <Sentence {...dataViz} />
+);
 
+const generateBigValue: VizGenerator<BigValueViz, BigValueData> = dataViz => (
+  <BigValue {...dataViz} />
+);
+
+const generateMiniMap: VizGenerator<MiniMapViz, MiniMapData> = dataViz => (
+  <MiniMap {...dataViz.data} />
+);
+
+const generateTable: VizGenerator<TableViz, TableData> = table => {
+  // map data from API to format for Table
   const columns: Column[] = [
     {
       accessor: 'label',
@@ -98,12 +99,36 @@ function generateTableProps(
     expanded: true,
   }));
 
-  return { columns, data };
-}
+  return <Table columns={columns} data={data} />;
+};
 
-function generatePieChartProps(response: Downloaded<PieChartViz, ChartData>) {
-  return { data: response.data, dataKey: response.timeAxis.timeParts[0].slug };
-}
+const generatePieChart: VizGenerator<PieChartViz, ChartData> = dataViz => {
+  return (
+    <PieChart
+      data={dataViz.data}
+      dataKey={dataViz.timeAxis.timeParts[0].slug}
+    />
+  );
+};
+
+const generateBarChart: VizGenerator<BarChartViz, ChartData> = dataViz => {
+  return (
+    <BarChart
+      data={dataViz.data}
+      dataKey={dataViz.timeAxis.timeParts[0].slug}
+      barName={dataViz.timeAxis.timeParts[0].name}
+    />
+  );
+};
+
+const generateLineChart: VizGenerator<LineChartViz, ChartData> = dataViz => {
+  return (
+    <LineChart
+      data={dataViz.data}
+      dataKey={dataViz.timeAxis.timeParts[0].slug}
+    />
+  );
+};
 
 export function makeKey(dataVizID: DataVizID, region: RegionDescriptor) {
   return `${dataVizID.slug}@${region.regionType}/${region.regionID}`;

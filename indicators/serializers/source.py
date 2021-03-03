@@ -1,54 +1,41 @@
 from rest_framework import serializers
 
-from indicators.models import CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource
+from indicators.models import CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource, Source
 
 
-class CensusSourceSerializer(serializers.ModelSerializer):
+class SourceSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CensusSource
+        model = Source
         fields = (
             'id',
             'name',
             'slug',
             'description',
-            'dataset',
+            'info_link',
         )
 
 
+# Census
+class CensusSourceSerializer(SourceSerializer):
+    class Meta:
+        model = CensusSource
+        fields = SourceSerializer.Meta.fields + ('dataset',)
+
+
+# CKAN
 class CKANSourceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = CKANSource
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'package_id',
-            'resource_id',
-        )
+        fields = SourceSerializer.Meta.fields + ('package_id', 'resource_id',)
 
 
-class CKANGeomSourceSerializer(serializers.HyperlinkedModelSerializer):
+class CKANGeomSourceSerializer(CKANSourceSerializer):
     class Meta:
         model = CKANGeomSource
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'package_id',
-            'resource_id',
-        )
+        fields = CKANSourceSerializer.Meta.fields
 
 
 class CKANRegionalSourceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = CKANRegionalSource
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'package_id',
-            'resource_id',
-        )
+        fields = CKANSourceSerializer.Meta.fields

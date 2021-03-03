@@ -7,7 +7,7 @@ from geo.models import CensusGeography
 from . import TimeAxisPolymorphicSerializer
 from .variable import BriefVariablePolymorphicSerializer
 from ..models import DataViz, Table
-from ..models.viz import BarChart, PopulationPyramidChart, PieChart, LineChart, BigValue, Sentence
+from ..models.viz import BarChart, PopulationPyramidChart, PieChart, LineChart, BigValue, Sentence, MiniMap
 from ..utils import DataResponse
 
 
@@ -24,6 +24,8 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
             'time_axis',
             'variables',
             'indicator',
+            'view_width',
+            'view_height',
         )
 
 
@@ -33,6 +35,12 @@ class TableSerializer(DataVizSerializer):
         fields = DataVizSerializer.Meta.fields + (
             'transpose',
         )
+
+
+class MiniMapSerializer(DataVizSerializer):
+    class Meta:
+        model = MiniMap
+        fields = DataVizSerializer.Meta.fields + ( )
 
 
 class BarChartSerializer(DataVizSerializer):
@@ -77,6 +85,7 @@ class PopulationPyramidChartSerializer(DataVizSerializer):
 class DataVizPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         Table: TableSerializer,
+        MiniMap: MiniMapSerializer,
         BarChart: BarChartSerializer,
         BigValue: BigValueSerializer,
         Sentence: SentenceSerializer,
@@ -123,6 +132,12 @@ class TableWithDataSerializer(TableSerializer, WithData):
         fields = TableSerializer.Meta.fields + WithData.Meta.fields
 
 
+class MiniMapWithDataSerializer(MiniMapSerializer, WithData):
+    class Meta:
+        model = MiniMap
+        fields = MiniMapSerializer.Meta.fields + WithData.Meta.fields
+
+
 class BarChartWithDataSerializer(BarChartSerializer, WithData):
     class Meta:
         model = BarChart
@@ -162,6 +177,7 @@ class PopulationPyramidChartWithDataSerializer(PopulationPyramidChartSerializer,
 class DataVizWithDataPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         Table: TableWithDataSerializer,
+        MiniMap: MiniMapWithDataSerializer,
         BarChart: BarChartWithDataSerializer,
         BigValue: BigValueWithDataSerializer,
         Sentence: SentenceWithDataSerializer,
@@ -181,12 +197,20 @@ class DataVizIdentifiersSerializer(serializers.HyperlinkedModelSerializer):
             'id',
             'name',
             'slug',
+            'view_height',
+            'view_width',
         )
 
 
 class TableIdentifiersSerializer(DataVizIdentifiersSerializer):
     class Meta:
         model = Table
+        fields = DataVizIdentifiersSerializer.Meta.fields
+
+
+class MiniMapIdentifiersSerializer(DataVizIdentifiersSerializer):
+    class Meta:
+        model = MiniMap
         fields = DataVizIdentifiersSerializer.Meta.fields
 
 
@@ -229,6 +253,7 @@ class PopulationPyramidChartIdentifiersSerializer(DataVizIdentifiersSerializer):
 class DataVizIdentifiersPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         Table: TableIdentifiersSerializer,
+        MiniMap: MiniMapIdentifiersSerializer,
         BarChart: BarChartIdentifiersSerializer,
         BigValue: BigValueIdentifiersSerializer,
         Sentence: SentenceIdentifiersSerializer,

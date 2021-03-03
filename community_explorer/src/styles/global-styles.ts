@@ -30,4 +30,5 @@ export const GlobalStyle = createGlobalStyle`
   .rc-table-row-level-1 {
     color: #4a4a4a;
   }
+  
 `;

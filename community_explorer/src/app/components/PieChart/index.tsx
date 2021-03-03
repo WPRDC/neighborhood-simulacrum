@@ -2,6 +2,7 @@
  *
  * PieChart
  *
+ * http://urbaninstitute.github.io/graphics-styleguide/
  */
 import React from 'react';
 
@@ -33,6 +34,8 @@ export function PieChart(props: Props) {
             label={renderCustomizedLabel}
             labelLine={false}
             paddingAngle={5}
+            startAngle={0}
+            endAngle={180}
           >
             {props.data.map((entry, index) => (
               <Cell

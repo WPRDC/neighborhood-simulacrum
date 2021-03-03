@@ -1,21 +1,33 @@
-from typing import TYPE_CHECKING, Optional
+import itertools
+import uuid
+from typing import TYPE_CHECKING, Optional, Type
 
+import jenkspy
 import pystache
-from django.core.exceptions import ValidationError
+from django.contrib.gis.db.models import Union
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
-from django.db.models import QuerySet, Manager
+from django.db.models import QuerySet, Manager, Value
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
+from django.utils.text import slugify
 
 from polymorphic.models import PolymorphicModel
+from rest_framework.exceptions import NotFound
 
+from geo.serializers import CensusGeographyDataMapSerializer
 from indicators.helpers import clean_sql
 from indicators.models.abstract import Described
-from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
+from indicators.utils import DataResponse, ErrorResponse, ErrorLevel, get_region_model
+from django.conf import settings
+
+from geo.models import BlockGroup, County
 
 if TYPE_CHECKING:
-    from indicators.models import Variable
+    from indicators.models import Variable, TimeAxis
     from geo.models import CensusGeography
+
+CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
 
 
 class OrderedVariable(models.Model):
@@ -27,16 +39,56 @@ class OrderedVariable(models.Model):
 
 
 class DataViz(PolymorphicModel, Described):
+    GRID_UNITS = (
+        ('1', 1),
+        ('2', 2),
+        ('3', 3),
+        ('4', 4),
+    )
+
+    DEFAULT_WIDTH: int = 2
+    DEFAULT_HEIGHT: int = 1
+
     """ Base class for all Data Presentations """
+    _name: str
     vars: Manager['Variable']
     time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)
     indicator = models.ForeignKey('Indicator', related_name='data_vizes', on_delete=models.CASCADE)
 
+    width_override = models.IntegerField(
+        help_text='Relative width when displayed in a grid with other data presentations.',
+        choices=GRID_UNITS,
+        null=True, blank=True)
+
+    height_override = models.IntegerField(
+        help_text='Relative height when displayed in a grid with other data presentations.',
+        choices=GRID_UNITS,
+        null=True, blank=True)
+
+    @property
+    def view_height(self):
+        return self.height_override or self.DEFAULT_HEIGHT
+
+    @property
+    def view_width(self):
+        return self.width_override or self.DEFAULT_WIDTH
+
     @property
     def variables(self) -> QuerySet['Variable']:
         if self.vars:
-            return self.vars.all()
+            return self.vars.annotate(viz_options=Value(self.options, output_field=models.JSONField()))
         raise AttributeError('Subclasses of DataPresentation must provide their own `vars` ManyToManyField')
+
+    @property
+    def options(self) -> dict:
+        options = {}
+        field: models.Field
+        for rel_obj in self.vars.through.objects.filter(**{self._name: self}):
+            for field in rel_obj._meta.get_fields():
+                if not field.is_relation and field.attname != 'id':
+                    field_name: str = field.get_attname()
+                    options[field_name] = getattr(rel_obj, field_name)
+        return options
 
     def can_handle_geography(self, geog: 'CensusGeography') -> bool:
         var: 'Variable'
@@ -60,12 +112,11 @@ class DataViz(PolymorphicModel, Described):
 # ==================
 
 class MapLayer(PolymorphicModel, OrderedVariable):
-    map = models.ForeignKey('MiniMap', on_delete=models.CASCADE, related_name='map_to_variable')
+    minimap = models.ForeignKey('MiniMap', on_delete=models.CASCADE, related_name='map_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_map')
 
     # options
     visible = models.BooleanField()
-    limit_to_target_geog = models.BooleanField(default=True)
 
     # mapbox style
     custom_paint = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',
@@ -78,25 +129,77 @@ class MapLayer(PolymorphicModel, OrderedVariable):
     # variables with aggregation methods can be used for styling geographies
     # variables with aggregation methods and "parcel_source"s can be used to style parcels
 
+    def options(self, geog_type_str: str, data: dict):
+        raise NotImplementedError
 
-class ChoroplethLayer(MapLayer):
-    # Choropleth of similar places
-    # generate sql statement to send to carto with:
-    #   * carto table from the places model joined with
-    #   * carto table for the variable
-    #   * SELECT cartodb_id, the_geom, the_geom_webmercator, {variable.carto_field} FROM {join_statement} WHERE {sql_filter}
-    # style properties
 
-    def get_carto_sql(self, geog: 'CensusGeography'):
-        return f'SELECT  '
+class GeogChoroplethMapLayer(MapLayer):
+    """
+    Map Layer where geographies of the same type are styled based on a variable.
 
-    pass
+    - choropleths
+    - categorical maps for admin regions
+    """
+    COLORS = ['#fff7fb', '#ece7f2', '#d0d1e6', '#a6bddb', '#74a9cf', '#3690c0', '#0570b0', '#045a8d', '#023858']
+
+    sub_geog = models.ForeignKey(
+        'geo.CensusGeography',
+        help_text='If provided, this geography will be styled within the target geography.  '
+                  'Otherwise, the provided geography will be styled along with others of the same level.',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True
+    )
+
+    def options(self, geog_type_str: str, data: dict):
+        id = str(uuid.uuid4())
+        host = settings.MAP_HOST
+        # todo: make bucket count an option
+        values = [feat['properties']['map_value'] for feat in data['features'] if
+                  feat['properties']['map_value'] is not None]
+        breaks = jenkspy.jenks_breaks(values, nb_class=6)[1:]
+
+        # zip breakpoints with colors
+        steps = list(itertools.chain.from_iterable(zip(breaks, self.COLORS[1:len(breaks)])))
+        fill_color = ["step", ["get", "mapValue"], self.COLORS[0]] + steps
+
+        source = {
+            'id': id,
+            'type': 'geojson',
+            'data': f"{host}/{geog_type_str}:{self.minimap.id}:{self.variable.id}.geojson"
+        }
+        layers = [{
+            "id": f'{id}/boundary',
+            'type': 'line',
+            'source': id,
+            'layout': {},
+            'paint': {
+                'line-opacity': 1,
+                'line-color': '#000',
+            },
+        }, {
+            "id": f'{id}/fill',
+            'type': 'fill',
+            'source': id,
+            'layout': {},
+            'paint': {
+                'fill-opacity': 0.4,
+                'fill-color': fill_color
+            },
+        }]
+
+        legendType = 'choropleth'
+        legendItems = [{'label': str(breaks[i]), 'marker': self.COLORS[i]} for i in range(len(breaks))]
+
+        interactive_layer_ids = [f'{id}/fill']
+        return source, layers, interactive_layer_ids, {'type': legendType, 'items': legendItems}
 
 
 class ObjectsLayer(MapLayer):
     # Make Map of things in a place
     # for variable in variables
     # place points returned from variable on map - use through relation to specify style
+    limit_to_target_geog = models.BooleanField(default=True)
 
     pass
 
@@ -108,17 +211,30 @@ class ParcelsLayer(MapLayer):
     #   * get parcels within shape of the geography ST_Intersect
     #   * join them with the data from variable
     #   * SELECT cartodb_id, the_geom, the_geom_webmercator, {parcel_id_field}, {variable.carto_field} FROM {join_statement} WHERE {sql_filter}
+    limit_to_target_geog = models.BooleanField(default=True)
     pass
 
 
 class MiniMap(DataViz):
-    vars = models.ManyToManyField('Variable', verbose_name='Layers', through=MapLayer)
+    DEFAULT_HEIGHT = 2
+    DEFAULT_WIDTH = 2
 
-    # fields = ArrayField(models.CharField(max_length=80), blank=True)
-    # geom_field = models.CharField(max_length=40, default="the_geom")
-    # paint = models.JSONField(null=True, blank=True)
-    # layout = models.JSONField(null=True, blank=True)
-    # filter = models.TextField(null=True, blank=True)
+    BORDER_LAYER_BASE = {
+        "type": "line",
+        "paint": {
+            "line-color": "#333",
+            "line-width": [
+                "interpolate",
+                ["exponential", 1.51],
+                ["zoom"],
+                0, 1,
+                8, 1,
+                16, 14
+            ]
+        },
+    }
+    _name = 'minimap'
+    vars = models.ManyToManyField('Variable', verbose_name='Layers', through=MapLayer)
 
     @property
     def layers(self):
@@ -131,14 +247,74 @@ class MiniMap(DataViz):
     def get_sql_for_region(self, region: 'CensusGeography') -> str:
         # noinspection SqlResolve
         sql = f"""
-                SELECT {', '.join(self.fields)} , {self.geom_field}, the_geom_webmercator
-                FROM {self.carto_table}
-                WHERE ST_Intersects({self.geom_field}, ({region.carto_geom_sql}))
-                """
+            SELECT {', '.join(self.fields)} , {self.geom_field}, the_geom_webmercator
+            FROM {self.carto_table}
+            WHERE ST_Intersects({self.geom_field}, ({region.carto_geom_sql}))
+            """
         if self.filter:
             sql += f""" AND {self.filter}"""
 
         return clean_sql(sql)
+
+    def _get_map_data(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> dict:
+        """
+        Custom view to serve Mapbox Vector Tiles for the custom polygon model.
+        """
+        if geog_type == BlockGroup:
+            # todo: actually handle this error, then this case
+            raise NotFound
+
+        serializer_context = {'data': variable.get_layer_data(self, geog_type)}
+
+        domain = County.objects \
+            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+            .aggregate(the_geom=Union('geom'))
+
+        geogs: QuerySet['CensusGeography'] = geog_type.objects.filter(geom__coveredby=domain['the_geom'])
+        geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
+
+        return geojson
+
+    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        sources: [dict] = []
+        layers: [dict] = []
+        map_options: dict = {}
+        legend_options: [dict] = []
+        interactive_layer_ids: [str] = []
+
+        highlight_id = slugify(geog.name)
+        highlight_source = {
+            'id': f'{highlight_id}',
+            'type': 'geojson',
+            'data': geog.simple_geojson,
+        }
+        highlight_layer = {
+            'id': f'{highlight_id}/highlight',
+            'source': f'{highlight_id}',
+            **self.BORDER_LAYER_BASE
+        }
+        for var in self.vars.all():
+            geojson = self._get_map_data(type(geog), var)
+            layer: MapLayer = self.vars.through.objects.get(variable=var, minimap=self)
+            source, tmp_layers, interactive_layer_ids, legend_option = layer.options(geog.region_type, geojson)
+            sources.append(source)
+            legend_option['title'] = var.name
+            legend_options.append(legend_option)
+            layers += tmp_layers
+
+        map_options['interactive_layer_ids'] = interactive_layer_ids
+        map_options['default_viewport'] = {
+            'longitude': geog.geom.centroid.x,
+            'latitude': geog.geom.centroid.y,
+            'zoom': geog.base_zoom
+        }
+
+        sources.append(highlight_source)
+        layers.append(highlight_layer)
+
+        return DataResponse(
+            data={'sources': sources, 'layers': layers, 'map_options': map_options, 'legends': legend_options},
+            error=ErrorResponse(level=ErrorLevel.OK))
 
     def __str__(self):
         return self.name
@@ -157,9 +333,21 @@ class TableRow(OrderedVariable):
 
 
 class Table(DataViz):
+    # todo: calculate height based on number of columns
+    DEFAULT_WIDTH = 2
+    DEFAULT_HEIGHT = 2
+    _name = 'table'
     vars = models.ManyToManyField('Variable', verbose_name='Rows', through=TableRow)
     transpose = models.BooleanField(default=False)
     show_percent = models.BooleanField(default=True)
+
+    @property
+    def view_height(self):
+        return (len(self.vars.all()) // 5) + 4
+
+    @property
+    def view_width(self):
+        return self.width_override or self.DEFAULT_WIDTH
 
     @property
     def variables(self):
@@ -186,6 +374,7 @@ class Table(DataViz):
 # ==================
 
 class Chart(DataViz):
+    _name = 'chart'
     """
     Abstract base class for charts
     """
@@ -226,7 +415,8 @@ class Chart(DataViz):
         if self.can_handle_geography(region):
             for variable in self.variables.order_by(through):
                 data.append(variable.get_chart_record(self, region))
-            error = ErrorResponse(level=ErrorLevel.OK, message=f'This Chart is not available for this {region.name}.')
+            error = ErrorResponse(level=ErrorLevel.OK,
+                                  message=f'This Chart is not available for this {region.name}.')
         else:
             error = ErrorResponse(level=ErrorLevel.EMPTY, message=None)
         return DataResponse(data=data, error=error)
@@ -239,8 +429,15 @@ class Chart(DataViz):
 
 
 class BarChartPart(OrderedVariable):
+    NONE = None
+    HIGHLIGHT = 'HI'
+    SUBTLE = 'SU'
+    AVERAGE = 'AVG'
+    STYLE_CHOICES = ((NONE, 'None'), (HIGHLIGHT, 'Highlight'), (SUBTLE, 'Subtle'), (AVERAGE, 'Avg/Mean'))
     chart = models.ForeignKey('BarChart', on_delete=models.CASCADE, related_name='bar_chart_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_bar_chart')
+    style = models.CharField(verbose_name='Special Style', max_length=4, choices=STYLE_CHOICES,
+                             default=None, null=True, blank=True)
 
     @property
     def variables(self):
@@ -251,6 +448,8 @@ class BarChartPart(OrderedVariable):
 
 
 class BarChart(Chart):
+    DEFAULT_WIDTH = 3
+
     vars = models.ManyToManyField('Variable', through=BarChartPart)
     layout = models.CharField(
         max_length=10,
@@ -333,6 +532,8 @@ class PopulationPyramidChart(Chart):
 # +  Alphanumeric
 # ==================
 class Alphanumeric(DataViz):
+    _name = 'alphanumeric'
+
     class Meta:
         abstract = True
 
@@ -345,7 +546,8 @@ class BigValueVariable(OrderedVariable):
         unique_together = ('alphanumeric', 'variable', 'order',)
 
 
-class BigValue(DataViz):
+class BigValue(Alphanumeric):
+    DEFAULT_WIDTH = 1
     vars = models.ManyToManyField('Variable', through=BigValueVariable)
     note = models.TextField(blank=True, null=True)
 
@@ -366,6 +568,10 @@ class BigValue(DataViz):
     def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
         return self.get_value_data(geog)
 
+    @property
+    def view_width(self):
+        return self.width_override or self.DEFAULT_WIDTH
+
 
 class SentenceVariable(OrderedVariable):
     alphanumeric = models.ForeignKey('Sentence', on_delete=models.CASCADE, related_name='sentence_to_variable')
@@ -375,7 +581,7 @@ class SentenceVariable(OrderedVariable):
         unique_together = ('alphanumeric', 'variable', 'order',)
 
 
-class Sentence(DataViz):
+class Sentence(Alphanumeric):
     vars = models.ManyToManyField('Variable', through=SentenceVariable)
     text = models.TextField(
         help_text='To place a value in your sentence, use {order}. e.g. "There are {1} cats and {2} dogs in town."')
@@ -402,7 +608,8 @@ class Sentence(DataViz):
             except Exception as e:
                 error = ErrorResponse(level=ErrorLevel.ERROR, message=str(e))
         else:
-            error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Sentence is not available for {geog.name}.')
+            error = ErrorResponse(level=ErrorLevel.EMPTY,
+                                  message=f'This Sentence is not available for {geog.name}.')
 
         return DataResponse(data=data, error=error)
 

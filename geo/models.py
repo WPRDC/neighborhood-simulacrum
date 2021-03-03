@@ -1,8 +1,8 @@
+import json
 from abc import abstractmethod
 from typing import List
 
 from django.contrib.gis.db import models
-from polymorphic.managers import PolymorphicManager
 from polymorphic.models import PolymorphicModel
 
 from geo.util import get_population, get_kid_population
@@ -36,6 +36,8 @@ class Geography(models.Model):
         (SCHOOL_DISTRICT, 'School District'),
     )
 
+    objects = models.Manager()
+
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     geom = models.MultiPolygonField()
@@ -50,6 +52,16 @@ class Geography(models.Model):
     def bbox(self):
         extent = self.geom.extent  # (xmin, ymin, xmax, ymax)
         return [list(extent[0:2]), list(extent[2:4])]
+
+    @property
+    def simple_geojson(self) -> dict:
+        return {
+            "type": "Feature",
+            "geometry": json.loads(self.geom.json),
+            "properties": {
+                "name": self.name
+            }
+        }
 
     def __str__(self):
         return self.name
@@ -66,6 +78,10 @@ class CensusGeography(PolymorphicModel, Geography):
     carto_geoid_field: str = 'geoid'
     carto_geom_field: str = 'the_geom'
     carto_geom_webmercator_field: str = 'the_geom_webmercator'
+
+    ckan_resource: str
+
+    base_zoom: int
 
     common_geoid = models.CharField(max_length=21, null=True, blank=True)
     affgeoid = models.CharField(max_length=21, unique=True)
@@ -139,6 +155,10 @@ class BlockGroup(CensusGeography):
     TITLE = "Block Group"
     carto_table = "census_blockgroup"
 
+    ckan_resource = "b5f5480c-548d-46d8-b623-40a226d87517"
+
+    base_zoom = 12
+
     geoid = models.CharField(max_length=12, primary_key=True)
     statefp = models.CharField(max_length=2)
     countyfp = models.CharField(max_length=3)
@@ -178,6 +198,10 @@ class Tract(CensusGeography):
     carto_table = "census_tract"
     region_type = TYPE
 
+    ckan_resource = "a6b6bd16-e9d4-4ac8-a17b-7c1183985c15"
+
+    base_zoom = 10
+
     geoid = models.CharField(max_length=12, primary_key=True)
 
     statefp = models.CharField(max_length=2)
@@ -209,10 +233,14 @@ class Tract(CensusGeography):
 
 
 class CountySubdivision(CensusGeography):
-    TYPE = "countyGubdivision"
+    TYPE = "countySubdivision"
     TITLE = 'County Subdivision'
     carto_table = "census_county_subdivision"
     region_type = TYPE
+
+    ckan_resource = "e7d6f272-0a50-4dc6-a140-c39992f1fc09"
+
+    base_zoom = 7
 
     geoid = models.CharField(max_length=12, primary_key=True)
 
@@ -251,6 +279,11 @@ class County(CensusGeography):
     carto_table = 'census_county'
     region_type = TYPE
 
+    ckan_resource = "b30b9dee-5527-4cc4-8ce9-5ab2c6cc664e"
+
+    base_zoom = 9
+
+
     geoid = models.CharField(max_length=12, primary_key=True)
     statefp = models.CharField(max_length=2)
     countyfp = models.CharField(max_length=5)
@@ -286,6 +319,8 @@ class Place(CensusGeography):
     TITLE = 'Place'
     carto_table = 'census_place'
     region_type = TYPE
+
+    ckan_resource = "69d24a7a-421f-4e0b-8ee9-a91e46b116a8"
 
     geoid = models.CharField(max_length=12, primary_key=True)
 
@@ -328,6 +363,8 @@ class Puma(CensusGeography):
     carto_table = 'census_puma'
     region_type = TYPE
 
+    ckan_resource = "6eac8237-5275-4131-a9e6-a26494b22be2"
+
     geoid = models.CharField(max_length=12, primary_key=True)
 
     statefp = models.CharField(max_length=2)
@@ -363,6 +400,8 @@ class SchoolDistrict(CensusGeography):
     TITLE = "School District"
     carto_table = 'census_school_districts'
     region_type = TYPE
+
+    ckan_resource = '35e9b048-c9fb-4412-a9d8-a751f975eb2a'
 
     geoid = models.CharField(max_length=12, primary_key=True)
 

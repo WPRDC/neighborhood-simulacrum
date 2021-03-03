@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
 from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource
+from indicators.serializers import CKANSourceSerializer
 
 
 class DenominatorSerializer(serializers.ModelSerializer):
@@ -13,6 +14,7 @@ class DenominatorSerializer(serializers.ModelSerializer):
             'slug',
             'depth',
             'percent_label',
+            'short_name',
         )
 
 
@@ -21,6 +23,7 @@ class CensusVariableSourceSerializer(serializers.ModelSerializer):
     slug = serializers.ReadOnlyField(source='source.slug')
     description = serializers.ReadOnlyField(source='source.description')
     dataset = serializers.ReadOnlyField(source='source.dataset')
+    info_link = serializers.ReadOnlyField(source='source.info_link')
 
     class Meta:
         model = CensusVariableSource
@@ -30,12 +33,15 @@ class CensusVariableSourceSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'dataset',
-            'formula'
+            'formula',
+            'info_link',
         )
 
 
 class CensusVariableSerializer(serializers.ModelSerializer):
     sources = CensusVariableSourceSerializer(source='variable_to_source', many=True)
+    denominators = DenominatorSerializer(many=True)
+    viz_options = serializers.JSONField()
 
     class Meta:
         model = CensusVariable
@@ -44,12 +50,14 @@ class CensusVariableSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
+            'short_name',
             'units',
             'unit_notes',
             'denominators',
             'depth',
             'percent_label',
             'sources',
+            'viz_options',
         )
 
 
@@ -64,6 +72,7 @@ class CensusVariableBriefSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
+            'short_name',
             'units',
             'unit_notes',
             'depth',
@@ -74,7 +83,9 @@ class CensusVariableBriefSerializer(serializers.ModelSerializer):
 
 
 class CKANVariableSerializer(serializers.ModelSerializer):
+    sources = CKANSourceSerializer()
     denominators = DenominatorSerializer(many=True)
+    viz_options = serializers.JSONField()
 
     class Meta:
         model = CKANVariable
@@ -83,6 +94,7 @@ class CKANVariableSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
+            'short_name',
             'units',
             'unit_notes',
             'denominators',
@@ -91,7 +103,8 @@ class CKANVariableSerializer(serializers.ModelSerializer):
             'sources',
             'aggregation_method',
             'field',
-            'sql_filter'
+            'sql_filter',
+            'viz_options'
         )
 
 
@@ -105,6 +118,7 @@ class CKANVariableBriefSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
+            'short_name',
             'units',
             'unit_notes',
             'denominators',

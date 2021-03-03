@@ -1,7 +1,13 @@
+from typing import TYPE_CHECKING
+
 from rest_framework import serializers
+from rest_framework_gis import serializers as gis_serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
 from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County
+
+if TYPE_CHECKING:
+    from indicators.models import Variable, TimeAxis
 
 
 class HierarchySerializer(serializers.ModelSerializer):
@@ -29,6 +35,29 @@ class CensusGeographySerializer(serializers.ModelSerializer):
             'population',
             'kid_population',
         )
+
+
+class CensusGeographyDataMapSerializer(gis_serializers.GeoFeatureModelSerializer):
+    """ Generates GeoJSON with dataviz data for a variable."""
+    map_value = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CensusGeography
+        geo_field = 'geom'
+        fields = (
+            'id',
+            'title',
+            'geom',
+            'map_value',
+        )
+
+    def get_map_value(self, obj: CensusGeography):
+        """ Gets value for a variable at a time for each feature """
+        data: dict = self.context.get('data', None)
+        geoid = obj.common_geoid
+        if not data:
+            return None
+        return data.get(geoid, None)
 
 
 class CountySerializer(CensusGeographySerializer):

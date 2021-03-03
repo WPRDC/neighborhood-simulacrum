@@ -16,10 +16,10 @@ import { makeSelectDataVizData } from './selectors';
 import { selectSelectedRegionDescriptor } from '../Explorer/selectors';
 import { getSpecificDataViz } from './util';
 
-import { DataVizID } from '../../types';
-import { Text } from '@adobe/react-spectrum';
+import { DataVizID, VariableSource } from '../../types';
+import { Text, Link, Heading, Flex } from '@adobe/react-spectrum';
 import { ProgressBar } from '@react-spectrum/progress';
-import { Flex } from '@react-spectrum/layout';
+import styled from 'styled-components/macro';
 
 interface Props {
   dataVizID: DataVizID;
@@ -53,13 +53,34 @@ export function DataViz(props: Props) {
 
   if (error) console.warn(error);
 
+  const { name, description, variables } = dataViz || {};
+
+  // flatten all the sources attached to variables into one set
+  const sources_record =
+    variables &&
+    variables.reduce(
+      (acc, curr) => ({
+        ...acc,
+        ...curr.sources.reduce((a, c) => ({ ...a, [c.slug]: c }), {}),
+      }),
+      {} as Record<string, VariableSource>,
+    );
+
+  const sources = sources_record && Object.values(sources_record);
+
   return (
     <View>
       {!!dataVizDataRecord && (
-        <View maxHeight="size-5000" overflow="auto">
+        <View>
           {isLoading && <LoadingMessage />}
-          {!!error && <Text>{dataVizDataRecord.error}</Text>}
+          {!!error && <Text>{error}</Text>}
+          {!!name && (
+            <Heading level={4} UNSAFE_style={{ marginTop: 0 }}>
+              {name}
+            </Heading>
+          )}
           {!!dataViz && getSpecificDataViz(dataViz)}
+          {!!sources && <SourceBox sources={sources} />}
         </View>
       )}
     </View>
@@ -73,3 +94,30 @@ const LoadingMessage = () => (
     </View>
   </Flex>
 );
+
+const SourceBox = ({ sources }: { sources: VariableSource[] }) => (
+  <View>
+    <View>
+      <Text>
+        <strong>Sources:</strong>
+      </Text>
+    </View>
+    <List>
+      {sources.map(source => (
+        <li>
+          <Link>
+            <a href={source.infoLink} target="_blank" rel="noreferrer noopener">
+              {source.name}
+            </a>
+          </Link>
+        </li>
+      ))}
+    </List>
+  </View>
+);
+
+const List = styled.ul`
+  padding-left: 1rem;
+  margin-top: 2px;
+  list-style: none;
+`;

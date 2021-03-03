@@ -1,11 +1,13 @@
+from dataclasses import dataclass
 from functools import lru_cache
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Optional, Type
 
 import requests
 from datetime import MINYEAR, MAXYEAR
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.db.models import QuerySet, Sum, Value
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
@@ -38,6 +40,24 @@ def split_formula(formula: str, source: 'CensusSource') -> List[str]:
 
 
 class Variable(PolymorphicModel, Described):
+    @dataclass
+    class ValueRecord(object):
+        """ Holds what's necessary to describe one continuous chunk of time"""
+        slug: str
+        name: str
+        time_point: timezone.datetime
+        time_unit: int
+
+        @property
+        def trunc_str(self):
+            trunc_field = TimeAxis.UNIT_FIELDS[self.time_unit]
+            return f""" date_trunc('{trunc_field}', '{self.time_point}') """
+
+        def __hash__(self):
+            return hash((self.slug, self.time_point, self.time_unit))
+
+    short_name = models.CharField(max_length=26, null=True, blank=True)
+
     units = models.CharField(
         max_length=30,
         null=True,
@@ -65,9 +85,46 @@ class Variable(PolymorphicModel, Described):
         default=0
     )
 
+    carto_table = models.CharField(
+        max_length=30,
+        null=True,
+        blank=True,
+    )
+
+    field_in_carto = models.CharField(
+        verbose_name='Carto field',
+        max_length=60,
+        help_text='If left blank, the value for "field" will be used.',
+        blank=True, null=True,
+    )
+    sql_filter_for_carto = models.TextField(
+        verbose_name="Carto SQL Filter",
+        help_text='If left blank, the value for "sql filter" will be used.',
+        null=True, blank=True
+    )
+
     @property
     def percent_label(self):
         return self.percent_label_text if self.percent_label_text else f'% of {self.title}'
+
+    def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
+        raise NotImplemented
+
+    def get_value_and_moe(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> dict:
+        raise NotImplemented
+
+    def get_table_row(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, Union[dict, None]]:
+        raise NotImplemented
+
+    def get_chart_record(self, data_viz: DataViz, geog_type: CensusGeography) -> Dict[str, any]:
+        raise NotImplemented
+
+    def get_layer_data(self, data_viz: DataViz, geog: Type[CensusGeography]) -> Dict[str, any]:
+        raise NotImplemented
+
+    def carto_join(self, geog: 'CensusGeography'):
+        # create a SQL join statement for use in carto
+        raise NotImplemented
 
     def _get_all_values_at_geog_and_time_part(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> dict:
         """
@@ -125,6 +182,46 @@ class CensusVariable(Variable):
         through='CensusVariableSource'
     )
 
+    # Value getters
+    def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
+        """  Gets the primary value """
+        return self.get_value_and_moe(geog, time_part)['v']
+
+    def get_value_and_moe(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> dict:
+        """ Find and return the value and margin of error for the variable at a geography and series """
+        value: Optional[float] = 0
+        moe: Optional[float] = 0
+        na_flag = False
+        source = self._get_source_for_time_point(time_part.time_point)
+
+        # get census tables for time_point
+        # get census table pointers for this variable
+        # fixme: this is fine on one-by-one basis, but when doing batch value gathering, this adds a lot of overhead
+        #   we should try to use querysets the whole way down to the value getting
+        pointers = source.source_to_variable.get(variable=self).census_table_pointers.all()
+        for ct_pointer in pointers:
+            v, m = ct_pointer.get_values_at_geog(geog)
+            if value or v is None:
+                value = None
+            else:
+                value += v
+            if moe or m is None:
+                moe = None
+            else:
+                moe += m
+
+        return {'v': value, 'm': moe}
+
+    def get_values_over_geog_type(self, geog_type: Type[CensusGeography], time_part: 'TimeAxis.TimePart') -> dict:
+        geogs = geog_type.objects.all()
+        # queryset of relevant census tables
+        census_tables = self.get_census_tables_for_time_part(time_part)
+        # get values for all geogs at time, group by geog and sum values
+        qs = CensusValue.objects.filter(geography__common_geoid__in=geogs, census_table__in=census_tables).values(
+            "geography__common_geoid").annotate(value=Sum('value'))
+        return {g['geography__common_geoid']: g['value'] for g in qs.all()}
+
+    # Data presentation formats
     def get_table_row(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, Union[dict, None]]:
         """
         Gets the data for a table row. Data is collected for each series (column) in `data_viz`.
@@ -149,28 +246,22 @@ class CensusVariable(Variable):
                 record[time_part.slug] = value
         return record
 
-    def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
-        """  Gets the primary value """
-        return self.get_value_and_moe(geog, time_part)['v']
+    def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> Dict[str, any]:
+        time_part = data_viz.time_axis.time_parts[0]
+        # get data {geoid -> value}
+        data = self.get_values_over_geog_type(geog_type, time_part)
+        return data
 
-    def get_value_and_moe(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> dict:
-        """ Find and return the value and margin of error for the variable at a geography and series """
-        value: float = 0
-        moe: float = 0
-        na_flag = False
+    # Utils
+    def get_census_tables_for_time_part(self, time_part: 'TimeAxis.TimePart') -> QuerySet['CensusTable']:
         source = self._get_source_for_time_point(time_part.time_point)
+        census_table_ptrs = source.source_to_variable.get(variable=self).census_table_pointers.all()
+        return CensusTable.objects.filter(value_to_pointer__in=census_table_ptrs)
 
-        # get census tables for time_point
-        # get census table pointers for this variable
-        pointers = source.source_to_variable.get(variable=self).census_table_pointers.all()
-        for ct_pointer in pointers:
-            v, m = ct_pointer.get_values_at_geog(geog)
-            value += v
-            moe += m if m is not None else 0
-            if m is None:
-                na_flag = True
-
-        return {'v': value, 'm': moe}
+    def carto_join(self, geog: 'CensusGeography'):
+        # check that geog is compatible with census data (right now it is by default)
+        # todo: update this when allowing other geographies
+        return f' {self.carto_table} dt JOIN {geog} geog '
 
     def _get_source_for_time_point(self, time_point: timezone.datetime) -> 'CensusSource':
         is_decade = not time_point.year % 10
@@ -218,26 +309,6 @@ class CensusVariableSource(models.Model):
     formula = models.TextField(null=True, blank=True)
     census_table_pointers = models.ManyToManyField('census_data.CensusTablePointer')
 
-    # def save(self, *args, **kwargs):
-    #     f_parts = ''.join(self.formula.split()).split('+')
-    #     year = self.source.time_coverage_start.year
-    #     dataset = self.source.dataset
-    #     if dataset[0:3] == 'ACS':
-    #         for f_part in f_parts:
-    #             value_table_id, moe_table_id = (f'{f_part}{mode}' for mode in ('E', 'M'))
-    #             value_table = CensusTable.objects.get(year=year, dataset=dataset, table_id=value_table_id)
-    #             try:
-    #                 moe_table = CensusTable.objects.get(year=year, dataset=dataset, table_id=moe_table_id)
-    #             except ObjectDoesNotExist:
-    #                 print(moe_table_id)
-    #                 moe_table = None
-    #             census_table_pointer, created = CensusTablePointer.objects.get_or_create(
-    #                 value_table=value_table,
-    #                 moe_table=moe_table,
-    #                 dataset=dataset)
-    #             self.census_table_pointers.add(census_table_pointer)
-    #     super(CensusVariableSource, self).save(*args, **kwargs)
-
 
 class CKANVariable(Variable):
     NONE = 'NONE'
@@ -276,24 +347,6 @@ class CKANVariable(Variable):
     )
     sql_filter = models.TextField(help_text='SQL clause that will be used to filter data.', null=True, blank=True)
 
-    # Carto fields and overrides
-    carto_table = models.CharField(
-        verbose_name='Carto Table',
-        max_length=60,
-        blank=True, null=True,
-    )
-    field_in_carto = models.CharField(
-        verbose_name='Carto field',
-        max_length=60,
-        help_text='If left blank, the value for "field" will be used.',
-        blank=True, null=True,
-    )
-    sql_filter_for_carto = models.TextField(
-        verbose_name="Carto SQL Filter",
-        help_text='If left blank, the value for "sql filter" will be used.',
-        null=True, blank=True
-    )
-
     @property
     def carto_field(self):
         return self.field_in_carto or self.field
@@ -302,6 +355,21 @@ class CKANVariable(Variable):
     def carto_sql_filter(self):
         return self.sql_filter_for_carto or self.sql_filter
 
+    # Value getters
+    @lru_cache
+    def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
+        return self.get_value_and_moe(geog, time_part)['v']
+
+    @lru_cache
+    def get_value_and_moe(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> dict:
+        value = self._fetch_value_from_ckan(time_part, geog)
+        return {'v': value, 'm': None}
+
+    def get_values_over_geog_type(self, geog_type: Type[CensusGeography], time_part: TimeAxis.TimePart):
+        records = self._fetch_values_from_ckan(time_part, geog_type)
+        return records
+
+    # Data presentation formats
     def get_table_row(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, Union[dict, None]]:
         """
         Gets the data for a table row. Data is collected for each series (column) in `data_viz`.
@@ -326,15 +394,12 @@ class CKANVariable(Variable):
                 record[time_part.slug] = value
         return record
 
-    @lru_cache
-    def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
-        return self.get_value_and_moe(geog, time_part)['v']
+    def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> Dict[str, any]:
+        time_part = data_viz.time_axis.time_parts[0]
+        data = self.get_values_over_geog_type(geog_type, time_part)
+        return data
 
-    @lru_cache
-    def get_value_and_moe(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> dict:
-        value = self._fetch_value_from_ckan(time_part, geog)
-        return {'v': value, 'm': None}
-
+    # Utils
     def _get_source_for_time_point(self, time_point: timezone.datetime) -> CKANSource:
         """ Return CKAN source that covers the time in `time_point` """
         # fixme: we'll need to come up with a more correct way of doing this: maybe a `through` relationship
@@ -360,37 +425,24 @@ class CKANVariable(Variable):
         )
         response = r.json()
         data = response['result']['records']
-        value = data[0]['v']
-        return value
+        return data
 
     def _fetch_value_from_ckan(self, time_part: TimeAxis.TimePart, geog: CensusGeography):
         """
         Query CKAN for some aggregation of this variable within its geography.
         (e.g. mean housing sale price in Bloomfield)
         """
-        print(self.slug, time_part.slug, geog.name)
-
-        aggregation_method = self.aggregation_method if self.aggregation_method != 'NONE' else ''
-        target_field = self.field if self.field in ('*',) else f'"{self.field}"'
         source = self._get_source_for_time_point(time_part.time_point)
+        query = source.get_single_value_sql(self, geog)
+        data = self._query_datastore(query)
+        return data[0]['v']
 
-        std_query = source.standardization_query
-
-        cast = '::int' if aggregation_method in ('COUNT',) else ''
-
-        # is empty if source only covers one time chunk
-        # geom_select = f', {source.get_geoid_field(geog)}'
-        time_select = f', {source.std_time_sql_identifier}' if source.std_time_sql_identifier else ''
-
-        geom_filter_clause = source.get_geom_filter_sql(geog)
-        time_filter_clause = f'AND {source.get_time_filter_sql(time_part)}' if time_select else ''
-
-        # generate sql query to send to `/datastore_search_sql` endpoint
-        # noinspection SqlResolve
-        query = f"""
-        SELECT {aggregation_method}({target_field}){cast} as "v" {time_select}
-        FROM {f'({std_query}) as sub_query' if std_query else f'"{source.resource_id}"'}
-        WHERE  {f'{self.sql_filter} AND' if self.sql_filter else ''}
-            {geom_filter_clause} {time_filter_clause}
+    def _fetch_values_from_ckan(self, time_part: TimeAxis.TimePart, geog_type: Type[CensusGeography]):
         """
-        return self._query_datastore(query)
+        Query CKAN for some aggregation of this variable across geographies
+        (e.g. mean housing sale price for each neighborhood)
+        """
+        source = self._get_source_for_time_point(time_part.time_point)
+        query = source.get_values_across_geo_sql(self, geog_type)
+        data = self._query_datastore(query)
+        return data

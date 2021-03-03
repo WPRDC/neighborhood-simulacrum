@@ -14,7 +14,13 @@ requests==2.25.1
 uncertainties==3.1.5
 django-grappelli
 djangorestframework-camel-case
-django-nested-admin
-python-dateutil
-pystache
-openpyxl
+django-nested-admin~=3.3.3
+python-dateutil~=2.8.1
+pystache~=0.5.4
+openpyxl~=3.0.6
+django-debug-toolbar~=3.2
+djangorestframework-mvt
+python-memcached
+asgiref~=3.3.1
+mapbox-vector-tile
+jenkspy

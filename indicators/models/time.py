@@ -32,7 +32,7 @@ class TimeAxis(PolymorphicModel, Described):
         time_unit: int
 
         @property
-        def trunc_str(self):
+        def trunc_sql_str(self):
             trunc_field = TimeAxis.UNIT_FIELDS[self.time_unit]
             return f""" date_trunc('{trunc_field}', '{self.time_point}') """
 

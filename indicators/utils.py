@@ -1,12 +1,18 @@
+from functools import reduce
 from typing import Type, Union, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass
 from enum import Enum
 
+from django.contrib.gis.geos import Polygon
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import F, OuterRef
 from rest_framework.request import Request
+
+from census_data.models import CensusValue
 from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography
 
 if TYPE_CHECKING:
-    from indicators.models import CensusVariable, TimeAxis
+    from indicators.models import Variable, CensusVariable, Variable, DataViz, CKANVariable, TimeAxis
 
 # Constants
 # =-=-=-=-=
@@ -16,6 +22,9 @@ DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
 REGION_TYPE_LABEL = 'regionType'
 REGION_ID_LABEL = 'regionID'
+
+VARIABLE_ID_LABEL = 'var'
+DATA_VIZ_ID_LABEL = 'viz'
 
 REGION_MODEL_MAPPING = {
     'tract': Tract,
@@ -38,7 +47,7 @@ class ErrorLevel(Enum):
 @dataclass
 class ErrorResponse:
     level: ErrorLevel
-    message: Optional[str]
+    message: Optional[str] = None
 
     def as_dict(self):
         return {
@@ -50,7 +59,8 @@ class ErrorResponse:
 
 @dataclass
 class DataResponse:
-    data: Optional[Union[List[dict], dict]]
+    # todo: use generic types here
+    data: Optional[Union[List[dict], dict, list,]]
     error: ErrorResponse
 
     def as_dict(self):
@@ -63,9 +73,10 @@ class DataResponse:
 # Functions
 # =-=-=-=-=
 
-def get_region_model(region_type: str) -> Type[Union[Tract, County, BlockGroup, CountySubdivision]]:
+def get_region_model(region_type: str) -> Type[CensusGeography]:
     if region_type in REGION_MODEL_MAPPING:
         return REGION_MODEL_MAPPING[region_type]
+    raise KeyError
 
 
 def is_valid_geography_type(region_type: str):
@@ -83,10 +94,52 @@ def extract_geo_params(request: Request) -> (str, str):
     return request.query_params[REGION_TYPE_LABEL], request.query_params[REGION_ID_LABEL]
 
 
-def get_region_from_query_params(request: Request) -> CensusGeography:
+def get_region_from_request(request: Request) -> CensusGeography:
     region, geoid = extract_geo_params(request)
     region_model = get_region_model(region)
     region = region_model.objects.get(geoid=geoid)
     return region
 
+
+def get_region_model_from_request(request: Request) -> Type[Union[Tract, County, BlockGroup, CountySubdivision]]:
+    region = extract_geo_params(request)[0]
+    region_model = get_region_model(region)
+    return region_model
+
+
+def get_data_viz_from_request(request: Request) -> Optional['Variable']:
+    viz_id = request.query_params.get(DATA_VIZ_ID_LABEL, None)
+    try:
+        var = DataViz.objects.get(id=int(viz_id))
+        return var
+    except ObjectDoesNotExist:
+        return None
+
+
+def get_variable_from_request(request: Request) -> Optional['Variable']:
+    var_id = request.query_params.get(VARIABLE_ID_LABEL, None)
+    try:
+        var = Variable.objects.get(id=int(var_id))
+        return var
+    except ObjectDoesNotExist:
+        return None
+
+
+def tile_bbox(z, x, y, srid=3857):
+    """
+    Returns GEOS Polygon object representing the bbox
+    https://github.com/mapbox/postgis-vt-util/blob/master/src/TileBBox.sql
+    """
+    max_v = 20037508.34
+    res = (max_v * 2) / (2 ** z)
+    bbox = Polygon.from_bbox((
+        -max_v + (x * res),
+        max_v - (y * res),
+        -max_v + (x * res) + res,
+        max_v - (y * res) - res,
+    ))
+    bbox.srid = 3857
+    if srid != 3857:
+        bbox.transform(srid)
+    return bbox
 

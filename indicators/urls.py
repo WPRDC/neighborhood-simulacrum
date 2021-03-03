@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework import routers
 from . import views
 
@@ -9,4 +10,8 @@ router.register(r'data-viz', views.DataVizViewSet)
 router.register(r'time-axis', views.TimeAxisViewSet)
 router.register(r'variable', views.VariableViewSet)
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path('map_layer/<slug:geog_type_id>:<int:data_viz_id>:<int:variable_id>.geojson', views.map_data),
+    # path('tiles/<slug:geog_type_id>/<int:data_viz_id>/<int:variable_id>/<int:zoom>/<int:x>/<int:y>.mvt',
+    #      views.mvt_tiles),
+]

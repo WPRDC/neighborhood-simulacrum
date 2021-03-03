@@ -16,7 +16,8 @@ import { Tabs } from '@react-spectrum/tabs';
 
 import TableIcon from '@spectrum-icons/workflow/Table';
 import PieIcon from '@spectrum-icons/workflow/GraphDonut';
-// import BarGraphIcon from '@spectrum-icons/workflow/GraphBarHorizontal'
+import BarGraphIcon from '@spectrum-icons/workflow/GraphBarHorizontal';
+import LineGraphIcon from '@spectrum-icons/workflow/GraphConfidenceBands';
 import MapIcon from '@spectrum-icons/workflow/MapView';
 
 interface Props {
@@ -43,13 +44,13 @@ function IndicatorSection({ indicator }: Props) {
       headingLvl={5}
       viewStyleProps={{ marginBottom: 'size-150', backgroundColor: 'gray-50' }}
     >
-      <View>
+      <View padding="size-100">
         <Tabs aria-label="Data visualizations" isQuiet>
           {dataVizes &&
             dataVizes.map(dataViz => (
               <Item title={getTitle(dataViz)} key={dataViz.slug}>
                 <Content marginTop="size-250" marginStart="size-125">
-                  <View overflow="auto" maxHeight="size-3000">
+                  <View>
                     <DataViz key={dataViz.slug} dataVizID={dataViz} />
                   </View>
                 </Content>
@@ -71,6 +72,16 @@ function getTitle(dataViz) {
     [DataVizResourceType.PieChart]: (
       <>
         <PieIcon size="S" /> Donut Chart
+      </>
+    ),
+    [DataVizResourceType.BarChart]: (
+      <>
+        <BarGraphIcon size="S" /> Bar Chart
+      </>
+    ),
+    [DataVizResourceType.LineChart]: (
+      <>
+        <LineGraphIcon size="S" /> Donut Chart
       </>
     ),
     [DataVizResourceType.Sentence]: <>Story</>,

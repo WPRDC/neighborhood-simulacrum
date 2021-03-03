@@ -91,7 +91,7 @@ export function Explorer() {
       </Helmet>
       <Grid
         areas={['sidebar  content', 'map content']}
-        columns={['3fr', '5fr']}
+        columns={['2fr', '5fr']}
         rows={['1fr', '2fr']}
         flex
         minHeight="0px"

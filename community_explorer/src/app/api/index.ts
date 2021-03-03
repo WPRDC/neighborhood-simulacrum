@@ -7,7 +7,7 @@
  */
 import { DataVizID, RegionDescriptor } from '../types';
 
-const HOST = 'http://api.profiles.wprdc.org';
+export const API_HOST = 'http://api.profiles.wprdc.org';
 
 /**
  * Enum for API endpoints.
@@ -90,7 +90,7 @@ function callApi(endpoint: Endpoint, method: Method, options?: APIOptions) {
 
   const idPath = ['null', 'undefined'].includes(typeof id) ? '' : `${id}/`;
   const urlParams = serializeParams(params);
-  const url = `${HOST}/${endpoint}/${idPath}${urlParams}`;
+  const url = `${API_HOST}/${endpoint}/${idPath}${urlParams}`;
 
   return fetch(url, {
     ...fetchInit,

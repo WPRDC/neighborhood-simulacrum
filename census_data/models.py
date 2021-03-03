@@ -50,7 +50,10 @@ class CensusTablePointer(models.Model):
         return f'{self.table_id} ({self.dataset})'
 
     def get_values_at_geog(self, geog: 'CensusGeography') -> (float, Optional[float]):
-        value = CensusValue.objects.get(geography=geog, census_table=self.value_table).value
+        try:
+            value = CensusValue.objects.get(geography=geog, census_table=self.value_table).value
+        except ObjectDoesNotExist:
+            value = None
         try:
             moe = CensusValue.objects.get(geography=geog, census_table=self.moe_table).value
         except ObjectDoesNotExist:
@@ -84,7 +87,7 @@ class CensusValue(models.Model):
     the the values stored here are a function of the Variable, the Series, and the Geography
     the census table is unique to a Variable-Series combination and is where they're effect comes in
     """
-    geography = models.ForeignKey('geo.Geography', on_delete=models.CASCADE, db_index=True)
+    geography = models.ForeignKey('geo.CensusGeography', on_delete=models.CASCADE, db_index=True)
     census_table = models.ForeignKey('CensusTable', on_delete=models.CASCADE, db_index=True)
     value = models.FloatField(null=True, blank=True)
     raw_value = models.CharField(max_length=20, null=True, blank=True)
