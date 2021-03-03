@@ -6,7 +6,7 @@ from indicators.models import MiniMap, DataViz, Table, OrderedVariable
 import nested_admin
 
 from indicators.models.viz import BarChart, LineChart, PieChart, PopulationPyramidChart, BigValue, Sentence, \
-    ChoroplethLayer, ObjectsLayer, MapLayer, ParcelsLayer, TableRow, BarChartPart, \
+    GeogChoroplethMapLayer, ObjectsLayer, MapLayer, ParcelsLayer, TableRow, BarChartPart, \
     LineChartPart, PieChartPart, PopulationPyramidChartPart, SentenceVariable, BigValueVariable
 
 
@@ -27,18 +27,21 @@ class DataVizChildAdmin(nested_admin.NestedPolymorphicInlineSupportMixin, Polymo
 
 # inlines
 class MapLayerInline(nested_admin.NestedStackedPolymorphicInline):
-    class ChoroplethLayerInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = ChoroplethLayer
+    class GeogChoroplethLayerInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = GeogChoroplethMapLayer
+        autocomplete_fields = ('sub_geog', 'variable')
 
     class ObjectsLayerInline(nested_admin.NestedStackedPolymorphicInline.Child):
         model = ObjectsLayer
+        autocomplete_fields = ('variable',)
 
     class ParcelsLayerInline(nested_admin.NestedStackedPolymorphicInline.Child):
         model = ParcelsLayer
+        autocomplete_fields = ('variable',)
 
     model = MapLayer
     child_inlines = (
-        ChoroplethLayerInline,
+        GeogChoroplethLayerInline,
         ObjectsLayerInline,
         ParcelsLayerInline,
     )
@@ -86,7 +89,7 @@ class MapLayerAdmin(PolymorphicParentModelAdmin):
     list_display = ('name', 'id')
     search_fields = ('name',)
     base_model = MapLayer
-    child_models = (ChoroplethLayer, ObjectsLayer, ParcelsLayer,)
+    child_models = (GeogChoroplethMapLayer, ObjectsLayer, ParcelsLayer,)
     prepopulated_fields = {"slug": ("name",)}
 
 
@@ -97,6 +100,7 @@ class MiniMapAdmin(DataVizChildAdmin):
     )
     search_fields = ('name',)
     inlines = (MapLayerInline,)
+    autocomplete_fields = ('time_axis',)
 
 
 # ==================

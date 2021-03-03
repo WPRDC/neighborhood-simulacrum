@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 import os
 
 from .local_settings import LOCAL_SECRET_KEY, DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -42,17 +43,19 @@ INSTALLED_APPS = [
     'django.contrib.gis',
     'django_extensions',
     'rest_framework',
+    'rest_framework_gis',
     'nested_admin',
     'indicators',
     'geo',
     'census_data',
-
+    'debug_toolbar'
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -164,8 +167,14 @@ REST_FRAMEWORK = {
 
 CORS_ORIGIN_ALLOW_ALL = True
 
-CENSUS_API_KEY = "8a372db17e2cb7f5cbabe97fead2658cd0ec9276"
-
 GRAPPELLI_ADMIN_TITLE = 'Profiles II'
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
+
+INTERNAL_IPS = '127.0.0.1'
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+
+AVAILABLE_COUNTIES_IDS = ('42073', '42003', '42007', '42125', '42059', '42051', '42129', '42063', '42005', '42019',)
+
+MAP_HOST = 'https://api.profiles.wprdc.org/map_layer'

@@ -4,6 +4,7 @@
  *
  */
 import { Described } from './common';
+import { VariableSource } from './source';
 
 export type Variable = VariableBase;
 
@@ -13,7 +14,7 @@ export interface VariableBase extends Described {
   denominators: VariableBase[];
   depth: number;
   percentLabel: string;
-  sources: (string | number)[];
+  sources: VariableSource[];
   aggregationMethod: AggregationMethodName;
   field: 'call_no';
   sqlFilter: '';

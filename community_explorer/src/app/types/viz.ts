@@ -7,12 +7,30 @@
 import { Datum, Described } from './common';
 import { TimeAxis } from './time';
 import { Variable } from './variable';
+import { LayerProps, SourceProps } from 'react-map-gl';
+import {
+  LayerOptions,
+  LegendOptions,
+  LegendProps,
+  MapProps,
+} from 'wprdc-components';
 
-export type DataVizID = Described;
+export interface DataVizID extends Described {
+  viewHeight: number;
+  viewWidth: number;
+}
+
+export interface DataVizBase extends DataVizID {
+  timeAxis: TimeAxis;
+  variables: Variable[];
+  resourcetype: DataVizResourceType;
+}
 
 export type DataVisualization =
   | TableViz
   | PieChartViz
+  | BarChartViz
+  | LineChartViz
   | MiniMapViz
   | SentenceViz
   | BigValueViz;
@@ -20,6 +38,8 @@ export type DataVisualization =
 export enum DataVizResourceType {
   Table = 'Table',
   PieChart = 'PieChart',
+  BarChart = 'BarChart',
+  LineChart = 'LineChart',
   MiniMap = 'MiniMap',
   Sentence = 'Sentence',
   BigValue = 'BigValue',
@@ -32,14 +52,19 @@ export type DataVizDataPoint = Record<DataVizDataPointPart, any>;
 // Response data formats
 export type TableData = Record<string, DataVizDataPoint>[];
 export type ChartData = Record<string, DataVizDataPoint>[];
-export type MapData = any;
+export type MiniMapData = {
+  sources: SourceProps[];
+  layers: LayerOptions[];
+  mapOptions: Partial<MapProps>;
+  legends: LegendProps[];
+};
 export type SentenceData = string;
 export type BigValueData = DataVizDataPoint;
 
 export type DataVizData =
   | TableData
   | ChartData
-  | MapData
+  | MiniMapData
   | SentenceData
   | BigValueData;
 
@@ -58,8 +83,18 @@ export interface PieChartViz extends DataVizBase {
   resourcetype: DataVizResourceType.PieChart;
 }
 
+export interface BarChartViz extends DataVizBase {
+  data?: ChartData;
+  resourcetype: DataVizResourceType.BarChart;
+}
+
+export interface LineChartViz extends DataVizBase {
+  data?: ChartData;
+  resourcetype: DataVizResourceType.LineChart;
+}
+
 export interface MiniMapViz extends DataVizBase {
-  data?: MapData;
+  data?: MiniMapData;
   resourcetype: DataVizResourceType.MiniMap;
 }
 
@@ -74,10 +109,4 @@ export interface BigValueViz extends DataVizBase {
   note?: string;
   data?: BigValueData;
   resourcetype: DataVizResourceType.BigValue;
-}
-
-export interface DataVizBase extends Described {
-  timeAxis: TimeAxis;
-  variables: Variable[];
-  resourcetype: DataVizResourceType;
 }

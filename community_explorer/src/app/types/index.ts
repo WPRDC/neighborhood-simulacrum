@@ -4,6 +4,7 @@ import { DataVizID } from './viz';
 export * from './time';
 export * from './variable';
 export * from './viz';
+export * from './source';
 
 export enum IndicatorLayout {
   A = 'A',

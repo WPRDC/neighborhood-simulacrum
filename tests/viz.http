@@ -2,11 +2,22 @@
 GET http://localhost:8000/data-viz/57/?regionType=tract&geoid=42003
 Accept: application/json
 
+###
+# Tile Request
+GET http://localhost:8000/map_layer/tract/40/207
+Accept: application/json
+
 
 ###
 # Working Dataviz data Request
 GET http://localhost:8000/data-viz/57/?regionType=tract&geoid=42003070900
 Accept: application/json
+
+###
+# Working region request
+GET http://localhost:8000/geo/region/?regionType=tract&geoid=42003070900
+Accept: application/json
+
 
 ###
 # Working region request

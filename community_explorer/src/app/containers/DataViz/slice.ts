@@ -26,7 +26,7 @@ function updateData(
   cache: DataVizDataCache,
   dataVizID: DataVizID,
   regionDescriptor: RegionDescriptor,
-  update: Partial<DataVizDataRecord<Partial<DataVizData>>>,
+  update: Partial<DataVizDataRecord>,
 ) {
   const key = makeKey(dataVizID, regionDescriptor);
   return Object.assign({}, cache, {

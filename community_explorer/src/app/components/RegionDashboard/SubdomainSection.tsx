@@ -12,6 +12,7 @@ import { Grid, minmax, repeat } from '@react-spectrum/layout';
 import { Subdomain } from '../../types';
 import { Heading } from '@adobe/react-spectrum';
 import { Text } from '@react-spectrum/text';
+import IndicatorCard from '../IndicatorCard';
 
 interface Props {
   subdomain: Subdomain;
@@ -29,7 +30,7 @@ function SubdomainSection({ subdomain }: Props) {
       >
         {indicators.map(indicator => (
           <View key={indicator.slug}>
-            <IndicatorSection indicator={indicator} />
+            <IndicatorCard indicator={indicator} />
           </View>
         ))}
       </Grid>
