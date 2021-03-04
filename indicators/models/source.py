@@ -148,6 +148,18 @@ class CKANSource(Source, PolymorphicModel):
     def get_single_value_sql(self, variable: 'CKANVariable', geog: 'CensusGeography', ) -> str:
         raise NotImplementedError
 
+    def _get_value_select_sql(self, variable: 'CKANVariable') -> str:
+        cast = ''
+        aggr_mthd : str = variable.aggregation_method
+        if variable.aggregation_method == variable.NONE:
+            cast = '::int'
+            aggr_mthd = ''
+
+        return f"""{aggr_mthd}(dt."{variable.field}"){cast} as v"""
+
+    def _get_from_subquery(self,) -> str:
+        return f'({self.standardization_query.replace("", "" )})' if self.standardization_query else f'"self.resource_id"'
+
 
 class CKANGeomSource(CKANSource):
     DEFAULT_GEOM_FIELD = '_geom'
@@ -172,11 +184,11 @@ class CKANGeomSource(CKANSource):
 
     def get_values_across_geo_sql(self, variable: 'CKANVariable', geog_type: Type['CensusGeography']) -> str:
         """ Generates SQL to send to CKAN to get data on variable across all geogs in geog_type for this source"""
-        cast = '::int' if variable.aggregation_method in ('COUNT',) else ''
-
+        value_select = self._get_value_select_sql(variable)
+        from_sql = self._get_from_subquery()
         # noinspection SqlResolve
-        return f"""SELECT {variable.aggregation_method}(dt."{variable.field}"){cast} as v,  gt.id as geog_id
-        FROM "{self.resource_id}" dt 
+        return f"""SELECT {value_select}, gt.id as geog_id
+        FROM {from_sql} dt 
         JOIN "{geog_type.ckan_resource}" gt 
         ON ST_CoveredBy(dt."{self.geom_field}", ST_GeomFromWKB(decode(gt.geom, 'hex')))
         GROUP BY gt.id
@@ -184,11 +196,11 @@ class CKANGeomSource(CKANSource):
 
     def get_single_value_sql(self, variable: 'CKANVariable', geog: 'CensusGeography') -> str:
         """ Generates SQL to send to CKAN to get data on variable across all geogs in geog_type for this source"""
-        cast = '::int' if variable.aggregation_method in ('COUNT',) else ''
-
+        value_select = self._get_value_select_sql(variable)
+        from_sql = self._get_from_subquery()
         # noinspection SqlResolve
-        return f"""SELECT {variable.aggregation_method}(dt."{variable.field}"){cast} as v
-        FROM "{self.resource_id}" dt 
+        return f"""SELECT {value_select}
+        FROM {from_sql} dt 
         WHERE ST_CoveredBy(dt."{self.geom_field}", ST_GeomFromWKT('{geog.geom.wkt}'))
         """
 
@@ -240,24 +252,24 @@ class CKANRegionalSource(CKANSource):
 
     def get_values_across_geo_sql(self, variable: 'CKANVariable', geog_type: Type['CensusGeography'], ):
         """ Generates SQL to send to CKAN to get data on variable across all geogs in geog_type for this source"""
-        cast = '::int' if variable.aggregation_method in ('COUNT',) else ''
+        value_select = self._get_value_select_sql(variable)
+        from_sql = self._get_from_subquery()
         source_geog_field = self.get_source_geog_field(geog_type)
-
         # noinspection SqlResolve
-        return f"""SELECT {variable.aggregation_method}(dt."{variable.field}"){cast} as v,  gt.id as geog_id
-        FROM "{self.resource_id}" dt 
+        return f"""SELECT {value_select},  gt.id as geog_id
+        FROM {from_sql} dt 
         JOIN "{geog_type.ckan_resource}" gt 
         ON "{source_geog_field}" = gt.geoid
         GROUP BY gt.id"""
 
     def get_single_value_sql(self, variable: 'CKANVariable', geog: 'CensusGeography'):
-        cast = '::int' if variable.aggregation_method in ('COUNT',) else ''
-        source_geog_field = self.get_source_geog_field(type(geog))
-
+        value_select = self._get_value_select_sql(variable)
+        from_sql = self._get_from_subquery()
+        source_geog_field = self.get_source_geog_field(geog)
         # noinspection SqlResolve
-        return f"""SELECT {variable.aggregation_method}(dt."{variable.field}"){cast} as v
-        FROM "{self.resource_id}" dt 
-        WHERE "{source_geog_field}" = {geog.geoid}"""
+        return f"""SELECT {value_select}
+        FROM {from_sql} dt 
+        WHERE "{source_geog_field}" = '{geog.geoid}'"""
 
 
 # parcel
