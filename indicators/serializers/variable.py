@@ -33,7 +33,6 @@ class CensusVariableSourceSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'dataset',
-            'formula',
             'info_link',
         )
 

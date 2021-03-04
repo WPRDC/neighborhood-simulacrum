@@ -23,22 +23,6 @@ CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
 
-def split_formula(formula: str, source: 'CensusSource') -> List[str]:
-    """
-    Splits up the formula into a list of its table_ids
-        for datasets with margins of error, it creates and adds the value and moe table_ids to the list
-    """
-    result = []
-    clean_formula = ''.join(formula.split())
-    for part in clean_formula.split('+'):
-        if source.dataset == 'CEN':
-            result.append(part)
-        else:
-            result.append(part + 'E')
-            result.append(part + 'M')
-    return result
-
-
 class Variable(PolymorphicModel, Described):
     @dataclass
     class ValueRecord(object):
@@ -201,11 +185,11 @@ class CensusVariable(Variable):
         pointers = source.source_to_variable.get(variable=self).census_table_pointers.all()
         for ct_pointer in pointers:
             v, m = ct_pointer.get_values_at_geog(geog)
-            if value or v is None:
+            if value is None or v is None:
                 value = None
             else:
                 value += v
-            if moe or m is None:
+            if moe is None or m is None:
                 moe = None
             else:
                 moe += m
@@ -269,44 +253,11 @@ class CensusVariable(Variable):
             return self.sources.filter(dataset='CEN')[0]
         return self.sources.filter(dataset='ACS5')[0]  # fixme to handle actual cases
 
-    def _get_formula_at_time_point(self, time_point: timezone.datetime) -> Union[str, None]:
-        formula: Union[str, None] = None
-        try:
-            source: CensusSource = self._get_source_for_time_point(time_point)
-            formula = source.source_to_variable.get(variable=self).formula
-        finally:
-            return formula
-
-    def _fetch_data_for_geography(self, formula_parts: List[str], geog: CensusGeography, time_point: timezone.datetime):
-        source = self._get_source_for_time_point(time_point)
-        return source.get_data(formula_parts, geog)
-
-    def _extract_values_from_api_response(self, geog: CensusGeography, response_data: dict) -> None:
-        """
-        Take response data and store it into a CensusValue object that is linked to this variable
-            and the geography provided to the method.
-        """
-        for part in self.formula_parts:
-            if not CensusValue.objects.filter(census_table=part, geography=geog):
-                cv = CensusValue(census_table=part, geography=geog, value=response_data[self.source][0][part])
-                cv.save()
-
-    @staticmethod
-    def _get_or_create_census_value(table: CensusTable, geog: CensusGeography, source: CensusSource):
-        try:
-            return CensusValue.objects.filter(census_table=table, geography=geog)[0]  # fixme: should be get
-        except (ObjectDoesNotExist, IndexError):
-            value: float = source.get_data(table, geog)[0][table]
-            cv = CensusValue(census_table=table, geography=geog, value=value)
-            cv.save()
-            return cv
-
 
 class CensusVariableSource(models.Model):
     """ for linking Census variables to their sources while keeping track of the census formula format for that combo"""
     variable = models.ForeignKey('CensusVariable', on_delete=models.CASCADE, related_name='variable_to_source')
     source = models.ForeignKey('CensusSource', on_delete=models.CASCADE, related_name='source_to_variable')
-    formula = models.TextField(null=True, blank=True)
     census_table_pointers = models.ManyToManyField('census_data.CensusTablePointer')
 
 

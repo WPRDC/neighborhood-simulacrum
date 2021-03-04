@@ -559,7 +559,13 @@ class BigValue(Alphanumeric):
             for variable in self.variables.order_by('variable_to_big_value'):
                 # fixme: this is wasteful since get_table_row is calculating data we don't use
                 data = variable.get_table_row(self, geog)[only_time_part.slug]
-            error = ErrorResponse(level=ErrorLevel.OK, message=None)
+
+            if data is None or data['v'] is None:
+                error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')
+                data = None
+            else:
+                error = ErrorResponse(level=ErrorLevel.OK, message=None)
+
         else:
             error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')
 

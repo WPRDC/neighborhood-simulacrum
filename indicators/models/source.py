@@ -58,19 +58,6 @@ class CensusSource(Source):
         # todo: update this when we add neighborhoods etc
         return True
 
-    def get_data(self, formula_parts: Union[List[str], str], region: CensusGeography) -> []:
-        tables = [formula_parts] if type(formula_parts) is str else formula_parts
-        getter = self._get_api_caller()
-        print(tables, region.census_geo)
-        return getter.get(tables, region.census_geo)
-
-    def _get_api_caller(self):
-        c = Census(settings.CENSUS_API_KEY)
-        if self.dataset == 'ACS5':
-            return c.acs5
-        if self.dataset == 'CEN':
-            return c.sf1
-
 
 class CKANSource(Source, PolymorphicModel):
     TIME_FIELD_ID = '__the_time'
@@ -249,9 +236,7 @@ class CKANRegionalSource(CKANSource):
         return f""" {source_region_field} LIKE '{geog.geoid}' """
 
     def get_geoid_field(self, geog: CensusGeography):
-        field_for_geoid_field = self.get_field_for_geoid_field_for_geog(geog)
-        geoid_field = getattr(self, field_for_geoid_field, None)
-        return geoid_field
+        return self.get_source_geog_field(geog)
 
     def get_values_across_geo_sql(self, variable: 'CKANVariable', geog_type: Type['CensusGeography'], ):
         """ Generates SQL to send to CKAN to get data on variable across all geogs in geog_type for this source"""
