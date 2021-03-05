@@ -168,14 +168,8 @@ function makeCellValue(d: DataVizDataPoint, v: Variable) {
 }
 
 function getPercentValue(table: DownloadedTable, idx, denom, cur) {
-  console.debug(idx, denom, cur);
-  console.debug(table);
   const percentValue: number = table.data[idx][cur.slug][denom.slug];
-  return percentValue.toLocaleString(undefined, {
-    style: 'percent',
-    minimumSignificantDigits: 1,
-    maximumSignificantDigits: 3,
-  });
+  return formatPercent(percentValue);
 }
 
 const rowValuesReducer = (table: DownloadedTable, idx) => (acc, cur) => ({
@@ -221,6 +215,16 @@ function formatValue(
         variable.localeOptions || undefined,
       );
     default:
-      return value;
+      return 'N/A';
   }
+}
+
+function formatPercent(value?: number): React.ReactNode {
+  if (typeof value === 'number')
+    return value.toLocaleString(undefined, {
+      style: 'percent',
+      minimumSignificantDigits: 1,
+      maximumSignificantDigits: 3,
+    });
+  return 'N/A';
 }

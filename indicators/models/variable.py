@@ -66,9 +66,9 @@ class Variable(PolymorphicModel, Described):
     def locale_options(self):
         if self.units:
             if self.units[0] == '$':
-                return { 'style': 'currency', 'currency': 'USD', 'minimumFractionDigits': 0}
+                return {'style': 'currency', 'currency': 'USD', 'minimumFractionDigits': 0}
             if self.units[0] == '%':
-                return { 'style': 'percent' }
+                return {'style': 'percent'}
         return None
 
     def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
@@ -353,7 +353,11 @@ class CKANVariable(Variable):
         source = self._get_source_for_time_point(time_part.time_point)
         query = source.get_single_value_sql(self, geog)
         data = self._query_datastore(query)
-        return data[0]['v']
+        try:
+            return data[0]['v']
+        except (IndexError, KeyError,):
+            # these cases involve data missing upstream (e.g. excluded geog for privacy, upstream human error)
+            return None
 
     def _fetch_values_from_ckan(self, time_part: TimeAxis.TimePart, geog_type: Type[CensusGeography]):
         """
