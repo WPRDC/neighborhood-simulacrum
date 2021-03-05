@@ -15,6 +15,29 @@ class DenominatorSerializer(serializers.ModelSerializer):
             'depth',
             'percent_label',
             'short_name',
+            'locale_options'
+        )
+
+
+class VariableSerializer(serializers.ModelSerializer):
+    denominators = DenominatorSerializer(many=True)
+    locale_options = serializers.JSONField()
+
+    class Meta:
+        model = Variable
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'description',
+            'short_name',
+            'units',
+            'unit_notes',
+            'denominators',
+            'depth',
+            'display_name',
+            'percent_label',
+            'locale_options',
         )
 
 
@@ -37,96 +60,27 @@ class CensusVariableSourceSerializer(serializers.ModelSerializer):
         )
 
 
-class CensusVariableSerializer(serializers.ModelSerializer):
+class CensusVariableSerializer(VariableSerializer):
     sources = CensusVariableSourceSerializer(source='variable_to_source', many=True)
-    denominators = DenominatorSerializer(many=True)
     viz_options = serializers.JSONField()
 
     class Meta:
         model = CensusVariable
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'short_name',
-            'units',
-            'unit_notes',
-            'denominators',
-            'depth',
-            'percent_label',
+        fields = VariableSerializer.Meta.fields + (
             'sources',
             'viz_options',
         )
 
 
-class CensusVariableBriefSerializer(serializers.ModelSerializer):
-    sources = CensusVariableSourceSerializer(source='variable_to_source', many=True)
-    denominators = DenominatorSerializer(many=True)
-
-    class Meta:
-        model = CensusVariable
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'short_name',
-            'units',
-            'unit_notes',
-            'depth',
-            'percent_label',
-            'sources',
-            'denominators',
-        )
-
-
-class CKANVariableSerializer(serializers.ModelSerializer):
-    sources = CKANSourceSerializer()
-    denominators = DenominatorSerializer(many=True)
+class CKANVariableSerializer(VariableSerializer):
+    sources = CKANSourceSerializer(many=True)
     viz_options = serializers.JSONField()
 
     class Meta:
         model = CKANVariable
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'short_name',
-            'units',
-            'unit_notes',
-            'denominators',
-            'depth',
-            'percent_label',
+        fields = VariableSerializer.Meta.fields + (
             'sources',
-            'aggregation_method',
-            'field',
-            'sql_filter',
             'viz_options'
-        )
-
-
-class CKANVariableBriefSerializer(serializers.ModelSerializer):
-    denominators = DenominatorSerializer(many=True)
-
-    class Meta:
-        model = CKANVariable
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'short_name',
-            'units',
-            'unit_notes',
-            'denominators',
-            'depth',
-            'percent_label',
-            'sources',
-            'aggregation_method',
-            'field',
-            'sql_filter'
         )
 
 
@@ -135,6 +89,24 @@ class VariablePolymorphicSerializer(PolymorphicSerializer):
         CensusVariable: CensusVariableSerializer,
         CKANVariable: CKANVariableSerializer,
     }
+
+# Brief
+class CensusVariableBriefSerializer(VariableSerializer):
+    sources = CensusVariableSourceSerializer(source='variable_to_source', many=True)
+    denominators = DenominatorSerializer(many=True)
+
+    class Meta:
+        model = CensusVariable
+        fields = VariableSerializer.Meta.fields + ('sources',)
+
+
+class CKANVariableBriefSerializer(serializers.ModelSerializer):
+    sources = CKANSourceSerializer(many=True)
+    denominators = DenominatorSerializer(many=True)
+
+    class Meta:
+        model = CKANVariable
+        fields = VariableSerializer.Meta.fields + ('sources',)
 
 
 class BriefVariablePolymorphicSerializer(PolymorphicSerializer):

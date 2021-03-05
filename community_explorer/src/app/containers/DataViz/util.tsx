@@ -70,9 +70,14 @@ const generateSentence: VizGenerator<SentenceViz, SentenceData> = dataViz => (
   <Sentence {...dataViz} />
 );
 
-const generateBigValue: VizGenerator<BigValueViz, BigValueData> = dataViz => (
-  <BigValue {...dataViz} />
-);
+const generateBigValue: VizGenerator<BigValueViz, BigValueData> = dataViz => {
+  const items = dataViz.variables.map((variable, idx) => ({
+    value: formatValue(variable, dataViz.data[idx].v),
+    label: variable.name,
+  }));
+
+  return <BigValue data={items} />;
+};
 
 const generateMiniMap: VizGenerator<MiniMapViz, MiniMapData> = dataViz => (
   <MiniMap {...dataViz.data} />
@@ -149,10 +154,10 @@ function MoE({ moe }: { moe: number }) {
   );
 }
 
-function makeCellValue(d: DataVizDataPoint) {
+function makeCellValue(d: DataVizDataPoint, v: Variable) {
   let displayValue = d.v;
   if (typeof d.v === 'number') {
-    displayValue = d.v.toLocaleString();
+    displayValue = d.v.toLocaleString(undefined, v.localeOptions || undefined);
   }
   return (
     <>
@@ -163,6 +168,8 @@ function makeCellValue(d: DataVizDataPoint) {
 }
 
 function getPercentValue(table: DownloadedTable, idx, denom, cur) {
+  console.debug(idx, denom, cur);
+  console.debug(table);
   const percentValue: number = table.data[idx][cur.slug][denom.slug];
   return percentValue.toLocaleString(undefined, {
     style: 'percent',
@@ -173,7 +180,7 @@ function getPercentValue(table: DownloadedTable, idx, denom, cur) {
 
 const rowValuesReducer = (table: DownloadedTable, idx) => (acc, cur) => ({
   ...acc,
-  [cur.slug]: makeCellValue(table.data[idx][cur.slug]),
+  [cur.slug]: makeCellValue(table.data[idx][cur.slug], table.variables[idx]),
 });
 
 const percentRowValuesReducer = (table: DownloadedTable, idx, denom) => (
@@ -198,4 +205,22 @@ function getPercentRows(
     ),
     className: 'subrow',
   }));
+}
+
+function formatValue(
+  variable: Variable,
+  value?: string | number | Date,
+): React.ReactNode {
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'object':
+      return value.toLocaleString(
+        undefined,
+        variable.localeOptions || undefined,
+      );
+    default:
+      return value;
+  }
 }

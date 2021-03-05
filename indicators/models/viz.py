@@ -552,19 +552,21 @@ class BigValue(Alphanumeric):
     note = models.TextField(blank=True, null=True)
 
     def get_value_data(self, geog: 'CensusGeography') -> DataResponse:
-        data = None
+        data = []
         error: ErrorResponse
         only_time_part = self.time_axis.time_parts[0]
         if self.can_handle_geography(geog):
             for variable in self.variables.order_by('variable_to_big_value'):
-                # fixme: this is wasteful since get_table_row is calculating data we don't use
-                data = variable.get_table_row(self, geog)[only_time_part.slug]
+                tmp_data = variable.get_table_row(self, geog)[only_time_part.slug]
 
-            if data is None or data['v'] is None:
-                error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')
-                data = None
-            else:
-                error = ErrorResponse(level=ErrorLevel.OK, message=None)
+                if tmp_data is None or tmp_data['v'] is None:
+                    # todo: better error reporting
+                    error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')
+                    data = None
+                else:
+                    # todo: add options
+                    data.append({'v': tmp_data['v'], 'options': None})
+                    error = ErrorResponse(level=ErrorLevel.OK, message=None)
 
         else:
             error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')

@@ -59,7 +59,13 @@ export type MiniMapData = {
   legends: LegendProps[];
 };
 export type SentenceData = string;
-export type BigValueData = DataVizDataPoint;
+
+export interface BigValueDataPoint {
+  v: any;
+  options: Record<string, any>;
+}
+
+export type BigValueData = [BigValueDataPoint];
 
 export type DataVizData =
   | TableData

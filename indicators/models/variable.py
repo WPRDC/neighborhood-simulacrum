@@ -24,25 +24,10 @@ DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
 
 class Variable(PolymorphicModel, Described):
-    @dataclass
-    class ValueRecord(object):
-        """ Holds what's necessary to describe one continuous chunk of time"""
-        slug: str
-        name: str
-        time_point: timezone.datetime
-        time_unit: int
-
-        @property
-        def trunc_str(self):
-            trunc_field = TimeAxis.UNIT_FIELDS[self.time_unit]
-            return f""" date_trunc('{trunc_field}', '{self.time_point}') """
-
-        def __hash__(self):
-            return hash((self.slug, self.time_point, self.time_unit))
-
     short_name = models.CharField(max_length=26, null=True, blank=True)
 
     units = models.CharField(
+        help_text='Special format for $.  Otherwise, often displayed after value.',
         max_length=30,
         null=True,
         blank=True
@@ -69,27 +54,22 @@ class Variable(PolymorphicModel, Described):
         default=0
     )
 
-    carto_table = models.CharField(
-        max_length=30,
-        null=True,
-        blank=True,
-    )
-
-    field_in_carto = models.CharField(
-        verbose_name='Carto field',
-        max_length=60,
-        help_text='If left blank, the value for "field" will be used.',
-        blank=True, null=True,
-    )
-    sql_filter_for_carto = models.TextField(
-        verbose_name="Carto SQL Filter",
-        help_text='If left blank, the value for "sql filter" will be used.',
-        null=True, blank=True
-    )
+    @property
+    def display_name(self):
+        return self.name
 
     @property
     def percent_label(self):
-        return self.percent_label_text if self.percent_label_text else f'% of {self.title}'
+        return self.percent_label_text if self.percent_label_text else f'% of {self.name}'
+
+    @property
+    def locale_options(self):
+        if self.units:
+            if self.units[0] == '$':
+                return { 'style': 'currency', 'currency': 'USD', 'minimumFractionDigits': 0}
+            if self.units[0] == '%':
+                return { 'style': 'percent' }
+        return None
 
     def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
         raise NotImplemented
@@ -242,11 +222,6 @@ class CensusVariable(Variable):
         census_table_ptrs = source.source_to_variable.get(variable=self).census_table_pointers.all()
         return CensusTable.objects.filter(value_to_pointer__in=census_table_ptrs)
 
-    def carto_join(self, geog: 'CensusGeography'):
-        # check that geog is compatible with census data (right now it is by default)
-        # todo: update this when allowing other geographies
-        return f' {self.carto_table} dt JOIN {geog} geog '
-
     def _get_source_for_time_point(self, time_point: timezone.datetime) -> 'CensusSource':
         is_decade = not time_point.year % 10
         if is_decade:
@@ -297,14 +272,6 @@ class CKANVariable(Variable):
         max_length=100
     )
     sql_filter = models.TextField(help_text='SQL clause that will be used to filter data.', null=True, blank=True)
-
-    @property
-    def carto_field(self):
-        return self.field_in_carto or self.field
-
-    @property
-    def carto_sql_filter(self):
-        return self.sql_filter_for_carto or self.sql_filter
 
     # Value getters
     @lru_cache

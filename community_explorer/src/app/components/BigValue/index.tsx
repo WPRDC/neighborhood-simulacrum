@@ -4,35 +4,40 @@
  *
  */
 import React from 'react';
-import { BigValueData } from '../../types';
 
 import { Text } from '@adobe/react-spectrum';
 import { View } from '@react-spectrum/view';
 
 interface Props {
-  data: BigValueData;
+  data: { value: React.ReactNode; label: React.ReactNode }[];
   note?: string;
 }
 
 export function BigValue(props: Props) {
-  console.log(props);
+  const { data } = props;
+
   return (
     <View>
-      <View padding="none">
-        <Text
-          UNSAFE_style={{
-            fontSize: '5rem',
-            fontWeight: 800,
-            padding: 0,
-            margin: 0,
-          }}
-        >
-          ${props.data.v}
-        </Text>
-      </View>
-      <View>
-        <Text>{props.note}</Text>
-      </View>
+      {data &&
+        data.map(({ value, label }) => (
+          <View>
+            <View padding="none">
+              <Text
+                UNSAFE_style={{
+                  fontSize: '5rem',
+                  fontWeight: 800,
+                  padding: 0,
+                  margin: 0,
+                }}
+              >
+                {value}
+              </Text>
+            </View>
+            <View>
+              <Text>{label}</Text>
+            </View>
+          </View>
+        ))}
     </View>
   );
 }

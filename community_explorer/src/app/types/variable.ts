@@ -9,21 +9,19 @@ import { VariableSource } from './source';
 export type Variable = VariableBase;
 
 export interface VariableBase extends Described {
-  units: string;
-  unitNotes: string;
+  shortName?: string;
+  displayName: string;
+  units?: string;
+  unitNotes?: string;
   denominators: VariableBase[];
   depth: number;
   percentLabel: string;
   sources: VariableSource[];
-  aggregationMethod: AggregationMethodName;
-  field: 'call_no';
-  sqlFilter: '';
-  resourcetype: '';
+  localeOptions?: Intl.NumberFormatOptions;
+  resourcetype: VariableResourceType;
 }
 
 export enum VariableResourceType {
   CKANVariable = 'CKANVariable',
   CensusVariable = 'CensusVariable',
 }
-
-type AggregationMethodName = 'COUNT' | 'AVG' | 'MEDIAN';
