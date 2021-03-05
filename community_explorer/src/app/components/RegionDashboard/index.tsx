@@ -67,7 +67,12 @@ export function RegionDashboard(props: Props) {
       <Item key={`${h.regionType}/${h.regionID}`}>{h.title}</Item>
     )),
     <Item key="__current">
-      <Heading level={1} margin="size-100" marginTop-="size-0">
+      <Heading
+        level={2}
+        margin="size-100"
+        marginTop-="size-0"
+        UNSAFE_style={{ fontSize: '5.2rem', lineHeight: '5.2rem' }}
+      >
         {region.title}
       </Heading>
     </Item>,

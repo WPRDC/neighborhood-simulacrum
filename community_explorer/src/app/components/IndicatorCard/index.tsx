@@ -30,10 +30,12 @@ function IndicatorCard({ indicator }: Props) {
   return (
     <View borderWidth="thin" backgroundColor="gray-50" padding="size-100">
       <View>
-        <Heading level={3} UNSAFE_style={{ marginTop: 0 }}>
+        <Heading level={5} UNSAFE_style={{ marginTop: 0, marginBottom: '4px' }}>
           {name}
         </Heading>
-        <Text>{description}</Text>
+        <View paddingY="size-100">
+          <Text>{description}</Text>
+        </View>
       </View>
       <View>
         {dataVizes && (
@@ -60,7 +62,7 @@ function IndicatorCard({ indicator }: Props) {
           </Grid>
         )}
       </View>
-      <View>
+      <View marginTop="size-100">
         <Text>{longDescription}</Text>
       </View>
     </View>

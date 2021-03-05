@@ -6,8 +6,6 @@
 
 import React from 'react';
 import { View } from '@react-spectrum/view';
-import { DataCard } from 'wprdc-components';
-import IndicatorSection from './IndicatorSection';
 import { Grid, minmax, repeat } from '@react-spectrum/layout';
 import { Subdomain } from '../../types';
 import { Heading } from '@adobe/react-spectrum';
@@ -22,11 +20,16 @@ function SubdomainSection({ subdomain }: Props) {
   const { name, description, indicators } = subdomain;
   return (
     <View marginBottom="size-50">
-      <Heading level={4}>{name}</Heading>
-      <Text>{description}</Text>
+      <Heading level={4} UNSAFE_style={{ marginBottom: '4px' }}>
+        {name}
+      </Heading>
+      <View>
+        <Text>{description}</Text>
+      </View>
       <Grid
         columns={repeat('auto-fill', minmax('size-4600', '100%'))}
         gap="size-100"
+        marginY="size-200"
       >
         {indicators.map(indicator => (
           <View key={indicator.slug}>
