@@ -52,8 +52,8 @@ function IndicatorCard({ indicator }: Props) {
                 borderWidth="thin"
                 borderColor="gray-400"
                 padding="size-100"
-                gridColumn={`auto / span ${dataViz.viewWidth + 1}`}
-                gridRow={`auto / span ${dataViz.viewHeight + 2}`}
+                gridColumn={`auto / span ${dataViz.viewWidth}`}
+                gridRow={`auto / span ${dataViz.viewHeight}`}
                 overflow="auto"
               >
                 <DataViz key={dataViz.slug} dataVizID={dataViz} />

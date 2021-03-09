@@ -46,8 +46,8 @@ class DataViz(PolymorphicModel, Described):
         ('4', 4),
     )
 
-    DEFAULT_WIDTH: int = 2
-    DEFAULT_HEIGHT: int = 1
+    DEFAULT_WIDTH: int = 3
+    DEFAULT_HEIGHT: int = 2
 
     """ Base class for all Data Presentations """
     _name: str
@@ -216,7 +216,7 @@ class ParcelsLayer(MapLayer):
 
 
 class MiniMap(DataViz):
-    DEFAULT_HEIGHT = 2
+    DEFAULT_HEIGHT = 3
     DEFAULT_WIDTH = 2
 
     BORDER_LAYER_BASE = {
@@ -336,6 +336,7 @@ class Table(DataViz):
     # todo: calculate height based on number of columns
     DEFAULT_WIDTH = 2
     DEFAULT_HEIGHT = 2
+
     _name = 'table'
     vars = models.ManyToManyField('Variable', verbose_name='Rows', through=TableRow)
     transpose = models.BooleanField(default=False)
@@ -374,6 +375,9 @@ class Table(DataViz):
 # ==================
 
 class Chart(DataViz):
+    DEFAULT_WIDTH = 3
+    DEFAULT_HEIGHT = 2
+
     _name = 'chart'
     """
     Abstract base class for charts
@@ -405,6 +409,14 @@ class Chart(DataViz):
         (NONE, 'None'),
     )
     legendType = models.CharField(max_length=10, choices=LEGEND_TYPE_CHOICES, default='circle')
+
+    @property
+    def view_height(self):
+        return self.height_override or self.DEFAULT_HEIGHT
+
+    @property
+    def view_width(self):
+        return self.width_override or self.DEFAULT_WIDTH
 
     def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
         raise NotImplementedError('Each type of chart must define how to get chart data.')
@@ -448,7 +460,7 @@ class BarChartPart(OrderedVariable):
 
 
 class BarChart(Chart):
-    DEFAULT_WIDTH = 3
+    DEFAULT_WIDTH = 5
 
     vars = models.ManyToManyField('Variable', through=BarChartPart)
     layout = models.CharField(
@@ -547,7 +559,7 @@ class BigValueVariable(OrderedVariable):
 
 
 class BigValue(Alphanumeric):
-    DEFAULT_WIDTH = 1
+    DEFAULT_WIDTH = 2
     vars = models.ManyToManyField('Variable', through=BigValueVariable)
     note = models.TextField(blank=True, null=True)
 
