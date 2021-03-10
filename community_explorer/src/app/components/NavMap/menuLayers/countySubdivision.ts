@@ -11,7 +11,7 @@ const countySubdivision: MenuLayer = {
     minzoom: 0,
     maxzoom: 11,
     source: 'census_county_subdivision',
-    sql: `SELECT * , 'countysubdivision' as regionType, geoid as regionID FROM census_county_subdivision WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT * , 'countySubdivision' as regionType, geoid as regionID FROM census_county_subdivision WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
