@@ -80,7 +80,7 @@ class Variable(PolymorphicModel, Described):
     def get_table_row(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, Union[dict, None]]:
         raise NotImplemented
 
-    def get_chart_record(self, data_viz: DataViz, geog_type: CensusGeography) -> Dict[str, any]:
+    def get_chart_record(self, data_viz: DataViz, geog_type: CensusGeography, by_geog=False) -> Dict[str, any]:
         raise NotImplemented
 
     def get_layer_data(self, data_viz: DataViz, geog: Type[CensusGeography]) -> Dict[str, any]:
@@ -198,16 +198,22 @@ class CensusVariable(Variable):
                 row[time_part.slug] = values
         return row
 
-    def get_chart_record(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, any]:
+    def get_chart_record(self, data_viz: DataViz, geog: CensusGeography, by_geog=False) -> Dict[str, any]:
         """
         Gets the data for one record displayed in a chart.
             {name: variable.name, [series.name]: f(value, series) }
         """
-        record: Dict[str, any] = {'name': self.name}
+        name = geog.title if by_geog else self.name
+        record: Dict[str, any] = {'name': name}
         for time_part in data_viz.time_axis.time_parts:
             value = self.get_primary_value(geog, time_part)
             if value is not None:
-                record[time_part.slug] = value
+                key = time_part.slug
+                record[key] = value
+                record['geoid'] = geog.common_geoid
+                # todo: handle more than one time_part if by geo
+                if by_geog:
+                    break
         return record
 
     def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> Dict[str, any]:
@@ -300,7 +306,7 @@ class CKANVariable(Variable):
                 row[time_part.slug] = values
         return row
 
-    def get_chart_record(self, data_viz: DataViz, geog: CensusGeography) -> Dict[str, any]:
+    def get_chart_record(self, data_viz: DataViz, geog: CensusGeography, by_geog=False) -> Dict[str, any]:
         """
         Gets the data for one record displayed in a chart.
             {name: variable.name, [series.name]: f(value, series) }
@@ -309,7 +315,9 @@ class CKANVariable(Variable):
         for time_part in data_viz.time_axis.time_parts:
             value = self.get_primary_value(geog, time_part)
             if value is not None:
-                record[time_part.slug] = value
+                key = time_part.slug
+                record[key] = value
+                record['geoid'] = geog.common_geoid
         return record
 
     def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> Dict[str, any]:

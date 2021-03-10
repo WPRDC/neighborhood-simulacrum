@@ -90,6 +90,10 @@ class CensusGeography(PolymorphicModel, Geography):
     awater = models.BigIntegerField('Area (water)')
 
     @property
+    def title(self) -> str:
+        return self.name
+
+    @property
     def region_type(self) -> str:
         return self.TYPE
 

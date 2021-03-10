@@ -14,6 +14,8 @@ import {
   LegendProps,
   MapProps,
 } from 'wprdc-components';
+import { LayoutType } from 'recharts/types/util/types';
+import { HierarchyItem } from './index';
 
 export interface DataVizID extends Described {
   viewHeight: number;
@@ -51,7 +53,7 @@ export type DataVizDataPoint = Record<DataVizDataPointPart, any>;
 
 // Response data formats
 export type TableData = Record<string, DataVizDataPoint>[];
-export type ChartData = Record<string, DataVizDataPoint>[];
+export type ChartData = DataVizDataPoint[];
 export type MiniMapData = {
   sources: SourceProps[];
   layers: LayerOptions[];
@@ -77,6 +79,7 @@ export type DataVizData =
 /** T with `data` required */
 export type Downloaded<T extends DataVizBase, D extends DataVizData> = T & {
   data: D;
+  geog: HierarchyItem;
 };
 
 export interface TableViz extends DataVizBase {
@@ -91,6 +94,8 @@ export interface PieChartViz extends DataVizBase {
 
 export interface BarChartViz extends DataVizBase {
   data?: ChartData;
+  layout: LayoutType;
+  acrossGeogs: boolean;
   resourcetype: DataVizResourceType.BarChart;
 }
 

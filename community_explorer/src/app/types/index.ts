@@ -41,7 +41,7 @@ export interface Region extends Described, RegionBase {
   kidPopulation: number;
 }
 
-interface HierarchyItem {
+export interface HierarchyItem {
   id: string | number;
   title: string;
   regionType: RegionType;

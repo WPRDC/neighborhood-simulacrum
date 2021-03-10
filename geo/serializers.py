@@ -6,8 +6,6 @@ from rest_polymorphic.serializers import PolymorphicSerializer
 
 from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County
 
-if TYPE_CHECKING:
-    from indicators.models import Variable, TimeAxis
 
 
 class HierarchySerializer(serializers.ModelSerializer):

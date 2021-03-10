@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
 from geo.models import CensusGeography
+from geo.serializers import CensusGeographyPolymorphicSerializer
 from . import TimeAxisPolymorphicSerializer
 from .variable import BriefVariablePolymorphicSerializer
 from ..models import DataViz, Table
@@ -48,6 +49,7 @@ class BarChartSerializer(DataVizSerializer):
         model = BarChart
         fields = DataVizSerializer.Meta.fields + (
             'layout',
+            'across_geogs'
         )
 
 
@@ -101,9 +103,10 @@ class DataVizPolymorphicSerializer(PolymorphicSerializer):
 class WithData(serializers.Serializer):
     data = serializers.SerializerMethodField()
     error = serializers.SerializerMethodField()
+    geog = serializers.SerializerMethodField()
 
     class Meta:
-        fields = ('data', 'error')
+        fields = ('data', 'error', 'geog')
 
     def create(self, validated_data):
         pass
@@ -124,6 +127,9 @@ class WithData(serializers.Serializer):
         if 'error' in self.context:
             return self.context['error']
         return self._get_data_response(obj, self.context['geography']).error.as_dict()
+
+    def get_geog(self, obj: DataViz):
+        return CensusGeographyPolymorphicSerializer(self.context['geography']).data
 
 
 class TableWithDataSerializer(TableSerializer, WithData):

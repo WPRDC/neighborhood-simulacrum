@@ -1,30 +1,29 @@
 import itertools
 import uuid
-from typing import TYPE_CHECKING, Optional, Type
+from operator import itemgetter
+from typing import TYPE_CHECKING, Type
 
 import jenkspy
 import pystache
+from django.conf import settings
 from django.contrib.gis.db.models import Union
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import QuerySet, Manager, Value
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils.text import slugify
-
 from polymorphic.models import PolymorphicModel
 from rest_framework.exceptions import NotFound
 
+from geo.models import BlockGroup, County
 from geo.serializers import CensusGeographyDataMapSerializer
 from indicators.helpers import clean_sql
 from indicators.models.abstract import Described
-from indicators.utils import DataResponse, ErrorResponse, ErrorLevel, get_region_model
-from django.conf import settings
-
-from geo.models import BlockGroup, County
+from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
 
 if TYPE_CHECKING:
-    from indicators.models import Variable, TimeAxis
+    from indicators.models import Variable
     from geo.models import CensusGeography
 
 CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
@@ -410,6 +409,10 @@ class Chart(DataViz):
     )
     legendType = models.CharField(max_length=10, choices=LEGEND_TYPE_CHOICES, default='circle')
 
+    across_geogs = models.BooleanField(
+        help_text='Check if you want this chart to compare the statistic across geographies instead of across time',
+        default=False)
+
     @property
     def view_height(self):
         return self.height_override or self.DEFAULT_HEIGHT
@@ -421,12 +424,35 @@ class Chart(DataViz):
     def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
         raise NotImplementedError('Each type of chart must define how to get chart data.')
 
+    def _get_data_across_geogs(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> []:
+        data = []
+
+        domain = County.objects \
+            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+            .aggregate(the_geom=Union('geom'))
+
+        for geog in geog_type.objects.filter(geom__coveredby=domain['the_geom']):
+            data.append(variable.get_chart_record(self, geog, by_geog=True))
+
+        time_slug = self.time_axis.time_parts[0].slug
+        return sorted([d for d in data if time_slug in d], key=itemgetter(time_slug))
+
+    def _get_data_across_variables(self, geog: 'CensusGeography', variables: QuerySet['Variable']) -> []:
+        data = []
+        for variable in variables:
+            data.append(variable.get_chart_record(self, geog))
+        return data
+
     def _get_chart_data(self, region: 'CensusGeography', through: str) -> DataResponse:
         data = []
         error: ErrorResponse
+        variables = self.variables.order_by(through)
+
         if self.can_handle_geography(region):
-            for variable in self.variables.order_by(through):
-                data.append(variable.get_chart_record(self, region))
+            if self.across_geogs:
+                data = self._get_data_across_geogs(type(region), variables[0])
+            else:
+                data = self._get_data_across_variables(region, variables)
             error = ErrorResponse(level=ErrorLevel.OK,
                                   message=f'This Chart is not available for this {region.name}.')
         else:
@@ -450,10 +476,6 @@ class BarChartPart(OrderedVariable):
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_bar_chart')
     style = models.CharField(verbose_name='Special Style', max_length=4, choices=STYLE_CHOICES,
                              default=None, null=True, blank=True)
-
-    @property
-    def variables(self):
-        return self.vars.order_by('variable_to_viz')
 
     class Meta:
         unique_together = ('chart', 'variable', 'order',)
@@ -573,7 +595,8 @@ class BigValue(Alphanumeric):
 
                 if tmp_data is None or tmp_data['v'] is None:
                     # todo: better error reporting
-                    error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')
+                    error = ErrorResponse(level=ErrorLevel.EMPTY,
+                                          message=f'This Value is not available for {geog.name}.')
                     data = None
                 else:
                     # todo: add options

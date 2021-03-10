@@ -1,15 +1,16 @@
 from typing import Type
 
-from rest_framework.permissions import AllowAny
-from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.decorators import api_view, permission_classes
-from django.contrib.gis.db.models import GeometryField, QuerySet, Func, Union
-from django.http import Http404, JsonResponse, HttpResponse
-import json
-from rest_framework import viewsets
-from rest_framework.exceptions import APIException, NotFound
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django.conf import settings
+from django.contrib.gis.db.models import QuerySet, Union
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import Http404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from rest_framework import viewsets
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import NotFound
+from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from geo.models import Geography, CensusGeography, County, BlockGroup
@@ -73,6 +74,11 @@ class DataVizViewSet(viewsets.ModelViewSet):
                 context['error'] = ErrorResponse(ErrorLevel.ERROR,
                                                  f'Can\'t find "{geo_type}" with ID "{geoid}".').as_dict()
         return context
+
+    # Cache requested url for each user for 2 hours
+    @method_decorator(cache_page(60*2))
+    def retrieve(self, request, *args, **kwargs):
+        return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
 
 @api_view()

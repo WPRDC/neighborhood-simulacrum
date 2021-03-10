@@ -117,11 +117,25 @@ const generatePieChart: VizGenerator<PieChartViz, ChartData> = dataViz => {
 };
 
 const generateBarChart: VizGenerator<BarChartViz, ChartData> = dataViz => {
+  // if accrossGeogs, then make sure its vertical and hide labels.
+  const layout = dataViz.acrossGeogs ? 'horizontal' : dataViz.layout;
+  const highlightKey = dataViz.acrossGeogs ? 'geoid' : undefined;
+  const highlightValue = dataViz.acrossGeogs
+    ? dataViz.geog.regionID
+    : undefined;
+  const dataKey = dataViz.timeAxis.timeParts[0].slug;
+  const highlightIndex = getHighlightIndex(
+    dataViz.data,
+    highlightKey,
+    highlightValue,
+  );
   return (
     <BarChart
+      layout={layout}
       data={dataViz.data}
-      dataKey={dataViz.timeAxis.timeParts[0].slug}
+      dataKey={dataKey}
       barName={dataViz.timeAxis.timeParts[0].name}
+      highlightIndex={highlightIndex}
     />
   );
 };
@@ -227,4 +241,16 @@ function formatPercent(value?: number): React.ReactNode {
       maximumSignificantDigits: 3,
     });
   return 'N/A';
+}
+
+function getHighlightIndex(
+  data: DataVizDataPoint[],
+  key?: string,
+  value?: string,
+) {
+  if (!!key && !!value) {
+    const idx = data.findIndex(v => v[key] === value);
+    if (idx >= 0) return idx;
+  }
+  return undefined;
 }
