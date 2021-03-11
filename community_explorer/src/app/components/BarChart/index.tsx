@@ -45,7 +45,7 @@ export function BarChart(props: Props) {
     axesProps.reverse();
   }
   const [xAxisProps, yAxisProps] = axesProps;
-
+  const tickLine = highlightIndex === undefined;
   return (
     <View
       padding="size-10"
@@ -59,10 +59,15 @@ export function BarChart(props: Props) {
           layout={layout}
           margin={{ left: 1, top: 1, right: 0, bottom: 1 }}
         >
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            vertical={!tickLine}
+            horizontal={!tickLine}
+          />
           <XAxis
             {...xAxisProps}
             tickFormatter={tickFormatter(highlightIndex)}
+            tickLine={tickLine}
           />
           <YAxis {...yAxisProps} />
           <Tooltip />
