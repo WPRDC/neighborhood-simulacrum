@@ -60,8 +60,8 @@ export function BarChart(props: Props) {
           margin={{ left: 1, top: 1, right: 0, bottom: 1 }}
         >
           <CartesianGrid
-            strokeDasharray="3 3"
-            vertical={!tickLine}
+            strokeDasharray={tickLine ? '3 3' : undefined}
+            vertical={tickLine}
             horizontal={!tickLine}
           />
           <XAxis

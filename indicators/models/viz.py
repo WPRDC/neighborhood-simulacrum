@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Type
 
 import jenkspy
 import pystache
+
+from django.core.cache import cache
 from django.conf import settings
 from django.contrib.gis.db.models import Union
 from django.core.exceptions import ValidationError
@@ -28,6 +30,7 @@ if TYPE_CHECKING:
 
 CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
 
+CACHE_TTL = 60 * 60  # 60 mins
 
 class OrderedVariable(models.Model):
     order = models.IntegerField()
@@ -265,12 +268,16 @@ class MiniMap(DataViz):
 
     def _get_map_data(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> dict:
         """
-        Custom view to serve Mapbox Vector Tiles for the custom polygon model.
+        returns geojson dict for t
         """
         if geog_type == BlockGroup:
             # todo: actually handle this error, then this case
             raise NotFound
 
+        cache_key = f'{self.slug}{variable.slug}@{geog_type.TYPE}'
+        cached_geojson = cache.get(cache_key)
+        if cached_geojson:
+            return cached_geojson
         serializer_context = {'data': variable.get_layer_data(self, geog_type)}
 
         domain = County.objects \
@@ -279,10 +286,15 @@ class MiniMap(DataViz):
 
         geogs: QuerySet['CensusGeography'] = geog_type.objects.filter(geom__coveredby=domain['the_geom'])
         geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
-
+        cache.set(cache_key, geojson, CACHE_TTL)
         return geojson
 
     def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        """ Collects and returns the data for this presentation at the `geog` provided
+
+        Cross-geography presentations will cached. keyed in part by `type(geog)`
+        as the data returned is the same for any target geog of the same type
+        """
         sources: [dict] = []
         layers: [dict] = []
         map_options: dict = {}
@@ -433,8 +445,12 @@ class Chart(DataViz):
         raise NotImplementedError('Each type of chart must define how to get chart data.')
 
     def _get_data_across_geogs(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> []:
-        data = []
+        cache_key = f'{self.slug}{variable.slug}@{geog_type.TYPE}'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
 
+        data = []
         domain = County.objects \
             .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
             .aggregate(the_geom=Union('geom'))
@@ -443,7 +459,9 @@ class Chart(DataViz):
             data.append(variable.get_chart_record(self, geog, by_geog=True))
 
         time_slug = self.time_axis.time_parts[0].slug
-        return sorted([d for d in data if time_slug in d], key=itemgetter(time_slug))
+        sorted_data = sorted([d for d in data if time_slug in d], key=itemgetter(time_slug))
+        cache.set(cache_key, sorted_data, CACHE_TTL)
+        return sorted_data
 
     def _get_data_across_variables(self, geog: 'CensusGeography', variables: QuerySet['Variable']) -> []:
         data = []
