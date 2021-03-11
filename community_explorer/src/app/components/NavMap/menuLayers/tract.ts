@@ -11,7 +11,7 @@ const tract: MenuLayer = {
     minzoom: 0,
     maxzoom: 11,
     source: 'census_tract',
-    sql: `SELECT *, 'tract' as regionType, geoid as regionID FROM census_tract WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT *, name as map_name, 'tract' as regionType, geoid as regionID FROM census_tract WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {

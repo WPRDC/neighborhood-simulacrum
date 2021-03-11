@@ -11,7 +11,7 @@ export const blockGroup: MenuLayer = {
     minzoom: 0,
     maxzoom: 11,
     source: 'census_blockgroup',
-    sql: `SELECT * , 'blockGroup' as regionType, geoid as regionID FROM census_blockgroup WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT *, name as map_name, 'blockGroup' as regionType, geoid as regionID FROM census_blockgroup WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {

@@ -32,6 +32,7 @@ export function MiniMap(props: Props) {
         mapboxApiAccessToken={MAPBOX_API_TOKEN}
         width="100%"
         height="100%"
+        defaultViewport={{ zoom: 8, longitude: -79.9925 }}
         hoverPopupContent={SimpleLabelPopupContent}
         hoverPopupContentProps={{
           getLabel: ({ primaryFeatureProps }) =>
@@ -42,6 +43,8 @@ export function MiniMap(props: Props) {
         ))}
         sources={sources}
         layers={layers}
+        getCursor={() => 'crosshair'}
+        minZoom={6}
         {...mapOptions}
       />
     </View>

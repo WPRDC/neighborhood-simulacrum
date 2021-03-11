@@ -216,7 +216,7 @@ class ParcelsLayer(MapLayer):
 
 class MiniMap(DataViz):
     DEFAULT_HEIGHT = 3
-    DEFAULT_WIDTH = 2
+    DEFAULT_WIDTH = 3
 
     BORDER_LAYER_BASE = {
         "type": "line",
@@ -234,6 +234,14 @@ class MiniMap(DataViz):
     }
     _name = 'minimap'
     vars = models.ManyToManyField('Variable', verbose_name='Layers', through=MapLayer)
+
+    @property
+    def view_height(self):
+        return self.height_override or self.DEFAULT_HEIGHT
+
+    @property
+    def view_width(self):
+        return self.width_override or self.DEFAULT_WIDTH
 
     @property
     def layers(self):

@@ -43,4 +43,4 @@ export const GEO_CATEGORIES: {
   },
 ];
 
-export const DEFAULT_GEO_CATEGORY = GEO_CATEGORIES[2];
+export const DEFAULT_GEO_CATEGORY = GEO_CATEGORIES[1];

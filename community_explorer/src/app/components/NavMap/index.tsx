@@ -6,7 +6,12 @@
 import React from 'react';
 import { GeoLayer } from '../../containers/Explorer/types';
 
-import { fetchCartoVectorSource, LayerOptions, Map } from 'wprdc-components';
+import {
+  fetchCartoVectorSource,
+  LayerOptions,
+  Map,
+  SimpleLabelPopupContent,
+} from 'wprdc-components';
 import { LayerProps, SourceProps } from 'react-map-gl';
 
 import menuLayers from './menuLayers';
@@ -95,6 +100,8 @@ export function NavMap(props: Props) {
     <Map
       width="100%"
       height="100%"
+      hoverPopupContent={SimpleLabelPopupContent}
+      defaultViewport={{ zoom: 8, longitude: -79.9925 }}
       interactiveLayerIds={mbSource ? interactiveLayerIds : []}
       onHover={handleHover}
       onClick={handleClick}

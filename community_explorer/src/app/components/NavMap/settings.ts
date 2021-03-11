@@ -21,8 +21,8 @@ export const censusFpsInExtent = [
   '073',
 ]; // wrap them in quotes for easy use in sql queries
 
-// for right now, we'll use sql, but if this get's more complex, we'll need a different solution
-// this get's put in the SQL queries sent to carto for menuLayers geograhries
+// for right now, we'll use sql, but if this gets more complex, we'll need a different solution
+// this gets put in the SQL queries sent to carto for menuLayers geographies
 export const censusFilter = `countyfp IN (${censusFpsInExtent
   .map(fp => `'${fp}'`)
   .join(',')})`;
