@@ -12,13 +12,16 @@ Store settings that shouldn't be shared on github here
 # https://api.census.gov/data/key_signup.html
 CENSUS_API_KEY = 'YOUR_CENSUS_API_KEY'
 
-# you can generate one here:
+# django secret key. you can generate one here:
 # https://www.miniwebtool.com/django-secret-key-generator/
 LOCAL_SECRET_KEY = 'DJANGO_SECRET_KEY'
 
-# the postgres database name and the user with privileges on that database
+# the postgres database settings
+DB_HOST = 'your_db_host'
+DB_PORT = 5328  # default for postgres
 DB_NAME = 'your_db_name'
 DB_USER = 'your_db_user'
+DB_PASSWORD = 'password_for_db_user'
 
 # You'll want to set this to false for your production version(s) of this file
 LOCAL_DEBUG = True
