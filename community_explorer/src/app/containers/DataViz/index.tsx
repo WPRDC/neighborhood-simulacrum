@@ -4,22 +4,51 @@
  *
  */
 
-import React from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { Key } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { useInjectReducer, useInjectSaga } from 'utils/redux-injectors';
-import { reducer, sliceKey } from './slice';
-import { actions } from './slice';
+import { actions, reducer, sliceKey } from './slice';
 import { dataVizSaga } from './saga';
-import { View } from '@react-spectrum/view';
+import {
+  ActionButton,
+  ActionGroup,
+  Flex,
+  Heading,
+  Item,
+  Link,
+  Text,
+  View,
+  Button,
+} from '@adobe/react-spectrum';
+import Download from '@spectrum-icons/workflow/Download';
+import Code from '@spectrum-icons/workflow/Code';
+import Share from '@spectrum-icons/workflow/Share';
+import More from '@spectrum-icons/workflow/More';
 import { makeSelectDataVizData } from './selectors';
 import { selectSelectedRegionDescriptor } from '../Explorer/selectors';
-import { getSpecificDataViz } from './util';
+import {
+  downloadChart,
+  downloadMiniMap,
+  downloadTable,
+  getSpecificDataViz,
+} from './util';
 
-import { DataVizID, VariableSource } from '../../types';
-import { Text, Link, Heading, Flex } from '@adobe/react-spectrum';
+import {
+  ChartData,
+  ChartViz,
+  DataVizID,
+  DataVizResourceType,
+  Downloaded,
+  MiniMapData,
+  MiniMapViz,
+  TableData,
+  TableViz,
+  VariableSource,
+} from '../../types';
 import { ProgressBar } from '@react-spectrum/progress';
 import styled from 'styled-components/macro';
+import { DataVizAction } from './types';
 
 interface Props {
   dataVizID: DataVizID;
@@ -68,21 +97,100 @@ export function DataViz(props: Props) {
 
   const sources = sources_record && Object.values(sources_record);
 
+  function handleDownload() {
+    switch (dataViz.resourcetype) {
+      case DataVizResourceType.BarChart:
+      case DataVizResourceType.LineChart:
+      case DataVizResourceType.PieChart:
+        downloadChart(dataViz as Downloaded<ChartViz, ChartData>);
+        break;
+      case DataVizResourceType.Table:
+        downloadTable(dataViz as Downloaded<TableViz, TableData>);
+        break;
+      case DataVizResourceType.MiniMap:
+        downloadMiniMap(dataViz as Downloaded<MiniMapViz, MiniMapData>);
+        break;
+    }
+  }
+
+  function handleMenuClick(actionKey: Key) {
+    switch (actionKey) {
+      case DataVizAction.Share:
+        break;
+      case DataVizAction.Embed:
+        break;
+      case DataVizAction.Download:
+        handleDownload();
+        break;
+      default:
+        console.warn(`Unknown action "${actionKey}"`);
+    }
+  }
+
+  if (!dataVizDataRecord) return <View />;
+
   return (
-    <View>
-      {!!dataVizDataRecord && (
-        <View>
-          {isLoading && <LoadingMessage />}
-          {!!error && <Text>{error}</Text>}
-          {!!name && (
-            <Heading level={4} UNSAFE_style={{ marginTop: 0 }}>
-              {name}
-            </Heading>
-          )}
-          {!!dataViz && getSpecificDataViz(dataViz)}
-          {!!sources && <SourceBox sources={sources} />}
-        </View>
-      )}
+    <View
+      borderRadius="medium"
+      borderWidth="thin"
+      borderColor="gray-400"
+      gridColumn={`auto / span ${!!dataViz ? dataViz.viewWidth : 3}`}
+      gridRow={'auto / span 4 '}
+      overflow="auto"
+      position="relative"
+    >
+      <HoverActionGroup>
+        <ActionGroup
+          density="compact"
+          onAction={handleMenuClick}
+          margin="size-100"
+        >
+          <Item key="share" aria-label="Share">
+            <Share />
+          </Item>
+          <Item key="embed" aria-label="Get embed link">
+            <Code />
+          </Item>
+          <Item key="download" aria-label="Download">
+            <Download />
+          </Item>
+        </ActionGroup>
+      </HoverActionGroup>
+      <View
+        padding="size-100"
+        aria-label="data presentation preview"
+        height="size-3000"
+        overflow="auto"
+        backgroundColor="gray-100"
+      >
+        {!!dataViz && getSpecificDataViz(dataViz)}
+      </View>
+      <View padding="size-100">
+        {isLoading && <LoadingMessage />}
+        {!!error && <Text>{error}</Text>}
+        {!!name && (
+          <Flex>
+            <View flexGrow={1}>
+              <Heading level={3} UNSAFE_style={{ marginTop: 0 }}>
+                {name}
+              </Heading>
+            </View>
+            <View>
+              <ActionButton isQuiet>
+                <More />
+              </ActionButton>
+            </View>
+          </Flex>
+        )}
+        {description}
+        {!!sources && <SourceBox sources={sources} />}
+      </View>
+      <View padding="size-100">
+        <Flex>
+          <View flexGrow={1} />
+          <Button variant="cta">Explore</Button>
+        </Flex>
+      </View>
     </View>
   );
 }
@@ -98,9 +206,7 @@ const LoadingMessage = () => (
 const SourceBox = ({ sources }: { sources: VariableSource[] }) => (
   <View>
     <View>
-      <Text>
-        <strong>Sources:</strong>
-      </Text>
+      <Text>Sources:</Text>
     </View>
     <List>
       {sources.map(source => (
@@ -115,6 +221,18 @@ const SourceBox = ({ sources }: { sources: VariableSource[] }) => (
     </List>
   </View>
 );
+
+const HoverActionGroup = styled.div`
+  position: absolute;
+  right: 0;
+  z-index: 1000;
+  opacity: 0.3;
+  transition: 0.3s;
+
+  &:hover {
+    opacity: 1;
+  }
+`;
 
 const List = styled.ul`
   padding-left: 1rem;

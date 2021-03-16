@@ -5,7 +5,7 @@ import {
   BigValueData,
   BigValueViz,
   ChartData,
-  DataVisualization,
+  ChartViz,
   DataVizBase,
   DataVizData,
   DataVizDataPoint,
@@ -27,6 +27,8 @@ import {
 import styled, { css } from 'styled-components';
 import { Table } from '../../components/Table';
 
+import { saveAs } from 'file-saver';
+
 import { Column as ColumnType, RowRecord } from 'wprdc-components';
 import { PieChart } from '../../components/PieChart';
 import { Sentence } from '../../components/Sentence';
@@ -34,6 +36,8 @@ import BigValue from '../../components/BigValue';
 import { BarChart } from '../../components/BarChart';
 import { LineChart } from '../../components/LineChart';
 import { MiniMap } from '../../components/MiniMap';
+import { dumpCSV } from '../../util';
+import { Text } from '@react-spectrum/text';
 
 type DownloadedTable = Downloaded<TableViz, TableData>;
 type Row = RowRecord;
@@ -98,7 +102,7 @@ const generateTable: VizGenerator<TableViz, TableData> = table => {
 
   const data: Row[] = table.variables.map((variable, idx) => ({
     key: `${table.slug}/${variable.slug}`,
-    label: variable.name,
+    label: formatCategory(variable),
     ...table.timeAxis.timeParts.reduce(rowValuesReducer(table, idx), {}),
     subRows: getPercentRows(table, variable, idx),
     expanded: true,
@@ -107,17 +111,8 @@ const generateTable: VizGenerator<TableViz, TableData> = table => {
   return <Table columns={columns} data={data} />;
 };
 
-const generatePieChart: VizGenerator<PieChartViz, ChartData> = dataViz => {
-  return (
-    <PieChart
-      data={dataViz.data}
-      dataKey={dataViz.timeAxis.timeParts[0].slug}
-    />
-  );
-};
-
 const generateBarChart: VizGenerator<BarChartViz, ChartData> = dataViz => {
-  // if accrossGeogs, then make sure its vertical and hide labels.
+  // if acrossGeogs, then make sure its vertical and hide labels.
   const layout = dataViz.acrossGeogs ? 'horizontal' : dataViz.layout;
   const highlightKey = dataViz.acrossGeogs ? 'geoid' : undefined;
   const highlightValue = dataViz.acrossGeogs
@@ -129,13 +124,30 @@ const generateBarChart: VizGenerator<BarChartViz, ChartData> = dataViz => {
     highlightKey,
     highlightValue,
   );
+
+  const data = dataViz.acrossGeogs
+    ? dataViz.data
+    : dataViz.data.map((d, i) => ({
+        ...d,
+        name: dataViz.variables[i].shortName || d.name,
+      }));
+
   return (
     <BarChart
       layout={layout}
-      data={dataViz.data}
+      data={data}
       dataKey={dataKey}
       barName={dataViz.timeAxis.timeParts[0].name}
       highlightIndex={highlightIndex}
+    />
+  );
+};
+
+const generatePieChart: VizGenerator<PieChartViz, ChartData> = dataViz => {
+  return (
+    <PieChart
+      data={dataViz.data}
+      dataKey={dataViz.timeAxis.timeParts[0].slug}
     />
   );
 };
@@ -199,7 +211,7 @@ const percentRowValuesReducer = (table: DownloadedTable, idx, denom) => (
   [cur.slug]: getPercentValue(table, idx, denom, cur),
 });
 
-function getPercentRows(
+export function getPercentRows(
   table: DownloadedTable,
   variable: Variable,
   idx: number,
@@ -215,7 +227,7 @@ function getPercentRows(
   }));
 }
 
-function formatValue(
+export function formatValue(
   variable: Variable,
   value?: string | number | Date,
 ): React.ReactNode {
@@ -233,7 +245,7 @@ function formatValue(
   }
 }
 
-function formatPercent(value?: number): React.ReactNode {
+export function formatPercent(value?: number): React.ReactNode {
   if (typeof value === 'number')
     return value.toLocaleString(undefined, {
       style: 'percent',
@@ -241,6 +253,20 @@ function formatPercent(value?: number): React.ReactNode {
       maximumSignificantDigits: 3,
     });
   return 'N/A';
+}
+
+export function formatCategory(variable: Variable): React.ReactNode {
+  const dashes = Array(variable.depth).join('-');
+  let category;
+  if (!!variable.shortName)
+    category = <abbr title={variable.name}>{variable.shortName}</abbr>;
+  else category = variable.name;
+  return (
+    <Text>
+      {!!dashes && `${dashes} `}
+      {category}
+    </Text>
+  );
 }
 
 function getHighlightIndex(
@@ -253,4 +279,45 @@ function getHighlightIndex(
     if (idx >= 0) return idx;
   }
   return undefined;
+}
+
+export function downloadTable(table: Downloaded<TableViz, TableData>): void {
+  const blob = new Blob([
+    dumpCSV(
+      table.data.map(record =>
+        Object.entries(record).reduce((a, [k, v]) => ({ ...a, k: v.v }), {}),
+      ),
+    ),
+  ]);
+  const fileName = `${table.slug}-${table.geog.title.replace(
+    RegExp('s+'),
+    '-',
+  )}`;
+  saveAs(blob, fileName);
+}
+
+export function downloadChart(chart: Downloaded<ChartViz, ChartData>): void {
+  const blob = new Blob([dumpCSV(chart.data as ChartData)], {
+    type: 'text/csv;charset=utf-8',
+  });
+  const fileName = `${chart.slug}-${chart.geog.title}.csv`;
+  saveAs(blob, fileName);
+}
+
+export function downloadMiniMap(
+  map: Downloaded<MiniMapViz, MiniMapData>,
+): void {
+  const urls: string[] = map.data.sources
+    .filter(s => typeof s.data === 'string')
+    .map(s => s.data as string);
+  const fileName = `${map.slug}.geojson?format=json`;
+
+  const a = document.createElement('a');
+  a.href = urls[0] + '?download=true';
+  a.download = fileName;
+  a.target = '_blank';
+  a.rel = 'noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }

@@ -30,3 +30,9 @@ export interface DataVizRequest {
 }
 
 export type ContainerState = DataVizState;
+
+export enum DataVizAction {
+  Share = 'share',
+  Download = 'download',
+  Embed = 'embed',
+}

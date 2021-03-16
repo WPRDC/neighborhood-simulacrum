@@ -51,6 +51,8 @@ type DataVizDataPointPart<T = string> = 'v' | 'm' | T; // v - value; m - margin 
 
 export type DataVizDataPoint = Record<DataVizDataPointPart, any>;
 
+export type ChartViz = LineChartViz | BarChartViz | PieChartViz;
+
 // Response data formats
 export type TableData = Record<string, DataVizDataPoint>[];
 export type ChartData = DataVizDataPoint[];

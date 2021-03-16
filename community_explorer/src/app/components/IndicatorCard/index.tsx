@@ -47,17 +47,7 @@ function IndicatorCard({ indicator }: Props) {
             gap="size-100"
           >
             {dataVizes.map(dataViz => (
-              <View
-                borderRadius="xsmall"
-                borderWidth="thin"
-                borderColor="gray-400"
-                padding="size-100"
-                gridColumn={`auto / span ${dataViz.viewWidth}`}
-                gridRow={`auto / span ${dataViz.viewHeight}`}
-                overflow="auto"
-              >
-                <DataViz key={dataViz.slug} dataVizID={dataViz} />
-              </View>
+              <DataViz key={dataViz.slug} dataVizID={dataViz} />
             ))}
           </Grid>
         )}

@@ -4,21 +4,20 @@
  *
  */
 import React from 'react';
-import { View } from '@adobe/react-spectrum';
 
 import {
+  Bar,
   BarChart as RBarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  Legend,
-  Bar,
-  ResponsiveContainer,
-  Cell,
 } from 'recharts';
 
-import { ChartData, DataVizDataPoint } from '../../types';
+import { ChartData } from '../../types';
 import { BaseAxisProps, LayoutType } from 'recharts/types/util/types';
 
 interface Props {
@@ -47,43 +46,35 @@ export function BarChart(props: Props) {
   const [xAxisProps, yAxisProps] = axesProps;
   const tickLine = highlightIndex === undefined;
   return (
-    <View
-      padding="size-10"
-      height="size-3600"
-      minHeight="size-2000"
-      maxHeight="size-3600"
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <RBarChart
-          data={data}
-          layout={layout}
-          margin={{ left: 1, top: 1, right: 0, bottom: 1 }}
-        >
-          <CartesianGrid
-            strokeDasharray={tickLine ? '3 3' : undefined}
-            vertical={tickLine}
-            horizontal={!tickLine}
-          />
-          <XAxis
-            {...xAxisProps}
-            tickFormatter={tickFormatter(highlightIndex)}
-            tickLine={tickLine}
-          />
-          <YAxis {...yAxisProps} />
-          <Tooltip />
-          <Legend />
-          <Bar name={barName} dataKey={dataKey}>
-            {data.map((entry, index) => (
-              <Cell
-                cursor="pointer"
-                fill={highlightIndex === index ? '#d83790' : '#096c6f'}
-                key={`cell-${index}`}
-              />
-            ))}
-          </Bar>
-        </RBarChart>
-      </ResponsiveContainer>
-    </View>
+    <ResponsiveContainer width="100%" height="100%">
+      <RBarChart
+        data={data}
+        layout={layout}
+        margin={{ left: 1, top: 1, right: 0, bottom: 1 }}
+      >
+        <CartesianGrid
+          strokeDasharray={tickLine ? '3 3' : undefined}
+          vertical={tickLine}
+          horizontal={!tickLine}
+        />
+        <XAxis
+          {...xAxisProps}
+          tickFormatter={tickFormatter(highlightIndex)}
+          tickLine={tickLine}
+        />
+        <YAxis {...yAxisProps} />
+        <Tooltip />
+        <Legend />
+        <Bar name={barName} dataKey={dataKey}>
+          {data.map((entry, index) => (
+            <Cell
+              fill={highlightIndex === index ? '#d83790' : '#096c6f'}
+              key={`cell-${index}`}
+            />
+          ))}
+        </Bar>
+      </RBarChart>
+    </ResponsiveContainer>
   );
 }
 

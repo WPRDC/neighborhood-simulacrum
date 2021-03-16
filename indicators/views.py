@@ -1,3 +1,4 @@
+import json
 from typing import Type
 
 from django.conf import settings
@@ -6,12 +7,15 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from rest_framework import viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, renderers
 from rest_framework.exceptions import NotFound
+from rest_framework.negotiation import BaseContentNegotiation
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.renderers import JSONRenderer
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from geo.models import Geography, CensusGeography, County, BlockGroup
 from geo.serializers import CensusGeographyDataMapSerializer
@@ -23,6 +27,32 @@ from indicators.serializers.viz import DataVizWithDataPolymorphicSerializer, Dat
 from indicators.utils import (is_region_data_request, get_region_from_request,
                               ErrorResponse, ErrorLevel, extract_geo_params,
                               get_region_model)
+
+
+class GeoJSONRenderer(renderers.BaseRenderer):
+    media_type = 'application/geo+json'
+    format = 'geojson'
+
+    def render(self, data, media_type=None, renderer_context=None):
+        return json.dumps(data)
+
+
+class GeoJSONContentNegotiation(BaseContentNegotiation):
+    """
+    Custom content negotiation scheme for GeoJSON files.
+
+    `GeoJSONRenderer` is used for downloading geojson files
+    `JSONRenderer` is used for ajax calls.
+    """
+
+    def select_parser(self, request, parsers):
+        return super(GeoJSONContentNegotiation, self).select_parser(request, parsers)
+
+    def select_renderer(self, request: Request, renderers, format_suffix=None):
+        renderer = renderers[0]
+        if request.query_params.get('download', False):
+            renderer = GeoJSONRenderer()
+        return renderer, renderer.media_type
 
 
 class DomainViewSet(viewsets.ModelViewSet):
@@ -76,76 +106,45 @@ class DataVizViewSet(viewsets.ModelViewSet):
         return context
 
     # Cache requested url for each user for 2 hours
-    @method_decorator(cache_page(60*2))
+    @method_decorator(cache_page(60 * 2))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
 
-@api_view()
-@permission_classes((AllowAny,))
-def map_data(request, geog_type_id=None, data_viz_id=None, variable_id=None):
-    """
-    Custom view to serve Mapbox Vector Tiles for the custom polygon model.
-    """
-    # get geography from request
-    try:
-        geog_type: Type[CensusGeography] = get_region_model(geog_type_id)
-        data_viz: DataViz = DataViz.objects.get(pk=data_viz_id)
-        variable: Variable = Variable.objects.get(pk=variable_id)
-        time_part = data_viz.time_axis.time_parts[0]
-    except KeyError as e:
-        # when the geog is wrong todo: make 400 malformed with info on available geo types
-        raise NotFound
-    except ObjectDoesNotExist as e:
-        raise NotFound
+class GeoJSONWithDataView(APIView):
+    permission_classes = [AllowAny, ]
+    content_negotiation_class = GeoJSONContentNegotiation
 
-    if geog_type == BlockGroup:
-        # todo: actually handle this error, then this case
-        return Http404
+    def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
+        try:
+            geog_type: Type[CensusGeography] = get_region_model(geog_type_id)
+            data_viz: DataViz = DataViz.objects.get(pk=data_viz_id)
+            variable: Variable = Variable.objects.get(pk=variable_id)
+            time_part = data_viz.time_axis.time_parts[0]
+        except KeyError as e:
+            # when the geog is wrong todo: make 400 malf
+            #  ormed with info on available geo types
+            raise NotFound
+        except ObjectDoesNotExist as e:
+            raise NotFound
 
-    serializer_context = {'data': variable.get_layer_data(data_viz, geog_type)}
+        if geog_type == BlockGroup:
+            # todo: actually handle this error, then this case
+            return Http404
 
-    domain = County.objects \
-        .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
-        .aggregate(the_geom=Union('geom'))
+        serializer_context = {'data': variable.get_layer_data(data_viz, geog_type)}
 
-    geogs: QuerySet['CensusGeography'] = geog_type.objects.filter(geom__coveredby=domain['the_geom'])
-    geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
+        domain = County.objects \
+            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+            .aggregate(the_geom=Union('geom'))
 
-    return Response(geojson)
+        geogs: QuerySet['CensusGeography'] = geog_type.objects.filter(geom__coveredby=domain['the_geom'])
+        geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
 
+        if request.query_params.get('download', False):
+            headers = {
+                'Content-Disposition': f'attachment; filename="{data_viz.slug}:{variable.slug}:{geog_type.TYPE}.geojson"'
+            }
+            return Response(geojson, headers=headers, content_type='application/geo+json')
 
-# def mvt_tiles(request, geog_type_id=None, data_viz_id=None, variable_id=None, zoom=None, x=None, y=None):
-#     """
-#     Custom view to serve Mapbox Vector Tiles for the custom polygon model.
-#     """
-#     if None in (geog_type_id, data_viz_id, variable_id, zoom, x, y):
-#         raise Http404()
-#
-#     # get geography from request
-#     geog_type: CensusGeography = get_region_model(geog_type_id)
-#     data_viz: DataViz = DataViz.objects.get(pk=data_viz_id)
-#     variable: Variable = Variable.objects.get(pk=variable_id)
-#
-#     if not variable or not DataViz or not geog_type:
-#         raise Http404()
-#
-#     time_part = data_viz.time_axis.time_parts[0]
-#     serializer_context = {'variable': variable, 'time_part': time_part}
-#
-#     # check session for tile index
-#     tile_index_key = ''
-#     tile_index = request.session.get(tile_index_key, None)
-#     if not tile_index:
-#         # create the tile_index
-#         # limit any query to select counties
-#         domain = County.objects \
-#             .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
-#             .aggregate(the_geom=Union('geom'))
-#         geogs: QuerySet['CensusGeography'] = geog_type.objects.filter(geom__coveredby=domain['the_geom'])
-#         geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
-#         tile_index = geojson2vt(geojson, {})
-#
-#     tile = tile_index.get_tile(zoom, x, y).features
-#
-#     return HttpResponse(bytes(tile), content_type="application/x-protobuf")
+        return Response(geojson)

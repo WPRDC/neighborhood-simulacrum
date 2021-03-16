@@ -39,7 +39,7 @@ export function MiniMap(props: Props) {
             primaryFeatureProps && `${primaryFeatureProps.mapValue}`,
         }}
         legends={legends.map(legendProps => (
-          <Legend {...legendProps} />
+          <Legend {...legendProps} mode="mini" />
         ))}
         sources={sources}
         layers={layers}
