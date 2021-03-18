@@ -66,6 +66,9 @@ export function Explorer() {
     if (!taxonomy && !taxonomyIsLoading) {
       dispatch(actions.requestTaxonomy());
     }
+    if (!regionType || !regionID) {
+      history.push('/countySubdivision/4200361000');
+    }
   }, []);
 
   React.useEffect(() => {

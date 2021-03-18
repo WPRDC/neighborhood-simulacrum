@@ -21,7 +21,6 @@ import { TopBar } from './containers/TopBar';
 import { Explorer } from './containers/Explorer';
 
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { DataViz } from './containers/DataViz';
 
 export function App() {
   return (
