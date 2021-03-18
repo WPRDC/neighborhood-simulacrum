@@ -10,13 +10,13 @@ from .abstract import Described
 
 class Domain(Described):
     """ Main categories for organizing indicators """
-    subdomains = models.ManyToManyField('Subdomain', related_name='domains', blank=True)
 
     def __str__(self):
         return self.name
 
 
 class Subdomain(Described):
+    domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.PROTECT)
     indicators = models.ManyToManyField('Indicator', related_name='groups', blank=True)
 
     def __str__(self):
@@ -69,6 +69,14 @@ class Indicator(Described):
 
     def __str__(self):
         return f'{self.name} ({self.id})'
+
+    @property
+    def hierarchies(self):
+        """ Collect possible hierarchies. """
+        result = []
+        for subdomain in Subdomain.objects.filter(indicators=self):
+            result.append({'domain': subdomain.domain, 'subdomain': subdomain})
+        return result
 
 
 class Value(models.Model):

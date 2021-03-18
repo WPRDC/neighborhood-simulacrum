@@ -52,10 +52,11 @@ import { DataVizAction } from './types';
 
 interface Props {
   dataVizID: DataVizID;
+  preview?: boolean;
 }
 
 export function DataViz(props: Props) {
-  const { dataVizID } = props;
+  const { dataVizID, preview } = props;
   useInjectReducer({ key: sliceKey, reducer: reducer });
   useInjectSaga({ key: sliceKey, saga: dataVizSaga });
 
@@ -97,6 +98,9 @@ export function DataViz(props: Props) {
 
   const sources = sources_record && Object.values(sources_record);
 
+  // handle style variations
+  const borderWidth = preview ? undefined : 'thin';
+
   function handleDownload() {
     switch (dataViz.resourcetype) {
       case DataVizResourceType.BarChart:
@@ -131,37 +135,20 @@ export function DataViz(props: Props) {
 
   return (
     <View
-      borderRadius="medium"
-      borderWidth="thin"
-      borderColor="gray-400"
       gridColumn={`auto / span ${!!dataViz ? dataViz.viewWidth : 3}`}
       gridRow={'auto / span 4 '}
       overflow="auto"
       position="relative"
     >
-      <HoverActionGroup>
-        <ActionGroup
-          density="compact"
-          onAction={handleMenuClick}
-          margin="size-100"
-        >
-          <Item key="share" aria-label="Share">
-            <Share />
-          </Item>
-          <Item key="embed" aria-label="Get embed link">
-            <Code />
-          </Item>
-          <Item key="download" aria-label="Download">
-            <Download />
-          </Item>
-        </ActionGroup>
-      </HoverActionGroup>
       <View
         padding="size-100"
         aria-label="data presentation preview"
         height="size-3000"
         overflow="auto"
-        backgroundColor="gray-100"
+        backgroundColor={preview ? undefined : 'gray-100'}
+        borderRadius={preview ? undefined : 'small'}
+        marginX={preview ? undefined : 'size-100'}
+        margin={preview ? undefined : 'size-100'}
       >
         {!!dataViz && getSpecificDataViz(dataViz)}
       </View>
@@ -184,12 +171,6 @@ export function DataViz(props: Props) {
         )}
         {description}
         {!!sources && <SourceBox sources={sources} />}
-      </View>
-      <View padding="size-100">
-        <Flex>
-          <View flexGrow={1} />
-          <Button variant="cta">Explore</Button>
-        </Flex>
       </View>
     </View>
   );

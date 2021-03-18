@@ -13,6 +13,11 @@ export enum IndicatorLayout {
   D = 'D',
 }
 
+interface IndicatorHierarchy {
+  domain: Described;
+  subdomain: Described;
+}
+
 export interface Indicator extends Described {
   longDescription: string;
   limitations: string;
@@ -21,6 +26,7 @@ export interface Indicator extends Described {
   provenance: string;
   layout: IndicatorLayout;
   dataVizes: DataVizID[];
+  hierarchies: IndicatorHierarchy[];
 }
 
 export interface Subdomain extends Described {
@@ -39,6 +45,8 @@ export interface Region extends Described, RegionBase {
   resourcetype: string; // todo: make enums of the resourcetypes for use here.
   population: number;
   kidPopulation: number;
+  regionType: RegionType;
+  regionID: string;
 }
 
 export interface HierarchyItem {

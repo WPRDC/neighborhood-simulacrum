@@ -4,56 +4,105 @@
  *
  */
 import React from 'react';
-// import styled from 'styled-components/macro';
 import { Indicator } from '../../types';
-import { View } from '@react-spectrum/view';
-import { Text, Grid, repeat, minmax } from '@adobe/react-spectrum';
-import { DataViz } from '../../containers/DataViz';
+import {
+  ActionButton,
+  Button,
+  Divider,
+  Flex,
+  Text,
+  View,
+} from '@adobe/react-spectrum';
 import { Heading } from '@react-spectrum/text';
+import More from '@spectrum-icons/workflow/More';
+import { DataViz } from 'app/containers/DataViz';
 
 interface Props {
   indicator: Indicator;
+  onExplore: () => void;
 }
 
-function IndicatorCard({ indicator }: Props) {
+function IndicatorCard({ indicator, onExplore }: Props) {
   const {
     name,
-    // slug,
     description,
-    longDescription,
+    // slug,
+    // longDescription,
     // limitations,
     // importance,
     // source,
     // provenance,
     dataVizes,
   } = indicator;
+
+  function handleExplorePress() {
+    onExplore();
+  }
+
+  // load first data viz (will eventually be some sort of master one or something)
+  const primaryDataViz = !!dataVizes && dataVizes[0];
+
   return (
-    <View borderWidth="thin" backgroundColor="gray-50" padding="size-100">
-      <View>
-        <Heading level={5} UNSAFE_style={{ marginTop: 0, marginBottom: '4px' }}>
-          {name}
-        </Heading>
-        <View paddingY="size-100">
+    <View
+      borderRadius="medium"
+      borderWidth="thin"
+      borderColor="default"
+      width="size-4600"
+      position="relative"
+      backgroundColor="gray-100"
+    >
+      <View
+        borderTopStartRadius="medium"
+        borderTopEndRadius="medium"
+        height="size-2400"
+        overflow="hidden"
+        borderBottomColor="gray-800"
+        borderBottomWidth="thin"
+        backgroundColor="gray-200"
+      >
+        {primaryDataViz && (
+          <DataViz
+            preview
+            key={primaryDataViz.slug}
+            dataVizID={primaryDataViz}
+          />
+        )}
+      </View>
+      <View padding="size-200">
+        <View>
+          {!!name && (
+            <Flex>
+              <View flexGrow={1}>
+                <Heading level={3} UNSAFE_style={{ marginTop: 0 }}>
+                  {name}
+                </Heading>
+              </View>
+              <View>
+                <ActionButton isQuiet>
+                  <More />
+                </ActionButton>
+              </View>
+            </Flex>
+          )}
+        </View>
+        <View height="size-800">
           <Text>{description}</Text>
         </View>
       </View>
-      <View>
-        {dataVizes && (
-          <Grid
-            aria-label="Data visualizations"
-            columns={repeat('auto-fill', minmax('size-1600', 'auto'))}
-            rows={repeat('auto-fit', 'size-1600')}
-            justifyContent="center"
-            gap="size-100"
-          >
-            {dataVizes.map(dataViz => (
-              <DataViz key={dataViz.slug} dataVizID={dataViz} />
-            ))}
-          </Grid>
-        )}
-      </View>
-      <View marginTop="size-100">
-        <Text>{longDescription}</Text>
+
+      <Divider marginX="size-200" size="S" />
+      <View
+        borderBottomStartRadius="small"
+        borderBottomEndRadius="small"
+        padding="size-200"
+      >
+        <Flex>
+          <View />
+          <View flexGrow={1} />
+          <Button variant="primary" onPress={handleExplorePress}>
+            Explore
+          </Button>
+        </Flex>
       </View>
     </View>
   );

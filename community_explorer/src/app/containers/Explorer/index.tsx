@@ -9,7 +9,7 @@ import { Helmet } from 'react-helmet-async';
 import { useSelector, useDispatch } from 'react-redux';
 import styled from 'styled-components/macro';
 
-import { useParams, useHistory } from 'react-router-dom';
+import { useParams, useHistory, useRouteMatch } from 'react-router-dom';
 
 import { useInjectReducer, useInjectSaga } from 'utils/redux-injectors';
 import { actions, reducer, sliceKey } from './slice';
@@ -18,7 +18,6 @@ import {
   selectCurrentRegionIsLoading,
   // selectCurrentRegionLoadError,
   selectSelectedGeoLayer,
-  // selectSelectedRegionID,
   selectTaxonomy,
   selectTaxonomyIsLoading,
   // selectTaxonomyLoadError,
@@ -30,9 +29,10 @@ import { Text } from '@react-spectrum/text';
 import { View } from '@react-spectrum/view';
 import { NavMap } from '../../components/NavMap';
 import { NavMenu } from '../../components/NavMenu';
-import { RegionDashboard } from '../../components/RegionDashboard';
 import { GeoLayer } from './types';
 import { RegionDescriptor } from '../../types';
+import { GeographySection } from '../../components/GeographySection';
+import { TaxonomySection } from '../../components/TaxonomySection';
 
 export function Explorer() {
   useInjectReducer({ key: sliceKey, reducer: reducer });
@@ -42,7 +42,13 @@ export function Explorer() {
 
   // routing
   const history = useHistory();
-  const { regionType, regionID } = useParams();
+  const {
+    regionType,
+    regionID,
+    domainSlug,
+    subdomainSlug,
+    indicatorSlug,
+  } = useParams();
 
   const taxonomy = useSelector(selectTaxonomy);
   const taxonomyIsLoading = useSelector(selectTaxonomyIsLoading);
@@ -69,8 +75,13 @@ export function Explorer() {
   }, [regionType, regionID]);
 
   function handleMapClick(regionDescriptor: RegionDescriptor) {
+    const domainPath = domainSlug ? `/${domainSlug}` : '';
+    const subdomainPath = subdomainSlug ? `/${subdomainSlug}` : '';
+    const indicatorPath = indicatorSlug ? `/${indicatorSlug}` : '';
+
+    const extraPath = `${domainPath}${subdomainPath}${indicatorPath}`;
     history.push(
-      `/${regionDescriptor.regionType}/${regionDescriptor.regionID}`,
+      `/${regionDescriptor.regionType}/${regionDescriptor.regionID}${extraPath}`,
     );
   }
 
@@ -107,15 +118,24 @@ export function Explorer() {
           />
         </View>
 
-        <View gridArea="content" overflow="auto" borderStartWidth="thicker">
-          {!!taxonomy && (
-            <RegionDashboard
-              taxonomy={taxonomy}
-              taxonomyIsLoading={taxonomyIsLoading}
-              region={currentRegion}
-              regionIsLoading={currentRegionIsLoading}
-            />
-          )}
+        <View
+          gridArea="content"
+          overflow="auto"
+          borderStartWidth="thicker"
+          backgroundColor="gray-300"
+        >
+          <GeographySection
+            region={currentRegion}
+            regionIsLoading={currentRegionIsLoading}
+          />
+          <TaxonomySection
+            taxonomy={taxonomy}
+            taxonomyIsLoading={taxonomyIsLoading}
+            currentRegion={currentRegion}
+            currentDomainSlug={domainSlug}
+            currentSubdomainSlug={subdomainSlug}
+            currentIndicatorSlug={indicatorSlug}
+          />
         </View>
       </Grid>
 

@@ -37,7 +37,6 @@ const explorerSlice = createSlice({
     },
 
     requestRegionDetails(state, action: PayloadAction<RegionDescriptor>) {
-      state.currentRegion = undefined;
       state.currentRegionIsLoading = true;
     },
     loadRegionDetails(state, action: PayloadAction<Region>) {
@@ -46,6 +45,7 @@ const explorerSlice = createSlice({
       state.currentRegionLoadError = undefined;
     },
     failRegionDetailsRequest(state, action: PayloadAction<string>) {
+      state.currentRegion = undefined;
       state.currentRegionIsLoading = false;
       state.currentRegionLoadError = action.payload;
     },

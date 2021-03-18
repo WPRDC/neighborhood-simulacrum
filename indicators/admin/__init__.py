@@ -7,7 +7,7 @@ from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
 
 from ..models import Indicator, Subdomain, Domain, Value
 
-import nested_admin  # todo: think about removing this as a dependence once we develop our own backend interface
+import nested_admin  # todo: think about removing this as a dependency once we develop our own backend interface
 
 
 class IndicatorInline(admin.StackedInline):
@@ -32,11 +32,17 @@ class SubdomainAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
 
 
+class SubdomainInline(admin.TabularInline):
+    model = Subdomain
+
+
 @admin.register(Domain)
 class DomainAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
+
+    inlines = (SubdomainInline,)
 
 
 @admin.register(Value)

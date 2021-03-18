@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from indicators.models import Domain, Subdomain, Indicator
+from indicators.models import Domain, Subdomain, Indicator, Described
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import (
     CensusSourceSerializer,
@@ -17,8 +17,32 @@ from .viz import (
     TableWithDataSerializer)
 
 
+class DomainBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Domain
+        fields = ('id', 'slug', 'name')
+
+
+class SubdomainBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Domain
+        fields = ('id', 'slug', 'name')
+
+
+class HierarchySerializer(serializers.Serializer):
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    domain = DomainBriefSerializer(read_only=True)
+    subdomain = SubdomainBriefSerializer(read_only=True)
+
+
 class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
     data_vizes = DataVizIdentifiersPolymorphicSerializer(many=True)
+    hierarchies = HierarchySerializer(many=True, read_only=True)
 
     class Meta:
         model = Indicator
@@ -33,6 +57,7 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'source',
             'provenance',
             'data_vizes',
+            'hierarchies',
         )
 
 
