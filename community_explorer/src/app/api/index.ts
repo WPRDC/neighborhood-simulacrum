@@ -7,7 +7,7 @@
  */
 import { DataVizID, RegionDescriptor } from '../types';
 
-export const API_HOST = 'http://api.profiles.wprdc.org';
+export const API_HOST = 'https://api.profiles.wprdc.org';
 
 /**
  * Enum for API endpoints.
