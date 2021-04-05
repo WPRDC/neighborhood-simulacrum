@@ -5,27 +5,35 @@
  */
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { useInjectReducer } from 'utils/redux-injectors';
-import { reducer, sliceKey } from './slice';
-import { selectTopBar } from './selectors';
-import { Heading, View } from '@adobe/react-spectrum';
+import { actions, reducer, sliceKey } from './slice';
+import { selectColorMode } from './selectors';
+import { ActionButton, Flex, Heading, View } from '@adobe/react-spectrum';
+import { ColorMode } from './types';
+
+import Dark from '@spectrum-icons/workflow/Moon';
+import Light from '@spectrum-icons/workflow/Light';
 
 interface Props {}
-
-
 
 export function TopBar(props: Props) {
   useInjectReducer({ key: sliceKey, reducer: reducer });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const topBar = useSelector(selectTopBar);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const colorMode = useSelector(selectColorMode);
   const dispatch = useDispatch();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { t, i18n } = useTranslation();
+
+  const ColorModeIcon = {
+    [ColorMode.Dark]: Dark,
+    [ColorMode.Light]: Light,
+  }[colorMode];
+
+  function handleColorModePress() {
+    const newColorMode =
+      colorMode === ColorMode.Dark ? ColorMode.Light : ColorMode.Dark;
+    dispatch(actions.changeColorMode(newColorMode));
+  }
 
   return (
     <View
@@ -34,9 +42,21 @@ export function TopBar(props: Props) {
       backgroundColor="gray-100"
       borderBottomWidth="thick"
     >
-      <Heading level={1} alignSelf={'center'}>
-        Child Health Data Explorer
-      </Heading>
+      <Flex>
+        <View flexGrow={1}>
+          <Heading level={1} alignSelf={'center'}>
+            Child Health Data Explorer
+          </Heading>
+        </View>
+        <View>
+          <ActionButton
+            aria-label="toggle color theme"
+            onPress={handleColorModePress}
+          >
+            <ColorModeIcon />
+          </ActionButton>
+        </View>
+      </Flex>
     </View>
   );
 }

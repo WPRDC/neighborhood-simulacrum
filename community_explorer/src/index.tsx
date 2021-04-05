@@ -30,6 +30,7 @@ const MOUNT_NODE = document.getElementById('root') as HTMLElement;
 interface Props {
   Component: typeof App;
 }
+
 const ConnectedApp = ({ Component }: Props) => (
   <Provider store={store}>
     <HelmetProvider>

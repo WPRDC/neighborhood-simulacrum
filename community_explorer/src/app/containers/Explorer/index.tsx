@@ -30,6 +30,7 @@ import { RegionDescriptor, URLNavParams } from '../../types';
 import { GeographySection } from '../../components/GeographySection';
 import { TaxonomySection } from '../../components/TaxonomySection';
 import { Grid, View, Text, Picker, Item } from '@adobe/react-spectrum';
+import { selectColorMode } from '../TopBar/selectors';
 
 export function Explorer() {
   useInjectReducer({ key: sliceKey, reducer: reducer });
@@ -57,6 +58,8 @@ export function Explorer() {
 
   const selectedGeoLayer = useSelector(selectSelectedGeoLayer);
   // const selectedRegionID = useSelector(selectSelectedRegionID);
+
+  const colorScheme = useSelector(selectColorMode);
 
   // init
   React.useEffect(() => {
@@ -108,7 +111,11 @@ export function Explorer() {
         minHeight="0px"
       >
         <View gridArea="map" borderTopWidth="thicker">
-          <NavMap menuLayer={selectedGeoLayer} onClick={handleMapClick} />
+          <NavMap
+            menuLayer={selectedGeoLayer}
+            onClick={handleMapClick}
+            colorScheme={colorScheme}
+          />
         </View>
 
         <View gridArea="sidebar">

@@ -15,16 +15,18 @@ import {
 import { SourceProps } from 'react-map-gl';
 import { MAPBOX_API_TOKEN } from '../../settings';
 import { View } from '@adobe/react-spectrum';
+import {ColorMode} from "../../containers/TopBar/types";
 
 interface Props {
   sources: SourceProps[];
   layers: LayerOptions[];
   mapOptions: Partial<MapProps>;
   legends: LegendProps[];
+  colorScheme: ColorMode;
 }
 
 export function MiniMap(props: Props) {
-  const { sources, layers, mapOptions, legends } = props;
+  const { sources, layers, mapOptions, legends ,colorScheme} = props;
 
   return (
     <View borderWidth="thin" height="size-3400">
@@ -45,6 +47,7 @@ export function MiniMap(props: Props) {
         layers={layers}
         getCursor={() => 'crosshair'}
         minZoom={6}
+        basemapStyle={colorScheme}
         {...mapOptions}
       />
     </View>

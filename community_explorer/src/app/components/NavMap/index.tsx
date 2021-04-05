@@ -16,6 +16,7 @@ import { SourceProps } from 'react-map-gl';
 
 import menuLayers from './menuLayers';
 import { MAPBOX_API_TOKEN } from '../../settings';
+import { ColorMode } from '../../containers/TopBar/types';
 
 interface Props {
   menuLayer: GeoLayer;
@@ -24,10 +25,11 @@ interface Props {
     regionID: string;
     name: string;
   }) => void;
+  colorScheme: ColorMode;
 }
 
 export function NavMap(props: Props) {
-  const { menuLayer, onClick } = props;
+  const { menuLayer, onClick, colorScheme } = props;
   // internal state
   const [mbSource, setMbSource] = React.useState<SourceProps | undefined>(
     undefined,
@@ -108,6 +110,7 @@ export function NavMap(props: Props) {
       mapboxApiAccessToken={MAPBOX_API_TOKEN}
       sources={mapSources}
       layers={mapLayers}
+      basemapStyle={colorScheme}
     />
   );
 }

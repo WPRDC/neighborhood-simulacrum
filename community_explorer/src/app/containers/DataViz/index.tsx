@@ -49,6 +49,7 @@ import {
 import { ProgressBar } from '@react-spectrum/progress';
 import styled from 'styled-components/macro';
 import { DataVizAction } from './types';
+import {selectColorMode} from "../TopBar/selectors";
 
 interface Props {
   dataVizID: DataVizID;
@@ -68,6 +69,9 @@ export function DataViz(props: Props) {
   const dataVizDataRecord = useSelector(state =>
     selectDataVizDataRecord(state, { dataVizID: dataVizID }),
   );
+
+  const colorScheme = useSelector(selectColorMode);
+
 
   // when this badboy renders, we need to get its data.
   React.useEffect(() => {
@@ -150,7 +154,7 @@ export function DataViz(props: Props) {
         marginX={preview ? undefined : 'size-100'}
         margin={preview ? undefined : 'size-100'}
       >
-        {!!dataViz && getSpecificDataViz(dataViz)}
+        {!!dataViz && getSpecificDataViz(colorScheme, dataViz)}
       </View>
       <View padding="size-100">
         {isLoading && <LoadingMessage />}

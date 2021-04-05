@@ -38,6 +38,9 @@ import { LineChart } from '../../components/LineChart';
 import { MiniMap } from '../../components/MiniMap';
 import { dumpCSV } from '../../util';
 import { Text } from '@react-spectrum/text';
+import { useSelector } from 'react-redux';
+import { selectColorMode } from '../TopBar/selectors';
+import { ColorMode } from '../TopBar/types';
 
 type DownloadedTable = Downloaded<TableViz, TableData>;
 type Row = RowRecord;
@@ -45,9 +48,11 @@ type Column = ColumnType<Row>;
 
 type VizGenerator<T extends DataVizBase, D extends DataVizData> = (
   dataViz: Downloaded<T, D>,
+  colorScheme: ColorMode,
 ) => JSX.Element | null;
 
 export function getSpecificDataViz(
+  colorScheme: ColorMode,
   dataViz?: Downloaded<DataVizBase, DataVizData>,
 ) {
   if (!dataViz) {
@@ -64,7 +69,7 @@ export function getSpecificDataViz(
     [DataVizResourceType.BarChart]: generateBarChart,
   };
   const generator = generators[dataViz.resourcetype];
-  return generator(dataViz);
+  return generator(dataViz, colorScheme);
 }
 
 /*
@@ -83,9 +88,12 @@ const generateBigValue: VizGenerator<BigValueViz, BigValueData> = dataViz => {
   return <BigValue data={items} />;
 };
 
-const generateMiniMap: VizGenerator<MiniMapViz, MiniMapData> = dataViz => (
-  <MiniMap {...dataViz.data} />
-);
+const generateMiniMap: VizGenerator<MiniMapViz, MiniMapData> = (
+  dataViz,
+  colorScheme,
+) => {
+  return <MiniMap {...dataViz.data} colorScheme={colorScheme} />;
+};
 
 const generateTable: VizGenerator<TableViz, TableData> = table => {
   // map data from API to format for Table

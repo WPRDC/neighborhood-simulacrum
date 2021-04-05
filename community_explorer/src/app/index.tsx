@@ -17,10 +17,14 @@ import { TopBar } from './containers/TopBar';
 import { Explorer } from './containers/Explorer';
 
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { useSelector } from 'react-redux';
+import { selectColorMode } from './containers/TopBar/selectors';
 
 export function App() {
+  const colorMode = useSelector(selectColorMode);
+
   return (
-    <Provider theme={defaultTheme}>
+    <Provider theme={defaultTheme} colorScheme={colorMode}>
       <BrowserRouter>
         <Flex height="100vh" direction="column">
           <TopBar />
