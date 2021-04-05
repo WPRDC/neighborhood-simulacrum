@@ -29,7 +29,7 @@ import { GeoLayer } from './types';
 import { RegionDescriptor, URLNavParams } from '../../types';
 import { GeographySection } from '../../components/GeographySection';
 import { TaxonomySection } from '../../components/TaxonomySection';
-import { Grid, View, Text, Picker, Item } from '@adobe/react-spectrum';
+import {Grid, View, Text, Picker, Item, Provider} from '@adobe/react-spectrum';
 import { selectColorMode } from '../TopBar/selectors';
 
 export function Explorer() {
@@ -98,7 +98,7 @@ export function Explorer() {
   }
 
   return (
-    <>
+    <Provider colorScheme={colorScheme}>
       <Helmet>
         <title>Child Health Data Explorer</title>
         <meta name="description" content="Data explorer" />
@@ -149,6 +149,6 @@ export function Explorer() {
       <View padding="size-50">
         <Text>&copy; 2021 Western Pennsylvania Regional Data Center</Text>
       </View>
-    </>
+    </Provider>
   );
 }
