@@ -7,9 +7,8 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSelector, useDispatch } from 'react-redux';
-import styled from 'styled-components/macro';
 
-import { useParams, useHistory, useRouteMatch } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 
 import { useInjectReducer, useInjectSaga } from 'utils/redux-injectors';
 import { actions, reducer, sliceKey } from './slice';
@@ -24,15 +23,13 @@ import {
 } from './selectors';
 import { explorerSaga } from './saga';
 
-import { Grid } from '@react-spectrum/layout';
-import { Text } from '@react-spectrum/text';
-import { View } from '@react-spectrum/view';
 import { NavMap } from '../../components/NavMap';
 import { NavMenu } from '../../components/NavMenu';
 import { GeoLayer } from './types';
-import { RegionDescriptor } from '../../types';
+import { RegionDescriptor, URLNavParams } from '../../types';
 import { GeographySection } from '../../components/GeographySection';
 import { TaxonomySection } from '../../components/TaxonomySection';
+import { Grid, View, Text, Picker, Item } from '@adobe/react-spectrum';
 
 export function Explorer() {
   useInjectReducer({ key: sliceKey, reducer: reducer });
@@ -48,7 +45,7 @@ export function Explorer() {
     domainSlug,
     subdomainSlug,
     indicatorSlug,
-  } = useParams();
+  } = useParams<URLNavParams>();
 
   const taxonomy = useSelector(selectTaxonomy);
   const taxonomyIsLoading = useSelector(selectTaxonomyIsLoading);
@@ -142,11 +139,9 @@ export function Explorer() {
         </View>
       </Grid>
 
-      <Div>
+      <View padding="size-50">
         <Text>&copy; 2021 Western Pennsylvania Regional Data Center</Text>
-      </Div>
+      </View>
     </>
   );
 }
-
-const Div = styled.div``;

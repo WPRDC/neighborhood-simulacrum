@@ -1,10 +1,10 @@
 import { censusFilter } from '../settings';
 import theme from '../theme';
-import { MenuLayer } from '../types';
-import { MenuLayers } from '../../../containers/Explorer/types';
+import { MenuLayerItem } from '../types';
+import { MenuLayer } from '../../../containers/Explorer/types';
 
-const tract: MenuLayer = {
-  slug: MenuLayers.Tract,
+const tract: MenuLayerItem = {
+  slug: MenuLayer.Tract,
   name: 'County Boundaries',
   source: {
     type: 'vector',
@@ -15,10 +15,10 @@ const tract: MenuLayer = {
   },
   layers: [
     {
-      id: `${MenuLayers.Tract}/hover`,
+      id: `${MenuLayer.Tract}/hover`,
       type: 'fill',
-      source: MenuLayers.Tract,
-      'source-layer': MenuLayers.Tract,
+      source: MenuLayer.Tract,
+      'source-layer': MenuLayer.Tract,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -27,10 +27,10 @@ const tract: MenuLayer = {
       filter: ['==', 'regionID', ''],
     },
     {
-      id: `${MenuLayers.Tract}/selected`,
+      id: `${MenuLayer.Tract}/selected`,
       type: 'fill',
-      source: MenuLayers.Tract,
-      'source-layer': MenuLayers.Tract,
+      source: MenuLayer.Tract,
+      'source-layer': MenuLayer.Tract,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -39,10 +39,10 @@ const tract: MenuLayer = {
       filter: ['==', 'regionID', ''],
     },
     {
-      id: `${MenuLayers.Tract}/borders`,
+      id: `${MenuLayer.Tract}/borders`,
       type: 'line',
-      source: MenuLayers.Tract,
-      'source-layer': MenuLayers.Tract,
+      source: MenuLayer.Tract,
+      'source-layer': MenuLayer.Tract,
       layout: {
         'line-join': 'round',
       },
@@ -53,10 +53,10 @@ const tract: MenuLayer = {
       },
     },
     {
-      id: `${MenuLayers.Tract}/fill`,
+      id: `${MenuLayer.Tract}/fill`,
       type: 'fill',
-      source: MenuLayers.Tract,
-      'source-layer': MenuLayers.Tract,
+      source: MenuLayer.Tract,
+      'source-layer': MenuLayer.Tract,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.selection,

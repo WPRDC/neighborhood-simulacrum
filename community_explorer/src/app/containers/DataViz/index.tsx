@@ -191,7 +191,7 @@ const SourceBox = ({ sources }: { sources: VariableSource[] }) => (
     </View>
     <List>
       {sources.map(source => (
-        <li>
+        <li key={source.slug}>
           <Link>
             <a href={source.infoLink} target="_blank" rel="noreferrer noopener">
               {source.name}

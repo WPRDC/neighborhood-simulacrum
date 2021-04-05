@@ -1,10 +1,10 @@
 import { censusFilter } from '../settings';
 import theme from '../theme';
-import { MenuLayer } from '../types';
-import { MenuLayers } from '../../../containers/Explorer/types';
+import { MenuLayerItem } from '../types';
+import { MenuLayer } from '../../../containers/Explorer/types';
 
-const census: MenuLayer = {
-  slug: MenuLayers.County,
+const census: MenuLayerItem = {
+  slug: MenuLayer.County,
   name: 'County Boundaries',
   source: {
     type: 'vector',
@@ -15,10 +15,10 @@ const census: MenuLayer = {
   },
   layers: [
     {
-      id: `${MenuLayers.County}/hover`,
+      id: `${MenuLayer.County}/hover`,
       type: 'fill',
-      source: MenuLayers.County,
-      'source-layer': MenuLayers.County,
+      source: MenuLayer.County,
+      'source-layer': MenuLayer.County,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -27,10 +27,10 @@ const census: MenuLayer = {
       filter: ['==', 'regionID', ''],
     },
     {
-      id: `${MenuLayers.County}/selected`,
+      id: `${MenuLayer.County}/selected`,
       type: 'fill',
-      source: MenuLayers.County,
-      'source-layer': MenuLayers.County,
+      source: MenuLayer.County,
+      'source-layer': MenuLayer.County,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -39,10 +39,10 @@ const census: MenuLayer = {
       filter: ['==', 'regionID', ''],
     },
     {
-      id: `${MenuLayers.County}/borders`,
+      id: `${MenuLayer.County}/borders`,
       type: 'line',
-      source: MenuLayers.County,
-      'source-layer': MenuLayers.County,
+      source: MenuLayer.County,
+      'source-layer': MenuLayer.County,
       layout: {
         'line-join': 'round',
       },
@@ -53,10 +53,10 @@ const census: MenuLayer = {
       },
     },
     {
-      id: `${MenuLayers.County}/fill`,
+      id: `${MenuLayer.County}/fill`,
       type: 'fill',
-      source: MenuLayers.County,
-      'source-layer': MenuLayers.County,
+      source: MenuLayer.County,
+      'source-layer': MenuLayer.County,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.selection,

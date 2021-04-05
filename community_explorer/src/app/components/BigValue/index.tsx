@@ -5,8 +5,7 @@
  */
 import React from 'react';
 
-import { Text } from '@adobe/react-spectrum';
-import { View } from '@react-spectrum/view';
+import { Text, View } from '@adobe/react-spectrum';
 
 interface Props {
   data: { value: React.ReactNode; label: React.ReactNode }[];

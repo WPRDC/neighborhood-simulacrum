@@ -11,9 +11,11 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useInjectReducer } from 'utils/redux-injectors';
 import { reducer, sliceKey } from './slice';
 import { selectTopBar } from './selectors';
-import { View } from '@react-spectrum/view';
-import { Heading } from '@react-spectrum/text';
+import { Heading, View } from '@adobe/react-spectrum';
+
 interface Props {}
+
+
 
 export function TopBar(props: Props) {
   useInjectReducer({ key: sliceKey, reducer: reducer });
@@ -22,7 +24,6 @@ export function TopBar(props: Props) {
   const topBar = useSelector(selectTopBar);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const dispatch = useDispatch();
-
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { t, i18n } = useTranslation();
 

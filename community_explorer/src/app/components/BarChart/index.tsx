@@ -28,7 +28,7 @@ interface Props {
   highlightIndex?: number;
 }
 
-interface AxisProps extends BaseAxisProps {
+interface AxisProps extends Pick<BaseAxisProps, 'type' | 'dataKey'> {
   width?: number;
   interval?: number;
 }

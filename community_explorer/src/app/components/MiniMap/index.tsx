@@ -14,7 +14,7 @@ import {
 } from 'wprdc-components';
 import { SourceProps } from 'react-map-gl';
 import { MAPBOX_API_TOKEN } from '../../settings';
-import { View } from '@react-spectrum/view';
+import { View } from '@adobe/react-spectrum';
 
 interface Props {
   sources: SourceProps[];

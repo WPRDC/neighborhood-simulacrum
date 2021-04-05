@@ -3,11 +3,15 @@
  * IndicatorListing
  *
  */
-import React, { RefAttributes, RefObject } from 'react';
-import { View } from '@react-spectrum/view';
-import { Divider, Heading } from '@adobe/react-spectrum';
-import { Text } from '@react-spectrum/text';
-import { Grid, repeat } from '@react-spectrum/layout';
+import React from 'react';
+import {
+  Divider,
+  Heading,
+  View,
+  Text,
+  Grid,
+  repeat,
+} from '@adobe/react-spectrum';
 import { Subdomain } from '../../types';
 import { Indicator } from '../../containers/Indicator';
 

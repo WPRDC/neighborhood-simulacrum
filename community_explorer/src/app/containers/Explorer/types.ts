@@ -17,13 +17,13 @@ export type ContainerState = ExplorerState;
 
 export interface GeoLayer {
   name: string;
-  slug: MenuLayers;
+  id: MenuLayer;
   tableName: string;
   description: string;
 }
 
 
-export enum MenuLayers {
+export enum MenuLayer {
   BlockGroup = 'block-group',
   County = 'county',
   Tract = 'tract',

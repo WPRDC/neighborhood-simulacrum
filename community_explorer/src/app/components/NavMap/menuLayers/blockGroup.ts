@@ -1,10 +1,10 @@
 import { censusFilter } from '../settings';
 import theme from '../theme';
-import { MenuLayer } from '../types';
-import { MenuLayers } from '../../../containers/Explorer/types';
+import { MenuLayerItem } from '../types';
+import { MenuLayer } from '../../../containers/Explorer/types';
 
-export const blockGroup: MenuLayer = {
-  slug: MenuLayers.BlockGroup,
+export const blockGroup: MenuLayerItem = {
+  slug: MenuLayer.BlockGroup,
   name: 'County Boundaries',
   source: {
     type: 'vector',
@@ -15,10 +15,10 @@ export const blockGroup: MenuLayer = {
   },
   layers: [
     {
-      id: `${MenuLayers.BlockGroup}/hover`,
+      id: `${MenuLayer.BlockGroup}/hover`,
       type: 'fill',
-      source: MenuLayers.BlockGroup,
-      'source-layer': MenuLayers.BlockGroup,
+      source: MenuLayer.BlockGroup,
+      'source-layer': MenuLayer.BlockGroup,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -27,10 +27,10 @@ export const blockGroup: MenuLayer = {
       filter: ['==', 'regionid', ''],
     },
     {
-      id: `${MenuLayers.BlockGroup}/selected`,
+      id: `${MenuLayer.BlockGroup}/selected`,
       type: 'fill',
-      source: MenuLayers.BlockGroup,
-      'source-layer': MenuLayers.BlockGroup,
+      source: MenuLayer.BlockGroup,
+      'source-layer': MenuLayer.BlockGroup,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -39,10 +39,10 @@ export const blockGroup: MenuLayer = {
       filter: ['==', 'regionid', ''],
     },
     {
-      id: `${MenuLayers.BlockGroup}/borders`,
+      id: `${MenuLayer.BlockGroup}/borders`,
       type: 'line',
-      source: MenuLayers.BlockGroup,
-      'source-layer': MenuLayers.BlockGroup,
+      source: MenuLayer.BlockGroup,
+      'source-layer': MenuLayer.BlockGroup,
       layout: {
         'line-join': 'round',
       },
@@ -53,10 +53,10 @@ export const blockGroup: MenuLayer = {
       },
     },
     {
-      id: `${MenuLayers.BlockGroup}/fill`,
+      id: `${MenuLayer.BlockGroup}/fill`,
       type: 'fill',
-      source: MenuLayers.BlockGroup,
-      'source-layer': MenuLayers.BlockGroup,
+      source: MenuLayer.BlockGroup,
+      'source-layer': MenuLayer.BlockGroup,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.selection,

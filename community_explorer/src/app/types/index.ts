@@ -70,3 +70,12 @@ export interface RegionBase {
 
 // todo: define list of regiontypes
 export type RegionType = string;
+
+type URLNavParamKeys =
+  | 'regionType'
+  | 'regionID'
+  | 'domainSlug'
+  | 'subdomainSlug'
+  | 'indicatorSlug';
+
+export type URLNavParams = Record<URLNavParamKeys, string>;

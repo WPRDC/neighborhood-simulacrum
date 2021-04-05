@@ -331,7 +331,7 @@ class CKANVariable(Variable):
         # fixme: we'll need to come up with a more correct way of doing this: maybe a `through` relationship
         source: CKANSource
         for source in self.sources.all():
-            # go through the sources and get the first one who's range covers the point
+            # go through the sources and get the first one whose range covers the point
             start = source.time_coverage_start if source.time_coverage_start else timezone.datetime(MINYEAR, 1, 1)
             end = source.time_coverage_end if source.time_coverage_end else timezone.datetime(MAXYEAR, 1, 1)
             if start < time_point < end:

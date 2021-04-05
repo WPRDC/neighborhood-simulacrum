@@ -12,7 +12,7 @@ import {
   Map,
   SimpleLabelPopupContent,
 } from 'wprdc-components';
-import { LayerProps, SourceProps } from 'react-map-gl';
+import { SourceProps } from 'react-map-gl';
 
 import menuLayers from './menuLayers';
 import { MAPBOX_API_TOKEN } from '../../settings';
@@ -46,9 +46,9 @@ export function NavMap(props: Props) {
   // todo: on init, fetch all of the carto data
   React.useEffect(() => {
     if (menuLayer) {
-      const usedLayer = menuLayers[menuLayer.slug];
+      const usedLayer = menuLayers[menuLayer.id];
       const { source, layers } = usedLayer || {};
-      setMbLayers(layers);
+      setMbLayers(layers as LayerOptions[]);
       setMbSource(undefined);
       setInteractiveLayerIds(
         layers
@@ -141,7 +141,7 @@ function filteredLayers(
   });
 }
 
-function getLayerType(layer: LayerProps) {
+function getLayerType(layer: LayerOptions) {
   if (!!layer.id) return layer.id.split('/')[1];
   return '';
 }

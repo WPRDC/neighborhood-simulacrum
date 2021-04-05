@@ -218,6 +218,12 @@ class CKANRegionalSource(CKANSource):
     place_field = models.CharField(max_length=100, null=True, blank=True)
     place_field_is_sql = models.BooleanField(default=False)
 
+    schooldistrict_field = models.CharField(verbose_name='School District field', max_length=100, null=True, blank=True)
+    schooldistrict_field_is_sql = models.BooleanField(default=False)
+
+    zipcode_field = models.CharField(verbose_name='Zip code field', max_length=100, null=True, blank=True)
+    zipcode_field_is_sql = models.BooleanField(default=False)
+
     neighborhood_field = models.CharField(max_length=100, null=True, blank=True)
     neighborhood_field_is_sql = models.BooleanField(default=False)
 

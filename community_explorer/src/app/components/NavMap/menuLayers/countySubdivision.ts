@@ -1,10 +1,10 @@
 import { censusFilter } from '../settings';
 import theme from '../theme';
-import { MenuLayer } from '../types';
-import { MenuLayers } from '../../../containers/Explorer/types';
+import { MenuLayerItem } from '../types';
+import { MenuLayer } from '../../../containers/Explorer/types';
 
-const countySubdivision: MenuLayer = {
-  slug: MenuLayers.CountySubdivision,
+const countySubdivision: MenuLayerItem = {
+  slug: MenuLayer.CountySubdivision,
   name: 'County Subdivision Boundaries',
   source: {
     type: 'vector',
@@ -15,10 +15,10 @@ const countySubdivision: MenuLayer = {
   },
   layers: [
     {
-      id: `${MenuLayers.CountySubdivision}/hover`,
+      id: `${MenuLayer.CountySubdivision}/hover`,
       type: 'fill',
-      source: MenuLayers.CountySubdivision,
-      'source-layer': MenuLayers.CountySubdivision,
+      source: MenuLayer.CountySubdivision,
+      'source-layer': MenuLayer.CountySubdivision,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -27,10 +27,10 @@ const countySubdivision: MenuLayer = {
       filter: ['==', 'regionID', ''],
     },
     {
-      id: `${MenuLayers.CountySubdivision}/selected`,
+      id: `${MenuLayer.CountySubdivision}/selected`,
       type: 'fill',
-      source: MenuLayers.CountySubdivision,
-      'source-layer': MenuLayers.CountySubdivision,
+      source: MenuLayer.CountySubdivision,
+      'source-layer': MenuLayer.CountySubdivision,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
@@ -39,10 +39,10 @@ const countySubdivision: MenuLayer = {
       filter: ['==', 'regionID', ''],
     },
     {
-      id: `${MenuLayers.CountySubdivision}/borders`,
+      id: `${MenuLayer.CountySubdivision}/borders`,
       type: 'line',
-      source: MenuLayers.CountySubdivision,
-      'source-layer': MenuLayers.CountySubdivision,
+      source: MenuLayer.CountySubdivision,
+      'source-layer': MenuLayer.CountySubdivision,
       layout: {
         'line-join': 'round',
       },
@@ -53,10 +53,10 @@ const countySubdivision: MenuLayer = {
       },
     },
     {
-      id: `${MenuLayers.CountySubdivision}/fill`,
+      id: `${MenuLayer.CountySubdivision}/fill`,
       type: 'fill',
-      source: MenuLayers.CountySubdivision,
-      'source-layer': MenuLayers.CountySubdivision,
+      source: MenuLayer.CountySubdivision,
+      'source-layer': MenuLayer.CountySubdivision,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.selection,

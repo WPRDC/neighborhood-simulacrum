@@ -9,13 +9,9 @@
 import * as React from 'react';
 import { Switch, Route, BrowserRouter } from 'react-router-dom';
 
-import { GlobalStyle } from 'styles/global-styles';
-
 import { NotFoundPage } from './components/NotFoundPage/Loadable';
 
-import { Flex } from '@react-spectrum/layout';
-import { Provider } from '@react-spectrum/provider';
-import { theme as defaultTheme } from '@react-spectrum/theme-default';
+import { Flex, Provider, defaultTheme } from '@adobe/react-spectrum';
 
 import { TopBar } from './containers/TopBar';
 import { Explorer } from './containers/Explorer';
@@ -24,7 +20,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 
 export function App() {
   return (
-    <Provider theme={defaultTheme} colorScheme="light">
+    <Provider theme={defaultTheme}>
       <BrowserRouter>
         <Flex height="100vh" direction="column">
           <TopBar />
@@ -35,7 +31,6 @@ export function App() {
             <Route component={NotFoundPage} />
           </Switch>
         </Flex>
-        <GlobalStyle />
       </BrowserRouter>
     </Provider>
   );

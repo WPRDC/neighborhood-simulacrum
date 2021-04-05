@@ -3,13 +3,10 @@
  * NavMenu
  *
  */
-import React from 'react';
+import React, { Key } from 'react';
 import { GeoLayer } from '../../containers/Explorer/types';
-import { View } from '@react-spectrum/view';
-import { Heading, Text } from '@react-spectrum/text';
+import { View, Item, Heading, Text, Picker } from '@adobe/react-spectrum';
 import { GEO_CATEGORIES } from '../../settings';
-import { Select } from '../Select';
-import { addReactSelectKeys } from '../../util';
 
 interface Props {
   selectedGeoLayer: GeoLayer;
@@ -19,26 +16,30 @@ interface Props {
 export function NavMenu(props: Props) {
   const { selectedGeoLayer, handleLayerSelect } = props;
 
-  const options = addReactSelectKeys(GEO_CATEGORIES);
-  const defaultValue = addReactSelectKeys(selectedGeoLayer)[0];
+  function handleAreaSelect(selectedSlug: Key) {
+    console.log(selectedSlug);
+    let selectedLayer = GEO_CATEGORIES.filter(
+      ({ id }) => id === selectedSlug,
+    )[0];
+    handleLayerSelect(selectedLayer);
+  }
 
   return (
     <View paddingX="size-100">
-      <Heading level={2}>Select a region to explore</Heading>
+      <Heading level={2}>Select an area to explore</Heading>
       <Text>
-        This flight has only been beamed by a colorful admiral. Carnivorous,
-        boldly ships accelerative open a strange, small creature. moon, energy,
-        and hypnosis.
+        Use the dropdown and the map to find the place you're interested in.
       </Text>
       <View paddingTop="size-200">
-        <Text>Area category</Text>
-        <Select
-          isSearchable={false}
-          isClearable={false}
-          options={options}
-          defaultValue={defaultValue}
-          onChange={handleLayerSelect}
-        />
+        <Picker<GeoLayer>
+          label="Type of Area"
+          items={GEO_CATEGORIES}
+          selectedKey={selectedGeoLayer.id}
+          onSelectionChange={handleAreaSelect}
+          width="100%"
+        >
+          {item => <Item>{item.name}</Item>}
+        </Picker>
       </View>
     </View>
   );
