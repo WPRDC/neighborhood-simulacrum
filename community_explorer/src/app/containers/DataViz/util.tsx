@@ -38,9 +38,7 @@ import { LineChart } from '../../components/LineChart';
 import { MiniMap } from '../../components/MiniMap';
 import { dumpCSV } from '../../util';
 import { Text } from '@react-spectrum/text';
-import { useSelector } from 'react-redux';
-import { selectColorMode } from '../TopBar/selectors';
-import { ColorMode } from '../TopBar/types';
+import { ColorMode } from '../../types';
 
 type DownloadedTable = Downloaded<TableViz, TableData>;
 type Row = RowRecord;

@@ -2,7 +2,8 @@
  * Component Generator
  */
 
-import { Actions, PlopGenerator } from 'node-plop';
+import { Actions, ActionType, PlopGenerator } from 'node-plop';
+// @ts-ignore
 import path from 'path';
 
 import { containerExists } from '../utils';
@@ -22,7 +23,67 @@ export enum ContainerProptNames {
 const containersPath = path.join(__dirname, '../../../src/app/containers');
 const rootStatePath = path.join(__dirname, '../../../src/types/RootState.ts');
 
-export const containerGenerator: PlopGenerator = {
+export const containerGenerator: {
+  description: string;
+  actions: (data: { [P in ContainerProptNames]: string }) => ActionType[];
+  prompts: (
+    | {
+        default: string;
+        name: ContainerProptNames.ComponentName;
+        type: string;
+        message: string;
+        validate: (value) => string | boolean;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantMemo;
+        type: string;
+        message: string;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantHeaders;
+        type: string;
+        message: string;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantSlice;
+        type: string;
+        message: string;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantSaga;
+        type: string;
+        message: string;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantStyledComponents;
+        type: string;
+        message: string;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantTranslations;
+        type: string;
+        message: string;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantLoadable;
+        type: string;
+        message: string;
+      }
+    | {
+        default: boolean;
+        name: ContainerProptNames.wantTests;
+        type: string;
+        message: string;
+      }
+  )[];
+} = {
   description: 'Add a container component',
   prompts: [
     {

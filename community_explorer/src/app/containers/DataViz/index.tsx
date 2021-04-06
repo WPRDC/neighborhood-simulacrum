@@ -12,18 +12,12 @@ import { actions, reducer, sliceKey } from './slice';
 import { dataVizSaga } from './saga';
 import {
   ActionButton,
-  ActionGroup,
   Flex,
   Heading,
-  Item,
   Link,
   Text,
   View,
-  Button,
 } from '@adobe/react-spectrum';
-import Download from '@spectrum-icons/workflow/Download';
-import Code from '@spectrum-icons/workflow/Code';
-import Share from '@spectrum-icons/workflow/Share';
 import More from '@spectrum-icons/workflow/More';
 import { makeSelectDataVizData } from './selectors';
 import { selectSelectedRegionDescriptor } from '../Explorer/selectors';
@@ -49,7 +43,7 @@ import {
 import { ProgressBar } from '@react-spectrum/progress';
 import styled from 'styled-components/macro';
 import { DataVizAction } from './types';
-import {selectColorMode} from "../TopBar/selectors";
+import { selectColorMode } from '../GlobalSettings/selectors';
 
 interface Props {
   dataVizID: DataVizID;
@@ -71,7 +65,6 @@ export function DataViz(props: Props) {
   );
 
   const colorScheme = useSelector(selectColorMode);
-
 
   // when this badboy renders, we need to get its data.
   React.useEffect(() => {

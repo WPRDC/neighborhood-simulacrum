@@ -9,8 +9,3 @@ export const selectTopBar = createSelector(
   [selectDomain],
   topBarState => topBarState,
 );
-
-export const selectColorMode = createSelector(
-  [selectTopBar],
-  topBarState => topBarState.colorMode,
-);

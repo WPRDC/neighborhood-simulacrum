@@ -2,6 +2,7 @@ import { TopBarState } from 'app/containers/TopBar/types';
 import { ExplorerState } from 'app/containers/Explorer/types';
 import { DataVizState } from 'app/containers/DataViz/types';
 import { IndicatorState } from 'app/containers/Indicator/types';
+import { GlobalSettingsState } from 'app/containers/GlobalSettings/types';
 // [IMPORT NEW CONTAINERSTATE ABOVE] < Needed for generating containers seamlessly
 
 /* 
@@ -13,5 +14,6 @@ export interface RootState {
   explorer?: ExplorerState;
   dataViz?: DataVizState;
   indicator?: IndicatorState;
+  globalSettings?: GlobalSettingsState;
   // [INSERT NEW REDUCER KEY ABOVE] < Needed for generating containers seamlessly
 }

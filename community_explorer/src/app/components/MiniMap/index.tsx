@@ -15,7 +15,7 @@ import {
 import { SourceProps } from 'react-map-gl';
 import { MAPBOX_API_TOKEN } from '../../settings';
 import { View } from '@adobe/react-spectrum';
-import {ColorMode} from "../../containers/TopBar/types";
+import { ColorMode } from '../../types';
 
 interface Props {
   sources: SourceProps[];
@@ -26,7 +26,7 @@ interface Props {
 }
 
 export function MiniMap(props: Props) {
-  const { sources, layers, mapOptions, legends ,colorScheme} = props;
+  const { sources, layers, mapOptions, legends, colorScheme } = props;
 
   return (
     <View borderWidth="thin" height="size-3400">

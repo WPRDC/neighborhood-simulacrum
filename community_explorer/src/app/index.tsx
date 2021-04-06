@@ -11,17 +11,17 @@ import { Switch, Route, BrowserRouter } from 'react-router-dom';
 
 import { NotFoundPage } from './components/NotFoundPage/Loadable';
 
-import { Flex, Provider, defaultTheme } from '@adobe/react-spectrum';
+import { Flex } from '@adobe/react-spectrum';
 
 import { TopBar } from './containers/TopBar';
 import { Explorer } from './containers/Explorer';
 
 import 'mapbox-gl/dist/mapbox-gl.css';
-
+import { GlobalSettings } from './containers/GlobalSettings';
 
 export function App() {
   return (
-    <Provider theme={defaultTheme}>
+    <GlobalSettings>
       <BrowserRouter>
         <Flex height="100vh" direction="column">
           <TopBar />
@@ -33,6 +33,6 @@ export function App() {
           </Switch>
         </Flex>
       </BrowserRouter>
-    </Provider>
+    </GlobalSettings>
   );
 }

@@ -79,3 +79,9 @@ type URLNavParamKeys =
   | 'indicatorSlug';
 
 export type URLNavParams = Record<URLNavParamKeys, string>;
+
+
+export enum ColorMode {
+  Light = 'light',
+  Dark = 'dark',
+}

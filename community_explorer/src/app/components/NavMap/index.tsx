@@ -16,7 +16,7 @@ import { SourceProps } from 'react-map-gl';
 
 import menuLayers from './menuLayers';
 import { MAPBOX_API_TOKEN } from '../../settings';
-import { ColorMode } from '../../containers/TopBar/types';
+import { ColorMode } from '../../types';
 
 interface Props {
   menuLayer: GeoLayer;
