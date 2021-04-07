@@ -8,7 +8,7 @@ from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, Count
 
 
 
-class HierarchySerializer(serializers.ModelSerializer):
+class CensusGeographyBriefSerializer(serializers.ModelSerializer):
     class Meta:
         model = CensusGeography
         fields = (
@@ -20,7 +20,7 @@ class HierarchySerializer(serializers.ModelSerializer):
 
 
 class CensusGeographySerializer(serializers.ModelSerializer):
-    hierarchy = HierarchySerializer(many=True)
+    hierarchy = CensusGeographyBriefSerializer(many=True)
 
     class Meta:
         model = CensusGeography

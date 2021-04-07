@@ -26,7 +26,7 @@ REGION_ID_LABEL = 'regionID'
 VARIABLE_ID_LABEL = 'var'
 DATA_VIZ_ID_LABEL = 'viz'
 
-REGION_MODEL_MAPPING = {
+GEOG_MODEL_MAPPING = {
     'tract': Tract,
     'county': County,
     'blockGroup': BlockGroup,
@@ -74,13 +74,13 @@ class DataResponse:
 # =-=-=-=-=
 
 def get_region_model(region_type: str) -> Type[CensusGeography]:
-    if region_type in REGION_MODEL_MAPPING:
-        return REGION_MODEL_MAPPING[region_type]
+    if region_type in GEOG_MODEL_MAPPING:
+        return GEOG_MODEL_MAPPING[region_type]
     raise KeyError
 
 
 def is_valid_geography_type(region_type: str):
-    return region_type in REGION_MODEL_MAPPING
+    return region_type in GEOG_MODEL_MAPPING
 
 
 def is_region_data_request(request: Request) -> bool:
