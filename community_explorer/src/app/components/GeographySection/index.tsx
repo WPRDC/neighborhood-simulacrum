@@ -4,7 +4,7 @@
  *
  */
 import React from 'react';
-import { Region } from '../../types';
+import { Geog } from '../../types';
 import { useHistory } from 'react-router-dom';
 import { DataChip } from '../DataChip';
 
@@ -14,18 +14,18 @@ import {
   Heading,
   Item,
   ProgressCircle,
-  View,
   Text,
+  View,
 } from '@adobe/react-spectrum';
 import { Breadcrumbs } from 'wprdc-components';
 
 interface Props {
-  region?: Region;
-  regionIsLoading: boolean;
+  geog?: Geog;
+  geogIsLoading: boolean;
 }
 
 export function GeographySection(props: Props) {
-  const { region, regionIsLoading } = props;
+  const { geog, geogIsLoading } = props;
   const history = useHistory();
 
   function handleBreadcrumbClick(path: React.ReactText) {
@@ -36,10 +36,10 @@ export function GeographySection(props: Props) {
     history.push(`/${path}`);
   }
 
-  const breadCrumbItems = region && [
+  const breadCrumbItems = geog && [
     <Item key="__state">Pennsylvania</Item>,
-    ...region.hierarchy.map(h => (
-      <Item key={`${h.regionType}/${h.regionID}`}>{h.title}</Item>
+    ...geog.hierarchy.map(h => (
+      <Item key={`${h.geogType}/${h.geogID}`}>{h.title}</Item>
     )),
     <Item key="__current">
       <Heading
@@ -48,17 +48,17 @@ export function GeographySection(props: Props) {
         marginTop-="size-0"
         UNSAFE_style={{ fontSize: '5.2rem', lineHeight: '5.2rem' }}
       >
-        {region.title}
+        {geog.title}
       </Heading>
     </Item>,
   ];
 
   return (
     <View position="relative">
-      {regionIsLoading && (
+      {geogIsLoading && (
         <ProgressCircle
           isIndeterminate
-          aria-label="Loading region details"
+          aria-label="Loading geog details"
           size="M"
           position="absolute"
           top="size-200"
@@ -66,7 +66,7 @@ export function GeographySection(props: Props) {
         />
       )}
       <View height="size-1600">
-        {!!region ? (
+        {!!geog ? (
           <Breadcrumbs isMultiline size="L" onAction={handleBreadcrumbClick}>
             {breadCrumbItems}
           </Breadcrumbs>
@@ -77,20 +77,20 @@ export function GeographySection(props: Props) {
       <View height="size-600">
         <Flex>
           <View>
-            {!!region && region.population >= 0 && (
+            {!!geog && geog.population >= 0 && (
               <DataChip
                 title="Population"
                 icon={<PeopleGroup size="S" />}
-                value={region.population}
+                value={geog.population}
               />
             )}
           </View>
           <View>
-            {!!region && region.kidPopulation >= 0 && (
+            {!!geog && geog.kidPopulation >= 0 && (
               <DataChip
                 title="Population under 18"
                 icon={<PeopleGroup size="S" />}
-                value={region.kidPopulation}
+                value={geog.kidPopulation}
               />
             )}
           </View>

@@ -1,8 +1,18 @@
 import { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from 'utils/@reduxjs/toolkit';
-import { ContainerState, GeoLayer } from './types';
-import { DEFAULT_GEO_CATEGORY } from '../../settings';
-import { Region, RegionDescriptor, Taxonomy } from '../../types';
+import { ContainerState, GeogLoadPayload, GeogTypeDescriptor } from './types';
+import { DEFAULT_GEOG_TYPE } from '../../settings';
+import { Geog, GeogIdentifier, GeographyType, Taxonomy } from '../../types';
+
+const EMPTY_GEOG_STORE = Object.values(GeographyType).reduce(
+  (acc, cur) => ({ ...acc, [cur]: null }),
+  {},
+) as Record<GeographyType, any>;
+
+const DEFAULT_SELECTED_GEOG: GeogIdentifier = {
+  geogType: GeographyType.County,
+  geogID: '42003',
+};
 
 // The initial state of the Explorer container
 export const initialState: ContainerState = {
@@ -10,13 +20,15 @@ export const initialState: ContainerState = {
   taxonomyIsLoading: false,
   taxonomyLoadError: undefined,
 
-  currentRegion: undefined,
-  currentRegionIsLoading: false,
-  currentRegionLoadError: undefined,
+  currentGeog: undefined,
+  currentGeogIsLoading: false,
+  currentGeogLoadError: undefined,
 
   // menu state
-  selectedGeoLayer: DEFAULT_GEO_CATEGORY,
-  selectedRegionDescriptor: undefined,
+  selectedGeoLayer: DEFAULT_GEOG_TYPE,
+  selectedGeogIdentifier: DEFAULT_SELECTED_GEOG,
+  geogsListsRecord: EMPTY_GEOG_STORE,
+  geogsListsAreLoadingRecord: EMPTY_GEOG_STORE,
 };
 
 const explorerSlice = createSlice({
@@ -36,26 +48,60 @@ const explorerSlice = createSlice({
       state.taxonomyLoadError = action.payload;
     },
 
-    requestRegionDetails(state, action: PayloadAction<RegionDescriptor>) {
-      state.currentRegionIsLoading = true;
+    requestGeogDetails(state, action: PayloadAction<GeogIdentifier>) {
+      state.currentGeogIsLoading = true;
     },
-    loadRegionDetails(state, action: PayloadAction<Region>) {
-      state.currentRegion = action.payload;
-      state.currentRegionIsLoading = false;
-      state.currentRegionLoadError = undefined;
+    loadGeogDetails(state, action: PayloadAction<Geog>) {
+      state.currentGeog = action.payload;
+      state.currentGeogIsLoading = false;
+      state.currentGeogLoadError = undefined;
     },
-    failRegionDetailsRequest(state, action: PayloadAction<string>) {
-      state.currentRegion = undefined;
-      state.currentRegionIsLoading = false;
-      state.currentRegionLoadError = action.payload;
+    failGeogDetailsRequest(state, action: PayloadAction<string>) {
+      state.currentGeog = undefined;
+      state.currentGeogIsLoading = false;
+      state.currentGeogLoadError = action.payload;
     },
 
     // menu slices
-    selectGeoLayer(state, action: PayloadAction<GeoLayer>) {
+    selectGeoType(state, action: PayloadAction<GeogTypeDescriptor>) {
       state.selectedGeoLayer = action.payload;
     },
-    selectRegion(state, action: PayloadAction<RegionDescriptor>) {
-      state.selectedRegionDescriptor = action.payload;
+    selectGeog(state, action: PayloadAction<GeogIdentifier>) {
+      state.selectedGeogIdentifier = action.payload;
+    },
+
+    // requesting geography lists
+    requestGeogsForLayer(state, action: PayloadAction<GeographyType>) {
+      const geogType = action.payload;
+      state.geogsListsAreLoadingRecord = Object.assign(
+        {},
+        state.geogsListsAreLoadingRecord,
+        {
+          [geogType]: true,
+        },
+      );
+    },
+    loadGeogsForLayer(state, action: PayloadAction<GeogLoadPayload>) {
+      const { geogType, geogs } = action.payload;
+      state.geogsListsAreLoadingRecord = Object.assign(
+        {},
+        state.geogsListsAreLoadingRecord,
+        {
+          [geogType]: false,
+        },
+      );
+      state.geogsListsRecord = Object.assign({}, state.geogsListsRecord, {
+        [geogType]: geogs,
+      });
+    },
+    failLoadingGeogsForLayer(state, action: PayloadAction<GeographyType>) {
+      state.geogsListsAreLoadingRecord = Object.assign(
+        {},
+        state.geogsListsAreLoadingRecord,
+        {
+          [action.payload]: false,
+        },
+      );
     },
   },
 });

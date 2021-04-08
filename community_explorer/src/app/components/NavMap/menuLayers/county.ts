@@ -1,48 +1,48 @@
 import { censusFilter } from '../settings';
 import theme from '../theme';
 import { MenuLayerItem } from '../types';
-import { MenuLayer } from '../../../containers/Explorer/types';
+import { GeographyType } from '../../../types';
 
 const census: MenuLayerItem = {
-  slug: MenuLayer.County,
+  slug: GeographyType.County,
   name: 'County Boundaries',
   source: {
     type: 'vector',
     minzoom: 0,
     maxzoom: 11,
     source: 'census_county',
-    sql: `SELECT *, name as map_name, 'county' as regionType, geoid as regionID FROM census_county WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT *, name as map_name, 'county' as geogType, geoid as geogID FROM census_county WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
-      id: `${MenuLayer.County}/hover`,
+      id: `${GeographyType.County}/hover`,
       type: 'fill',
-      source: MenuLayer.County,
-      'source-layer': MenuLayer.County,
+      source: GeographyType.County,
+      'source-layer': GeographyType.County,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.hoverColor,
       },
-      filter: ['==', 'regionID', ''],
+      filter: ['==', 'geogID', ''],
     },
     {
-      id: `${MenuLayer.County}/selected`,
+      id: `${GeographyType.County}/selected`,
       type: 'fill',
-      source: MenuLayer.County,
-      'source-layer': MenuLayer.County,
+      source: GeographyType.County,
+      'source-layer': GeographyType.County,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.selectedColor,
       },
-      filter: ['==', 'regionID', ''],
+      filter: ['==', 'geogID', ''],
     },
     {
-      id: `${MenuLayer.County}/borders`,
+      id: `${GeographyType.County}/borders`,
       type: 'line',
-      source: MenuLayer.County,
-      'source-layer': MenuLayer.County,
+      source: GeographyType.County,
+      'source-layer': GeographyType.County,
       layout: {
         'line-join': 'round',
       },
@@ -53,10 +53,10 @@ const census: MenuLayerItem = {
       },
     },
     {
-      id: `${MenuLayer.County}/fill`,
+      id: `${GeographyType.County}/fill`,
       type: 'fill',
-      source: MenuLayer.County,
-      'source-layer': MenuLayer.County,
+      source: GeographyType.County,
+      'source-layer': GeographyType.County,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.selection,

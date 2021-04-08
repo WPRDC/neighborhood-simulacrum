@@ -5,7 +5,7 @@
  * Functions that handle communicating with backend.
  *
  */
-import { DataVizID, RegionDescriptor } from '../types';
+import { DataVizID, GeogIdentifier, GeographyType } from '../types';
 
 export const API_HOST = 'https://api.profiles.wprdc.org';
 
@@ -19,7 +19,7 @@ enum Endpoint {
   // Subdomain = 'subdomain', // might not be necessary to use here
   // Indicator = 'indicator', //   or here
   DataViz = 'data-viz',
-  Region = 'geo/region',
+  Geog = 'geo',
 }
 
 /**
@@ -111,23 +111,31 @@ function requestTaxonomy() {
   return callApi(Endpoint.Domain, Method.GET);
 }
 
-function requestDataViz(
-  dataVizID: DataVizID,
-  regionDescriptor: RegionDescriptor,
-) {
-  const { regionType, regionID } = regionDescriptor;
+function requestDataViz(dataVizID: DataVizID, geogIdentifier: GeogIdentifier) {
+  const { geogType, geogID } = geogIdentifier;
   return callApi(Endpoint.DataViz, Method.GET, {
     id: dataVizID.id,
-    params: { regionType, regionID },
+    params: { geogType: geogType, geogID: geogID },
   });
 }
 
-function requestRegionDescription(regionDescriptor: RegionDescriptor) {
-  const { regionType, regionID } = regionDescriptor;
-  return callApi(Endpoint.Region, Method.GET, {
-    params: { regionType, regionID },
+function requestGeogDescription(geogIdentifier: GeogIdentifier) {
+  const { geogType, geogID } = geogIdentifier;
+  return callApi(Endpoint.Geog, Method.GET, {
+    id: `${geogType}/${geogID}`,
+    params: { details: true },
   });
 }
 
-const Api = { requestTaxonomy, requestDataViz, requestRegionDescription };
+function requestGeogList(geogType: GeographyType) {
+  console.debug(geogType);
+  return callApi(Endpoint.Geog, Method.GET, { id: geogType });
+}
+
+const Api = {
+  requestTaxonomy,
+  requestDataViz,
+  requestGeogDescription,
+  requestGeogList,
+};
 export default Api;

@@ -4,18 +4,13 @@
  *
  */
 
-import { Datum, Described } from './common';
+import { Described } from './common';
 import { TimeAxis } from './time';
 import { Variable } from './variable';
-import { LayerProps, SourceProps } from 'react-map-gl';
-import {
-  LayerOptions,
-  LegendOptions,
-  LegendProps,
-  MapProps,
-} from 'wprdc-components';
+import { SourceProps } from 'react-map-gl';
+import { LayerOptions, LegendProps, MapProps } from 'wprdc-components';
 import { LayoutType } from 'recharts/types/util/types';
-import { HierarchyItem } from './index';
+import { GeogDescriptor } from './index';
 
 export interface DataVizID extends Described {
   viewHeight: number;
@@ -81,7 +76,7 @@ export type DataVizData =
 /** T with `data` required */
 export type Downloaded<T extends DataVizBase, D extends DataVizData> = T & {
   data: D;
-  geog: HierarchyItem;
+  geog: GeogDescriptor;
 };
 
 export interface TableViz extends DataVizBase {

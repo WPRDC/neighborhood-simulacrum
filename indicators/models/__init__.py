@@ -80,10 +80,10 @@ class Indicator(Described):
 
 
 class Value(models.Model):
-    region = models.ForeignKey('geo.Geography', on_delete=models.CASCADE, db_index=True)
+    geog = models.ForeignKey('geo.Geography', on_delete=models.CASCADE, db_index=True)
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, db_index=True)
     value = models.FloatField(null=True, blank=True)
     margin = models.FloatField(null=True, blank=True)
 
     def __str__(self):
-        return f'{self.variable}/{self.region} ({self.value}, {self.margin})'
+        return f'{self.variable}/{self.geog} ({self.value}, {self.margin})'

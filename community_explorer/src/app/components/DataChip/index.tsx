@@ -6,7 +6,7 @@
 import React, { memo } from 'react';
 import styled from 'styled-components/macro';
 import { Datum } from '../../types/common';
-import { View, Text, Flex } from '@adobe/react-spectrum';
+import { Flex, Text, View } from '@adobe/react-spectrum';
 
 interface Props {
   title: string;

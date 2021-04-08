@@ -2,7 +2,7 @@ import { createSelector } from '@reduxjs/toolkit';
 
 import { RootState } from 'types';
 import { initialState } from './slice';
-import { selectSelectedRegionDescriptor } from '../Explorer/selectors';
+import { selectSelectedGeogIdentifier } from '../Explorer/selectors';
 import { makeKey } from './util';
 import { DataVizID } from '../../types';
 
@@ -16,9 +16,9 @@ const getDataVizDataKey: (
   state: RootState,
   props: { dataVizID: DataVizID },
 ) => string | undefined = (state, props) => {
-  const regionDescriptor = selectSelectedRegionDescriptor(state);
-  if (!regionDescriptor) return undefined;
-  return makeKey(props.dataVizID, regionDescriptor);
+  const geogIdentifier = selectSelectedGeogIdentifier(state);
+  if (!geogIdentifier) return undefined;
+  return makeKey(props.dataVizID, geogIdentifier);
 };
 
 const makeSelectDataVizData = () =>

@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { Switch, Route, BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Route, Switch } from 'react-router-dom';
 
 import { NotFoundPage } from './components/NotFoundPage/Loadable';
 
@@ -26,7 +26,7 @@ export function App() {
         <Flex height="100vh" direction="column">
           <TopBar />
           <Switch>
-            <Route path="/:regionType?/:regionID?/:domainSlug?/:subdomainSlug?/:indicatorSlug?">
+            <Route path="/:geogType?/:geogID?/:domainSlug?/:subdomainSlug?/:indicatorSlug?">
               <Explorer />
             </Route>
             <Route component={NotFoundPage} />

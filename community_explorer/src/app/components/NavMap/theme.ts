@@ -44,7 +44,7 @@ const polygons = {
   lineColor: colors.gunmetal,
   fillColor: [
     'case',
-    ['==', ['get', 'regionID'], ''],
+    ['==', ['get', 'geogID'], ''],
     colors.secondary,
     colors.primary,
   ] as Expression,
@@ -56,8 +56,8 @@ const polygons = {
       'case',
       [
         'any',
-        ['==', ['get', 'regionID'], '/*hover*/'],
-        ['==', ['get', 'regionID'], '/*select*/'],
+        ['==', ['get', 'geogID'], '/*hover*/'],
+        ['==', ['get', 'geogID'], '/*select*/'],
       ],
       0.8,
       0.1,

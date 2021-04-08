@@ -102,9 +102,9 @@ class CKANSource(Source, PolymorphicModel):
     def can_handle_geography(self, geog: CensusGeography):
         raise NotImplementedError
 
-    def get_geom_filter_sql(self, region: CensusGeography) -> str:
+    def get_geom_filter_sql(self, geog: CensusGeography) -> str:
         """
-        Returns chunk of SQL to go in the WHERE clause to filter the datasource to `region`
+        Returns chunk of SQL to go in the WHERE clause to filter the datasource to `geog`
         since the child models of CKANSource exist to handle different ways of representing geometry,
         this must be implemented in those models.
         """
@@ -172,13 +172,13 @@ class CKANGeomSource(CKANSource):
     )
 
     def can_handle_geography(self, geog: CensusGeography):
-        # while there may be no data in a region, geocoded datasets can work with any region
+        # while there may be no data in a geog, geocoded datasets can work with any geog
         return True
 
-    def get_geom_filter_sql(self, region: CensusGeography) -> str:
+    def get_geom_filter_sql(self, geog: CensusGeography) -> str:
         return f"""
         ST_Intersects(
-            ST_GeomFromText('{region.geom.wkt}', {region.geom.srid}),
+            ST_GeomFromText('{geog.geom.wkt}', {geog.geom.srid}),
             {self.geom_field}
         )"""
 
@@ -228,11 +228,11 @@ class CKANRegionalSource(CKANSource):
     neighborhood_field_is_sql = models.BooleanField(default=False)
 
     def get_source_geog_field(self, geog: Union[CensusGeography, Type[CensusGeography]]) -> object:
-        field_for_geoid_field = f'{geog.region_type}_field'.lower()
+        field_for_geoid_field = f'{geog.geog_type}_field'.lower()
         return getattr(self, field_for_geoid_field)
 
     def get_is_sql(self, geog: Union[CensusGeography, Type[CensusGeography]]):
-        field_for_is_sql = f'{geog.region_type}_field_is_sql'.lower()
+        field_for_is_sql = f'{geog.geog_type}_field_is_sql'.lower()
         return getattr(self, field_for_is_sql)
 
     def can_handle_geography(self, geog: Union[CensusGeography, Type[CensusGeography]]):
@@ -242,16 +242,16 @@ class CKANRegionalSource(CKANSource):
         """
         Creates a chunk of SQL to be used in the WHERE clause that
         filters a dataset described by `source` to data within the
-        geography described by `region`
+        geography described by `geog`
         """
-        # based on the region's type, pick which field in the source we want
-        source_region_field = self.get_source_geog_field(geog)
+        # based on the geog's type, pick which field in the source we want
+        source_geog_field = self.get_source_geog_field(geog)
         is_sql = self.get_is_sql(geog)
 
         if not is_sql:
-            source_region_field = f'"{source_region_field}"'  # add double quotes to ensure case sensitivity
+            source_geog_field = f'"{source_geog_field}"'  # add double quotes to ensure case sensitivity
 
-        return f""" {source_region_field} LIKE '{geog.geoid}' """
+        return f""" {source_geog_field} LIKE '{geog.geoid}' """
 
     def get_geoid_field(self, geog: CensusGeography):
         return self.get_source_geog_field(geog)

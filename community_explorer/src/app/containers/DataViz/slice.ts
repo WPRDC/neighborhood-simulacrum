@@ -7,7 +7,7 @@ import {
   DataVizRequest,
 } from './types';
 import { makeKey } from './util';
-import { DataVizData, DataVizID, RegionDescriptor } from '../../types';
+import { DataVizID, GeogIdentifier } from '../../types';
 
 // The initial state of the DataViz container
 export const initialState: ContainerState = {
@@ -16,19 +16,19 @@ export const initialState: ContainerState = {
 };
 
 /**
- * Updated data cache record for dataViz with id dataVizID at region
+ * Updated data cache record for dataViz with id dataVizID at geog
  * @param cache
  * @param dataVizID
- * @param regionDescriptor
+ * @param geogIdentifier
  * @param update
  */
 function updateData(
   cache: DataVizDataCache,
   dataVizID: DataVizID,
-  regionDescriptor: RegionDescriptor,
+  geogIdentifier: GeogIdentifier,
   update: Partial<DataVizDataRecord>,
 ) {
-  const key = makeKey(dataVizID, regionDescriptor);
+  const key = makeKey(dataVizID, geogIdentifier);
   return Object.assign({}, cache, {
     [key]: update,
   });
@@ -39,11 +39,11 @@ const dataVizSlice = createSlice({
   initialState,
   reducers: {
     requestDataViz(state, action: PayloadAction<DataVizRequest>) {
-      const { dataVizID, regionDescriptor } = action.payload;
+      const { dataVizID, geogIdentifier } = action.payload;
       state.dataVizDataCache = updateData(
         state.dataVizDataCache,
         dataVizID,
-        regionDescriptor,
+        geogIdentifier,
         {
           isLoading: true,
           error: undefined,
@@ -51,11 +51,11 @@ const dataVizSlice = createSlice({
       );
     },
     loadDataViz(state, action: PayloadAction<DataVizRequest & { data: any }>) {
-      const { dataVizID, regionDescriptor, data } = action.payload;
+      const { dataVizID, geogIdentifier, data } = action.payload;
       state.dataVizDataCache = updateData(
         state.dataVizDataCache,
         dataVizID,
-        regionDescriptor,
+        geogIdentifier,
         {
           dataViz: data,
           isLoading: false,
@@ -67,11 +67,11 @@ const dataVizSlice = createSlice({
       state,
       action: PayloadAction<DataVizRequest & { errorMsg: string }>,
     ) {
-      const { dataVizID, regionDescriptor, errorMsg } = action.payload;
+      const { dataVizID, geogIdentifier, errorMsg } = action.payload;
       state.dataVizDataCache = updateData(
         state.dataVizDataCache,
         dataVizID,
-        regionDescriptor,
+        geogIdentifier,
         {
           isLoading: false,
           error: errorMsg,

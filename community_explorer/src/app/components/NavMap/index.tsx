@@ -4,7 +4,7 @@
  *
  */
 import React from 'react';
-import { GeoLayer } from '../../containers/Explorer/types';
+import { GeogTypeDescriptor } from '../../containers/Explorer/types';
 
 import {
   fetchCartoVectorSource,
@@ -16,20 +16,21 @@ import { SourceProps } from 'react-map-gl';
 
 import menuLayers from './menuLayers';
 import { MAPBOX_API_TOKEN } from '../../settings';
-import { ColorMode } from '../../types';
+import { ColorMode, GeogIdentifier } from '../../types';
 
 interface Props {
-  menuLayer: GeoLayer;
+  selectedGeoLayer: GeogTypeDescriptor;
+  selectedGeog: GeogIdentifier;
   onClick: (selection: {
-    regionType: string;
-    regionID: string;
+    geogType: string;
+    geogID: string;
     name: string;
   }) => void;
   colorScheme: ColorMode;
 }
 
 export function NavMap(props: Props) {
-  const { menuLayer, onClick, colorScheme } = props;
+  const { selectedGeoLayer, selectedGeog, onClick, colorScheme } = props;
   // internal state
   const [mbSource, setMbSource] = React.useState<SourceProps | undefined>(
     undefined,
@@ -47,8 +48,8 @@ export function NavMap(props: Props) {
 
   // todo: on init, fetch all of the carto data
   React.useEffect(() => {
-    if (menuLayer) {
-      const usedLayer = menuLayers[menuLayer.id];
+    if (selectedGeoLayer) {
+      const usedLayer = menuLayers[selectedGeoLayer.id];
       const { source, layers } = usedLayer || {};
       setMbLayers(layers as LayerOptions[]);
       setMbSource(undefined);
@@ -65,7 +66,12 @@ export function NavMap(props: Props) {
         // eslint-disable-next-line no-console
       ).then(receiveMbSource, err => console.warn('CARTO', err));
     }
-  }, [menuLayer]);
+  }, [selectedGeoLayer]);
+
+  React.useEffect(() => {
+    if (!!selectedGeog)
+      setSelectedFilter(filterLayerByGeogID(selectedGeog.geogID));
+  }, [selectedGeog]);
 
   function receiveMbSource(sourceData) {
     setMbSource(sourceData);
@@ -73,8 +79,9 @@ export function NavMap(props: Props) {
 
   function handleHover(e) {
     if (e.features.length) {
-      const { regionid: regionID } = e.features[0].properties;
-      setHoveredFilter(filterLayerByRegionID(regionID));
+      console.debug('hover', e.features[0].properties);
+      const { geogid: geogID } = e.features[0].properties;
+      setHoveredFilter(filterLayerByGeogID(geogID));
     } else {
       setHoveredFilter(clearLayerFilter());
     }
@@ -83,12 +90,12 @@ export function NavMap(props: Props) {
   function handleClick(e) {
     if (e && e.features && e.features.length) {
       const {
-        regiontype: regionType,
-        regionid: regionID,
+        geogtype: geogType,
+        geogid: geogID,
         name,
       } = e.features[0].properties;
-      setSelectedFilter(filterLayerByRegionID(regionID));
-      onClick({ regionType, regionID, name });
+      setSelectedFilter(filterLayerByGeogID(geogID));
+      onClick({ geogType, geogID, name });
     } else {
       setSelectedFilter(clearLayerFilter());
     }
@@ -119,12 +126,12 @@ const layerType = l => l.id.split('/')[1];
 
 const layerFilter = l => layerType(l) === 'fill';
 
-function filterLayerByRegionID(regionID: string) {
-  return ['==', 'regionid', regionID];
+function filterLayerByGeogID(geogID: string) {
+  return ['==', 'geogid', geogID];
 }
 
 function clearLayerFilter() {
-  return ['==', 'regionid', 'w00t'];
+  return ['==', 'geogid', 'w00t'];
 }
 
 function filteredLayers(

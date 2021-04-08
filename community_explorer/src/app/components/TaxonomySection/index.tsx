@@ -4,17 +4,18 @@
  *
  */
 import React from 'react';
-import { Region, Taxonomy } from '../../types';
+import { Geog, Taxonomy } from '../../types';
 import { DomainSection } from '../DomainSection';
 
-import { Text, Item, Content } from '@adobe/react-spectrum';
+import { Content, Item, Text } from '@adobe/react-spectrum';
 import { Tabs } from '@react-spectrum/tabs';
 import { useHistory } from 'react-router-dom';
 import { Indicator } from '../../containers/Indicator';
+
 interface Props {
   taxonomy?: Taxonomy;
   taxonomyIsLoading: boolean;
-  currentRegion?: Region;
+  currentGeog?: Geog;
   currentDomainSlug?: string;
   currentSubdomainSlug?: string;
   currentIndicatorSlug?: string;
@@ -24,7 +25,7 @@ export function TaxonomySection(props: Props) {
   const {
     taxonomy,
     taxonomyIsLoading,
-    currentRegion,
+    currentGeog,
     currentDomainSlug,
     currentSubdomainSlug,
     currentIndicatorSlug,
@@ -33,9 +34,9 @@ export function TaxonomySection(props: Props) {
   const history = useHistory();
 
   const handleTabChange = (newValue: React.ReactText) => {
-    if (!!currentRegion)
+    if (!!currentGeog)
       history.push(
-        `/${currentRegion.regionType}/${currentRegion.regionID}/${newValue}`,
+        `/${currentGeog.geogType}/${currentGeog.geogID}/${newValue}`,
       );
   };
 

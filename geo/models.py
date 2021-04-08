@@ -94,19 +94,19 @@ class CensusGeography(PolymorphicModel, Geography):
         return self.name
 
     @property
-    def region_type(self) -> str:
+    def geog_type(self) -> str:
         return self.TYPE
 
     @property
-    def regionID(self) -> str:
-        """ Alias for region_id. Workaround for camel case plugin to have ID instead of Id """
-        return self.region_id
+    def geogID(self) -> str:
+        """ Alias for geog_id. Workaround for camel case plugin to have ID instead of Id """
+        return self.geog_id
 
     @property
-    def region_id(self) -> str:
+    def geog_id(self) -> str:
         if self.geoid:
             return self.geoid
-        raise NotImplementedError('Geographies without a `geoid` field must override `region_id`')
+        raise NotImplementedError('Geographies without a `geoid` field must override `geog_id`')
 
     # Abstract properties
     @property
@@ -175,7 +175,7 @@ class BlockGroup(CensusGeography):
 
     @property
     def subtitle(self):
-        return [{'title': region.title, 'geoid': region.geoid} for region in self.hierarchy]
+        return [{'title': geog.title, 'geoid': geog.geoid} for geog in self.hierarchy]
 
     @property
     def hierarchy(self):
@@ -200,7 +200,7 @@ class Tract(CensusGeography):
     TYPE = "tract"
     TITLE = 'Tract'
     carto_table = "census_tract"
-    region_type = TYPE
+    geog_type = TYPE
 
     ckan_resource = "a6b6bd16-e9d4-4ac8-a17b-7c1183985c15"
 
@@ -218,7 +218,7 @@ class Tract(CensusGeography):
 
     @property
     def subtitle(self):
-        return '/'.join([region.title for region in self.hierarchy])
+        return '/'.join([geog.title for geog in self.hierarchy])
 
     @property
     def hierarchy(self):
@@ -240,7 +240,7 @@ class CountySubdivision(CensusGeography):
     TYPE = "countySubdivision"
     TITLE = 'County Subdivision'
     carto_table = "census_county_subdivision"
-    region_type = TYPE
+    geog_type = TYPE
 
     ckan_resource = "e7d6f272-0a50-4dc6-a140-c39992f1fc09"
 
@@ -259,7 +259,7 @@ class CountySubdivision(CensusGeography):
 
     @property
     def subtitle(self):
-        return '/'.join([region.title for region in self.hierarchy])
+        return '/'.join([geog.title for geog in self.hierarchy])
 
     @property
     def hierarchy(self):
@@ -281,7 +281,7 @@ class County(CensusGeography):
     TYPE = "county"
     TITLE = "County"
     carto_table = 'census_county'
-    region_type = TYPE
+    geog_type = TYPE
 
     ckan_resource = "b30b9dee-5527-4cc4-8ce9-5ab2c6cc664e"
 
@@ -322,7 +322,7 @@ class Place(CensusGeography):
     TYPE = "place"
     TITLE = 'Place'
     carto_table = 'census_place'
-    region_type = TYPE
+    geog_type = TYPE
 
     ckan_resource = "69d24a7a-421f-4e0b-8ee9-a91e46b116a8"
 
@@ -338,7 +338,7 @@ class Place(CensusGeography):
 
     @property
     def subtitle(self):
-        return '/'.join([region.title for region in self.hierarchy])
+        return '/'.join([geog.title for geog in self.hierarchy])
 
     @property
     def hierarchy(self):
@@ -365,7 +365,7 @@ class Puma(CensusGeography):
     TYPE = "puma"
     TITLE = "PUMA"
     carto_table = 'census_puma'
-    region_type = TYPE
+    geog_type = TYPE
 
     ckan_resource = "6eac8237-5275-4131-a9e6-a26494b22be2"
 
@@ -380,7 +380,7 @@ class Puma(CensusGeography):
 
     @property
     def subtitle(self):
-        return '/'.join([region.title for region in self.hierarchy])
+        return '/'.join([geog.title for geog in self.hierarchy])
 
     @property
     def hierarchy(self):
@@ -403,7 +403,7 @@ class SchoolDistrict(CensusGeography):
     TYPE = "schoolDistrict"
     TITLE = "School District"
     carto_table = 'census_school_districts'
-    region_type = TYPE
+    geog_type = TYPE
 
     ckan_resource = '35e9b048-c9fb-4412-a9d8-a751f975eb2a'
 
@@ -419,7 +419,7 @@ class SchoolDistrict(CensusGeography):
 
     @property
     def subtitle(self):
-        return '/'.join([region.title for region in self.hierarchy])
+        return '/'.join([geog.title for geog in self.hierarchy])
 
     @property
     def hierarchy(self):
@@ -441,7 +441,7 @@ class StateHouse(CensusGeography):
     TYPE = "stateHouse"
     TITLE = "State House"
     carto_table = 'census_pa_house'
-    region_type = TYPE
+    geog_type = TYPE
 
     geoid = models.CharField(max_length=12, primary_key=True)
 
@@ -456,7 +456,7 @@ class StateHouse(CensusGeography):
 
     @property
     def subtitle(self):
-        return '/'.join([region.title for region in self.hierarchy])
+        return '/'.join([geog.title for geog in self.hierarchy])
 
     @property
     def hierarchy(self):
@@ -479,7 +479,7 @@ class StateSenate(CensusGeography):
     TYPE = "stateSenate"
     TITLE = "State Senate"
     carto_table = 'census_pa_senate'
-    region_type = TYPE
+    geog_type = TYPE
 
     geoid = models.CharField(max_length=12, primary_key=True)
 
@@ -494,7 +494,7 @@ class StateSenate(CensusGeography):
 
     @property
     def subtitle(self):
-        return '/'.join([region.title for region in self.hierarchy])
+        return '/'.join([geog.title for geog in self.hierarchy])
 
     @property
     def hierarchy(self):

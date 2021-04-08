@@ -1,48 +1,48 @@
 import { censusFilter } from '../settings';
 import theme from '../theme';
 import { MenuLayerItem } from '../types';
-import { MenuLayer } from '../../../containers/Explorer/types';
+import { GeographyType } from '../../../types';
 
 export const blockGroup: MenuLayerItem = {
-  slug: MenuLayer.BlockGroup,
+  slug: GeographyType.BlockGroup,
   name: 'County Boundaries',
   source: {
     type: 'vector',
     minzoom: 0,
     maxzoom: 11,
     source: 'census_blockgroup',
-    sql: `SELECT *, name as map_name, 'blockGroup' as regionType, geoid as regionID FROM census_blockgroup WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT *, name as map_name, 'blockGroup' as geogType, geoid as geogID FROM census_blockgroup WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
-      id: `${MenuLayer.BlockGroup}/hover`,
+      id: `${GeographyType.BlockGroup}/hover`,
       type: 'fill',
-      source: MenuLayer.BlockGroup,
-      'source-layer': MenuLayer.BlockGroup,
+      source: GeographyType.BlockGroup,
+      'source-layer': GeographyType.BlockGroup,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.hoverColor,
       },
-      filter: ['==', 'regionid', ''],
+      filter: ['==', 'geogid', ''],
     },
     {
-      id: `${MenuLayer.BlockGroup}/selected`,
+      id: `${GeographyType.BlockGroup}/selected`,
       type: 'fill',
-      source: MenuLayer.BlockGroup,
-      'source-layer': MenuLayer.BlockGroup,
+      source: GeographyType.BlockGroup,
+      'source-layer': GeographyType.BlockGroup,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.selectedColor,
       },
-      filter: ['==', 'regionid', ''],
+      filter: ['==', 'geogid', ''],
     },
     {
-      id: `${MenuLayer.BlockGroup}/borders`,
+      id: `${GeographyType.BlockGroup}/borders`,
       type: 'line',
-      source: MenuLayer.BlockGroup,
-      'source-layer': MenuLayer.BlockGroup,
+      source: GeographyType.BlockGroup,
+      'source-layer': GeographyType.BlockGroup,
       layout: {
         'line-join': 'round',
       },
@@ -53,10 +53,10 @@ export const blockGroup: MenuLayerItem = {
       },
     },
     {
-      id: `${MenuLayer.BlockGroup}/fill`,
+      id: `${GeographyType.BlockGroup}/fill`,
       type: 'fill',
-      source: MenuLayer.BlockGroup,
-      'source-layer': MenuLayer.BlockGroup,
+      source: GeographyType.BlockGroup,
+      'source-layer': GeographyType.BlockGroup,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.selection,

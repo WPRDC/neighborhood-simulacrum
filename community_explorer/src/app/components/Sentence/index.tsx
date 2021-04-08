@@ -5,7 +5,7 @@
  */
 import React from 'react';
 // import styled from 'styled-components/macro';
-import { View, Text } from '@adobe/react-spectrum';
+import { Text, View } from '@adobe/react-spectrum';
 import { SentenceData } from '../../types';
 
 interface Props {

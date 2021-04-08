@@ -6,17 +6,18 @@ import {
   BigValueViz,
   ChartData,
   ChartViz,
+  ColorMode,
   DataVizBase,
   DataVizData,
   DataVizDataPoint,
   DataVizID,
   DataVizResourceType,
   Downloaded,
+  GeogIdentifier,
   LineChartViz,
   MiniMapData,
   MiniMapViz,
   PieChartViz,
-  RegionDescriptor,
   SentenceData,
   SentenceViz,
   TableData,
@@ -38,7 +39,6 @@ import { LineChart } from '../../components/LineChart';
 import { MiniMap } from '../../components/MiniMap';
 import { dumpCSV } from '../../util';
 import { Text } from '@react-spectrum/text';
-import { ColorMode } from '../../types';
 
 type DownloadedTable = Downloaded<TableViz, TableData>;
 type Row = RowRecord;
@@ -121,9 +121,7 @@ const generateBarChart: VizGenerator<BarChartViz, ChartData> = dataViz => {
   // if acrossGeogs, then make sure its vertical and hide labels.
   const layout = dataViz.acrossGeogs ? 'horizontal' : dataViz.layout;
   const highlightKey = dataViz.acrossGeogs ? 'geoid' : undefined;
-  const highlightValue = dataViz.acrossGeogs
-    ? dataViz.geog.regionID
-    : undefined;
+  const highlightValue = dataViz.acrossGeogs ? dataViz.geog.geogID : undefined;
   const dataKey = dataViz.timeAxis.timeParts[0].slug;
   const highlightIndex = getHighlightIndex(
     dataViz.data,
@@ -167,8 +165,8 @@ const generateLineChart: VizGenerator<LineChartViz, ChartData> = dataViz => {
   );
 };
 
-export function makeKey(dataVizID: DataVizID, region: RegionDescriptor) {
-  return `${dataVizID.slug}@${region.regionType}/${region.regionID}`;
+export function makeKey(dataVizID: DataVizID, geogIdentifier: GeogIdentifier) {
+  return `${dataVizID.slug}@${geogIdentifier.geogType}/${geogIdentifier.geogID}`;
 }
 
 const MoEWrapper = styled.span`

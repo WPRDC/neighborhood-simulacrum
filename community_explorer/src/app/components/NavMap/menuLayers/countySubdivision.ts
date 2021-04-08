@@ -1,48 +1,48 @@
 import { censusFilter } from '../settings';
 import theme from '../theme';
 import { MenuLayerItem } from '../types';
-import { MenuLayer } from '../../../containers/Explorer/types';
+import { GeographyType } from '../../../types';
 
 const countySubdivision: MenuLayerItem = {
-  slug: MenuLayer.CountySubdivision,
+  slug: GeographyType.CountySubdivision,
   name: 'County Subdivision Boundaries',
   source: {
     type: 'vector',
     minzoom: 0,
     maxzoom: 11,
     source: 'census_county_subdivision',
-    sql: `SELECT * , name as map_name, 'countySubdivision' as regionType, geoid as regionID FROM census_county_subdivision WHERE statefp = '42' AND ${censusFilter}`,
+    sql: `SELECT * , name as map_name, 'countySubdivision' as geogType, geoid as geogID FROM census_county_subdivision WHERE statefp = '42' AND ${censusFilter}`,
   },
   layers: [
     {
-      id: `${MenuLayer.CountySubdivision}/hover`,
+      id: `${GeographyType.CountySubdivision}/hover`,
       type: 'fill',
-      source: MenuLayer.CountySubdivision,
-      'source-layer': MenuLayer.CountySubdivision,
+      source: GeographyType.CountySubdivision,
+      'source-layer': GeographyType.CountySubdivision,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.hoverColor,
       },
-      filter: ['==', 'regionID', ''],
+      filter: ['==', 'geogID', ''],
     },
     {
-      id: `${MenuLayer.CountySubdivision}/selected`,
+      id: `${GeographyType.CountySubdivision}/selected`,
       type: 'fill',
-      source: MenuLayer.CountySubdivision,
-      'source-layer': MenuLayer.CountySubdivision,
+      source: GeographyType.CountySubdivision,
+      'source-layer': GeographyType.CountySubdivision,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.standard,
         'fill-color': theme.polygons.selectedColor,
       },
-      filter: ['==', 'regionID', ''],
+      filter: ['==', 'geogID', ''],
     },
     {
-      id: `${MenuLayer.CountySubdivision}/borders`,
+      id: `${GeographyType.CountySubdivision}/borders`,
       type: 'line',
-      source: MenuLayer.CountySubdivision,
-      'source-layer': MenuLayer.CountySubdivision,
+      source: GeographyType.CountySubdivision,
+      'source-layer': GeographyType.CountySubdivision,
       layout: {
         'line-join': 'round',
       },
@@ -53,10 +53,10 @@ const countySubdivision: MenuLayerItem = {
       },
     },
     {
-      id: `${MenuLayer.CountySubdivision}/fill`,
+      id: `${GeographyType.CountySubdivision}/fill`,
       type: 'fill',
-      source: MenuLayer.CountySubdivision,
-      'source-layer': MenuLayer.CountySubdivision,
+      source: GeographyType.CountySubdivision,
+      'source-layer': GeographyType.CountySubdivision,
       layout: {},
       paint: {
         'fill-opacity': theme.polygons.fillOpacity.selection,

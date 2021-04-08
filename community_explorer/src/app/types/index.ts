@@ -5,6 +5,7 @@ export * from './time';
 export * from './variable';
 export * from './viz';
 export * from './source';
+export * from './geog';
 
 export enum IndicatorLayout {
   A = 'A',
@@ -39,47 +40,44 @@ export interface Domain extends Described {
 
 export type Taxonomy = Domain[];
 
-export interface Region extends Described, RegionBase {
+export interface Geog extends Described, GeogBase {
   title: string;
-  hierarchy: HierarchyItem[];
+  hierarchy: GeogDescriptor[];
   resourcetype: string; // todo: make enums of the resourcetypes for use here.
   population: number;
   kidPopulation: number;
-  regionType: RegionType;
-  regionID: string;
+  geogType: GeogType;
+  geogID: string;
 }
 
-export interface HierarchyItem {
+export interface GeogDescriptor extends GeogIdentifier {
   id: string | number;
   title: string;
-  regionType: RegionType;
-  regionID: string;
 }
 
-export interface RegionDescriptor {
-  regionType: RegionType;
-  regionID: string | number;
-  name?: string;
+export interface GeogIdentifier {
+  id?: string | number;
+  geogType: GeogType;
+  geogID: string;
 }
 
-export interface RegionBase {
+export interface GeogBase {
   name: string;
   slug: string;
   description?: string;
 }
 
-// todo: define list of regiontypes
-export type RegionType = string;
+// todo: define list of geogtypes
+export type GeogType = string;
 
 type URLNavParamKeys =
-  | 'regionType'
-  | 'regionID'
+  | 'geogType'
+  | 'geogID'
   | 'domainSlug'
   | 'subdomainSlug'
   | 'indicatorSlug';
 
 export type URLNavParams = Record<URLNavParamKeys, string>;
-
 
 export enum ColorMode {
   Light = 'light',

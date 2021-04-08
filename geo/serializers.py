@@ -1,11 +1,8 @@
-from typing import TYPE_CHECKING
-
 from rest_framework import serializers
 from rest_framework_gis import serializers as gis_serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
 from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County
-
 
 
 class CensusGeographyBriefSerializer(serializers.ModelSerializer):
@@ -14,8 +11,8 @@ class CensusGeographyBriefSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'title',
-            'region_type',
-            'regionID'
+            'geog_type',
+            'geogID'
         )
 
 
@@ -27,8 +24,8 @@ class CensusGeographySerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'title',
-            'region_type',
-            'regionID',
+            'geog_type',
+            'geogID',
             'hierarchy',
             'population',
             'kid_population',

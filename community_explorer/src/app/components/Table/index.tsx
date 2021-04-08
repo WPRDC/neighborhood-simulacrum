@@ -5,7 +5,7 @@
  */
 import React from 'react';
 
-import { Table as WTable, Column, RowRecord } from 'wprdc-components';
+import { Column, RowRecord, Table as WTable } from 'wprdc-components';
 
 interface Props {
   columns: Column<RowRecord>[];

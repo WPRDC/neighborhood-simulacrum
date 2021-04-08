@@ -3,7 +3,7 @@
  * DomainSection
  *
  */
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Heading, Text, View } from '@adobe/react-spectrum';
 import { Domain } from 'app/types';
 import { SubdomainSection } from '../SubdomainSection';

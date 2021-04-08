@@ -254,12 +254,12 @@ class MiniMap(DataViz):
     def unfiltered_sql(self):
         return f"SELECT {self.fields.join(', ')} FROM {self.carto_table}"
 
-    def get_sql_for_region(self, region: 'CensusGeography') -> str:
+    def get_sql_for_geog(self, geog: 'CensusGeography') -> str:
         # noinspection SqlResolve
         sql = f"""
             SELECT {', '.join(self.fields)} , {self.geom_field}, the_geom_webmercator
             FROM {self.carto_table}
-            WHERE ST_Intersects({self.geom_field}, ({region.carto_geom_sql}))
+            WHERE ST_Intersects({self.geom_field}, ({geog.carto_geom_sql}))
             """
         if self.filter:
             sql += f""" AND {self.filter}"""
@@ -315,7 +315,7 @@ class MiniMap(DataViz):
         for var in self.vars.all():
             geojson = self._get_map_data(type(geog), var)
             layer: MapLayer = self.vars.through.objects.get(variable=var, minimap=self)
-            source, tmp_layers, interactive_layer_ids, legend_option = layer.options(geog.region_type, geojson)
+            source, tmp_layers, interactive_layer_ids, legend_option = layer.options(geog.geog_type, geojson)
             sources.append(source)
             legend_option['title'] = var.name
             legend_options.append(legend_option)
@@ -441,7 +441,7 @@ class Chart(DataViz):
     def view_width(self):
         return self.width_override or self.DEFAULT_WIDTH
 
-    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
+    def get_chart_data(self, geog: 'CensusGeography') -> DataResponse:
         raise NotImplementedError('Each type of chart must define how to get chart data.')
 
     def _get_data_across_geogs(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> []:
@@ -469,18 +469,18 @@ class Chart(DataViz):
             data.append(variable.get_chart_record(self, geog))
         return data
 
-    def _get_chart_data(self, region: 'CensusGeography', through: str) -> DataResponse:
+    def _get_chart_data(self, geog: 'CensusGeography', through: str) -> DataResponse:
         data = []
         error: ErrorResponse
         variables = self.variables.order_by(through)
 
-        if self.can_handle_geography(region):
+        if self.can_handle_geography(geog):
             if self.across_geogs:
-                data = self._get_data_across_geogs(type(region), variables[0])
+                data = self._get_data_across_geogs(type(geog), variables[0])
             else:
-                data = self._get_data_across_variables(region, variables)
+                data = self._get_data_across_variables(geog, variables)
             error = ErrorResponse(level=ErrorLevel.OK,
-                                  message=f'This Chart is not available for this {region.name}.')
+                                  message=f'This Chart is not available for this {geog.name}.')
         else:
             error = ErrorResponse(level=ErrorLevel.EMPTY, message=None)
         return DataResponse(data=data, error=error)
@@ -520,8 +520,8 @@ class BarChart(Chart):
     def variables(self):
         return self.vars.order_by('variable_to_bar_chart')
 
-    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
-        return self._get_chart_data(region, 'variable_to_bar_chart')
+    def get_chart_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(geog, 'variable_to_bar_chart')
 
 
 class PieChartPart(OrderedVariable):
@@ -542,8 +542,8 @@ class PieChart(Chart):
     def variables(self):
         return self.vars.order_by('variable_to_pie_chart')
 
-    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
-        return self._get_chart_data(region, 'variable_to_pie_chart')
+    def get_chart_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(geog, 'variable_to_pie_chart')
 
 
 class LineChartPart(OrderedVariable):
@@ -567,8 +567,8 @@ class LineChart(Chart):
     def variables(self):
         return self.vars.order_by('variable_to_line_chart')
 
-    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
-        return self._get_chart_data(region, 'variable_to_line_chart')
+    def get_chart_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(geog, 'variable_to_line_chart')
 
 
 class PopulationPyramidChartPart(OrderedVariable):
@@ -584,8 +584,8 @@ class PopulationPyramidChartPart(OrderedVariable):
 class PopulationPyramidChart(Chart):
     vars = models.ManyToManyField('Variable', through=PopulationPyramidChartPart)
 
-    def get_chart_data(self, region: 'CensusGeography') -> DataResponse:
-        return self._get_chart_data(region, 'variable_to_population_pyramid_chart')
+    def get_chart_data(self, geog: 'CensusGeography') -> DataResponse:
+        return self._get_chart_data(geog, 'variable_to_population_pyramid_chart')
 
 
 # ==================

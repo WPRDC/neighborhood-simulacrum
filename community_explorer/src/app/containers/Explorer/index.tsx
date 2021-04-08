@@ -6,31 +6,35 @@
 
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
-import { useParams, useHistory } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 
 import { useInjectReducer, useInjectSaga } from 'utils/redux-injectors';
 import { actions, reducer, sliceKey } from './slice';
 import {
-  selectCurrentRegion,
-  selectCurrentRegionIsLoading,
-  // selectCurrentRegionLoadError,
+  selectCurrentGeog,
+  selectCurrentGeogIsLoading,
+  selectGeogsListRecord,
+  selectGeogsListsAreLoadingRecord,
+  selectSelectedGeogIdentifier,
   selectSelectedGeoLayer,
   selectTaxonomy,
   selectTaxonomyIsLoading,
-  // selectTaxonomyLoadError,
 } from './selectors';
 import { explorerSaga } from './saga';
 
 import { NavMap } from '../../components/NavMap';
 import { NavMenu } from '../../components/NavMenu';
-import { GeoLayer } from './types';
-import { RegionDescriptor, URLNavParams } from '../../types';
+import { GeogTypeDescriptor } from './types';
+import { GeogIdentifier, URLNavParams } from '../../types';
 import { GeographySection } from '../../components/GeographySection';
 import { TaxonomySection } from '../../components/TaxonomySection';
-import { Grid, View, Text } from '@adobe/react-spectrum';
+import { Grid, Text, View } from '@adobe/react-spectrum';
 import { selectColorMode } from '../GlobalSettings/selectors';
+import { Link } from 'wprdc-components';
+import { DEFAULT_GEOG_TYPE } from '../../settings';
+import { getDescriptorForGeogType } from '../../util';
 
 export function Explorer() {
   useInjectReducer({ key: sliceKey, reducer: reducer });
@@ -41,8 +45,8 @@ export function Explorer() {
   // routing
   const history = useHistory();
   const {
-    regionType,
-    regionID,
+    geogType,
+    geogID,
     domainSlug,
     subdomainSlug,
     indicatorSlug,
@@ -52,49 +56,60 @@ export function Explorer() {
   const taxonomyIsLoading = useSelector(selectTaxonomyIsLoading);
   // const taxonomyLoadError = useSelector(selectTaxonomyLoadError);
 
-  const currentRegion = useSelector(selectCurrentRegion);
-  const currentRegionIsLoading = useSelector(selectCurrentRegionIsLoading);
-  // const currentRegionLoadError = useSelector(selectCurrentRegionLoadError);
+  const currentGeog = useSelector(selectCurrentGeog);
+  const currentGeogIsLoading = useSelector(selectCurrentGeogIsLoading);
+  // const currentGeogLoadError = useSelector(selectCurrentGeogLoadError);
 
   const selectedGeoLayer = useSelector(selectSelectedGeoLayer);
-  // const selectedRegionID = useSelector(selectSelectedRegionID);
+  const selectedGeog = useSelector(selectSelectedGeogIdentifier);
 
   const colorScheme = useSelector(selectColorMode);
 
+  const geogsListsRecord = useSelector(selectGeogsListRecord);
+  const geogsListsAreLoadingRecord = useSelector(
+    selectGeogsListsAreLoadingRecord,
+  );
+
   // init
   React.useEffect(() => {
+    dispatch(
+      actions.selectGeoType(
+        getDescriptorForGeogType(geogType) || DEFAULT_GEOG_TYPE,
+      ),
+    );
     if (!taxonomy && !taxonomyIsLoading) {
       dispatch(actions.requestTaxonomy());
     }
-    if (!regionType || !regionID) {
+    if (!geogType || !geogID) {
       history.push('/countySubdivision/4200361000');
     }
   }, []);
 
+  // switch geog on url change
   React.useEffect(() => {
-    if (!!regionType && !!regionID) {
-      handleRegionChange({ regionType, regionID });
+    if (!!geogType && !!geogID) {
+      handleGeogChange({ geogType: geogType, geogID: geogID });
     }
-  }, [regionType, regionID]);
+  }, [geogType, geogID]);
 
-  function handleMapClick(regionDescriptor: RegionDescriptor) {
+  function handleMapClick(geogIdentifier: GeogIdentifier) {
     const domainPath = domainSlug ? `/${domainSlug}` : '';
     const subdomainPath = subdomainSlug ? `/${subdomainSlug}` : '';
     const indicatorPath = indicatorSlug ? `/${indicatorSlug}` : '';
 
     const extraPath = `${domainPath}${subdomainPath}${indicatorPath}`;
     history.push(
-      `/${regionDescriptor.regionType}/${regionDescriptor.regionID}${extraPath}`,
+      `/${geogIdentifier.geogType}/${geogIdentifier.geogID}${extraPath}`,
     );
   }
 
-  function handleRegionChange(regionDescriptor: RegionDescriptor) {
-    dispatch(actions.selectRegion(regionDescriptor));
-    dispatch(actions.requestRegionDetails(regionDescriptor));
+  function handleGeogChange(geogIdentifier: GeogIdentifier) {
+    dispatch(actions.selectGeog(geogIdentifier));
+    dispatch(actions.requestGeogDetails(geogIdentifier));
   }
 
-  function handleSelectGeoLayer(geoLayer: GeoLayer) {
-    dispatch(actions.selectGeoLayer(geoLayer));
+  function handleSelectGeoLayer(geoLayer: GeogTypeDescriptor) {
+    dispatch(actions.selectGeoType(geoLayer));
   }
 
   return (
@@ -112,16 +127,22 @@ export function Explorer() {
       >
         <View gridArea="map" borderTopWidth="thicker">
           <NavMap
-            menuLayer={selectedGeoLayer}
+            selectedGeoLayer={selectedGeoLayer}
             onClick={handleMapClick}
             colorScheme={colorScheme}
+            selectedGeog={selectedGeog}
+
           />
         </View>
 
         <View gridArea="sidebar">
           <NavMenu
-            handleLayerSelect={handleSelectGeoLayer}
+            onLayerSelect={handleSelectGeoLayer}
+            onGeogSelect={handleGeogChange}
             selectedGeoLayer={selectedGeoLayer}
+            selectedGeog={selectedGeog}
+            geogsListsRecord={geogsListsRecord}
+            geogsListsAreLoadingRecord={geogsListsAreLoadingRecord}
           />
         </View>
 
@@ -132,13 +153,13 @@ export function Explorer() {
           backgroundColor="gray-300"
         >
           <GeographySection
-            region={currentRegion}
-            regionIsLoading={currentRegionIsLoading}
+            geog={currentGeog}
+            geogIsLoading={currentGeogIsLoading}
           />
           <TaxonomySection
             taxonomy={taxonomy}
             taxonomyIsLoading={taxonomyIsLoading}
-            currentRegion={currentRegion}
+            currentGeog={currentGeog}
             currentDomainSlug={domainSlug}
             currentSubdomainSlug={subdomainSlug}
             currentIndicatorSlug={indicatorSlug}
@@ -147,7 +168,13 @@ export function Explorer() {
       </Grid>
 
       <View padding="size-50">
-        <Text>&copy; 2021 Western Pennsylvania Regional Data Center</Text>
+        <Text>
+          <Link>
+            <a href="https://www.wprdc.org">
+              Western Pennsylvania Regional Data Center
+            </a>
+          </Link>
+        </Text>
       </View>
     </>
   );

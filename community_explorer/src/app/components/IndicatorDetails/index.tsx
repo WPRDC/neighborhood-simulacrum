@@ -4,7 +4,7 @@
  *
  */
 import React from 'react';
-import { Text, View, Grid, repeat } from '@adobe/react-spectrum';
+import { Grid, repeat, Text, View } from '@adobe/react-spectrum';
 import { DataViz } from '../../containers/DataViz';
 import { Indicator } from '../../types';
 import { Breadcrumbs } from 'wprdc-components';

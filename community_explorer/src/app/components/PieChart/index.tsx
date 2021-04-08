@@ -7,11 +7,11 @@
 import React from 'react';
 
 import {
-  PieChart as RPieChart,
-  Pie,
-  ResponsiveContainer,
   Cell,
   Legend,
+  Pie,
+  PieChart as RPieChart,
+  ResponsiveContainer,
   Tooltip,
 } from 'recharts';
 import { View } from '@adobe/react-spectrum';

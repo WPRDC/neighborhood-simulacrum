@@ -12,7 +12,6 @@ from rest_framework.exceptions import NotFound
 from rest_framework.negotiation import BaseContentNegotiation
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.renderers import JSONRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -24,9 +23,9 @@ from indicators.serializers import (DomainSerializer, IndicatorSerializer, Subdo
                                     TimeAxisPolymorphicSerializer)
 from indicators.serializers.variable import VariablePolymorphicSerializer
 from indicators.serializers.viz import DataVizWithDataPolymorphicSerializer, DataVizPolymorphicSerializer
-from indicators.utils import (is_region_data_request, get_region_from_request,
+from indicators.utils import (is_geog_data_request, get_geog_from_request,
                               ErrorResponse, ErrorLevel, extract_geo_params,
-                              get_region_model)
+                              get_geog_model)
 
 
 class GeoJSONRenderer(renderers.BaseRenderer):
@@ -89,15 +88,15 @@ class DataVizViewSet(viewsets.ModelViewSet):
     queryset = DataViz.objects.all()
 
     def get_serializer_class(self):
-        if is_region_data_request(self.request):
+        if is_geog_data_request(self.request):
             return DataVizWithDataPolymorphicSerializer
         return DataVizPolymorphicSerializer
 
     def get_serializer_context(self):
         context = super(DataVizViewSet, self).get_serializer_context()
-        if is_region_data_request(self.request):
+        if is_geog_data_request(self.request):
             try:
-                context['geography'] = get_region_from_request(self.request)
+                context['geography'] = get_geog_from_request(self.request)
             except Geography.DoesNotExist as e:
                 print(e)  # todo: figure out how we should log stuff
                 geo_type, geoid = extract_geo_params(self.request)
@@ -117,7 +116,7 @@ class GeoJSONWithDataView(APIView):
 
     def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
         try:
-            geog_type: Type[CensusGeography] = get_region_model(geog_type_id)
+            geog_type: Type[CensusGeography] = get_geog_model(geog_type_id)
             data_viz: DataViz = DataViz.objects.get(pk=data_viz_id)
             variable: Variable = Variable.objects.get(pk=variable_id)
             time_part = data_viz.time_axis.time_parts[0]

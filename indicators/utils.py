@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
-REGION_TYPE_LABEL = 'regionType'
-REGION_ID_LABEL = 'regionID'
+GEOG_TYPE_LABEL = 'geogType'
+GEOG_ID_LABEL = 'geogID'
 
 VARIABLE_ID_LABEL = 'var'
 DATA_VIZ_ID_LABEL = 'viz'
@@ -73,38 +73,38 @@ class DataResponse:
 # Functions
 # =-=-=-=-=
 
-def get_region_model(region_type: str) -> Type[CensusGeography]:
-    if region_type in GEOG_MODEL_MAPPING:
-        return GEOG_MODEL_MAPPING[region_type]
+def get_geog_model(geog_type: str) -> Type[CensusGeography]:
+    if geog_type in GEOG_MODEL_MAPPING:
+        return GEOG_MODEL_MAPPING[geog_type]
     raise KeyError
 
 
-def is_valid_geography_type(region_type: str):
-    return region_type in GEOG_MODEL_MAPPING
+def is_valid_geography_type(geog_type: str):
+    return geog_type in GEOG_MODEL_MAPPING
 
 
-def is_region_data_request(request: Request) -> bool:
+def is_geog_data_request(request: Request) -> bool:
     """ Determines if a request should be responded to with calculated indicator data"""
-    # for data visualization requests, data can be provided when a region is defined
+    # for data visualization requests, data can be provided when a geog is defined
     # todo, handle other types.
-    return REGION_TYPE_LABEL in request.query_params and REGION_ID_LABEL in request.query_params
+    return GEOG_TYPE_LABEL in request.query_params and GEOG_ID_LABEL in request.query_params
 
 
 def extract_geo_params(request: Request) -> (str, str):
-    return request.query_params[REGION_TYPE_LABEL], request.query_params[REGION_ID_LABEL]
+    return request.query_params[GEOG_TYPE_LABEL], request.query_params[GEOG_ID_LABEL]
 
 
-def get_region_from_request(request: Request) -> CensusGeography:
-    region, geoid = extract_geo_params(request)
-    region_model = get_region_model(region)
-    region = region_model.objects.get(geoid=geoid)
-    return region
+def get_geog_from_request(request: Request) -> CensusGeography:
+    geog, geoid = extract_geo_params(request)
+    geog_model = get_geog_model(geog)
+    geog = geog_model.objects.get(geoid=geoid)
+    return geog
 
 
-def get_region_model_from_request(request: Request) -> Type[Union[Tract, County, BlockGroup, CountySubdivision]]:
-    region = extract_geo_params(request)[0]
-    region_model = get_region_model(region)
-    return region_model
+def get_geog_model_from_request(request: Request) -> Type[Union[Tract, County, BlockGroup, CountySubdivision]]:
+    geog = extract_geo_params(request)[0]
+    geog_model = get_geog_model(geog)
+    return geog_model
 
 
 def get_data_viz_from_request(request: Request) -> Optional['Variable']:

@@ -5,18 +5,17 @@
  */
 
 import React from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import styled from 'styled-components/macro';
+import { useSelector } from 'react-redux';
 
 import { useInjectReducer, useInjectSaga } from 'utils/redux-injectors';
 import { reducer, sliceKey } from './slice';
 import { indicatorSaga } from './saga';
-import { Domain, Indicator as IndicatorType, Subdomain } from '../../types';
+import { Indicator as IndicatorType } from '../../types';
 import IndicatorCard from '../../components/IndicatorCard';
 import { useHistory, useLocation } from 'react-router-dom';
 import { IndicatorDetails } from '../../components/IndicatorDetails';
 import { Heading, Item } from '@adobe/react-spectrum';
-import { selectCurrentRegion } from '../Explorer/selectors';
+import { selectCurrentGeog } from '../Explorer/selectors';
 
 interface Props {
   card?: boolean;
@@ -30,21 +29,21 @@ export function Indicator(props: Props) {
   const history = useHistory();
   const location = useLocation();
 
-  const region = useSelector(selectCurrentRegion);
+  const geog = useSelector(selectCurrentGeog);
 
   const { card, indicator } = props;
   const { domain, subdomain } = indicator.hierarchies[0];
 
   function handleExplore() {
-    if (!!region)
+    if (!!geog)
       history.push(
-        `/${region.regionType}/${region.regionID}/${domain.slug}/${subdomain.slug}/${indicator.slug}`,
+        `/${geog.geogType}/${geog.geogID}/${domain.slug}/${subdomain.slug}/${indicator.slug}`,
       );
   }
 
   function handleClose() {
     // remove indicator slug from end of url
-    if (!!region) history.push(`/${region.regionType}/${region.regionID}`);
+    if (!!geog) history.push(`/${geog.geogType}/${geog.geogID}`);
   }
 
   function handleBreadcrumbClick(path: React.ReactText) {

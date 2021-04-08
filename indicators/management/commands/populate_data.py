@@ -28,32 +28,32 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 
-def save_data(data, region):
+def save_data(data, geog):
     for table, value in data.items():
         if table in ['state', 'county', 'tract', 'block group']:
             continue
-        CensusValue.objects.create(region=region, census_table=table, value=value)
+        CensusValue.objects.create(geog=geog, census_table=table, value=value)
 
 
-def get_census_data(tables, region: CensusGeography):
+def get_census_data(tables, geog: CensusGeography):
     source = CensusSource.objects.get(dataset='CEN')
-    return source.get_data(tables, region)
+    return source.get_data(tables, geog)
 
 
-def get_acs_data(tables, region: CensusGeography):
+def get_acs_data(tables, geog: CensusGeography):
     source = CensusSource.objects.get(dataset='ACS5')
-    return source.get_data(tables, region)
+    return source.get_data(tables, geog)
 
 
-def get_and_store_data(acs_table, cen_table, region):
+def get_and_store_data(acs_table, cen_table, geog):
     for chunk in chunks(list(acs_table), CHUNK_SIZE):
-        acs_data = get_acs_data(chunk, region)
+        acs_data = get_acs_data(chunk, geog)
         print(acs_data)
-        save_data(acs_data[0], region)
+        save_data(acs_data[0], geog)
     print('---')
-    cen_data = get_census_data(list(cen_table), region)
+    cen_data = get_census_data(list(cen_table), geog)
     print(cen_data, '\n------\n\n')
-    save_data(cen_data[0], region)
+    save_data(cen_data[0], geog)
 
 
 class Command(BaseCommand):
@@ -66,10 +66,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """
         Gather all of the census tables used across all CensusVariables
-          For each region:
+          For each geog:
             For each chunk of census tables   //(size tbd)
-             Make api call with the chunk for the region
-             create census values for each (table, region) pair (table_i, region) for i in len(table)
+             Make api call with the chunk for the geog
+             create census values for each (table, geog) pair (table_i, geog) for i in len(table)
         """
         cen_2010_tables = set()
         acs_2017_tables = set()

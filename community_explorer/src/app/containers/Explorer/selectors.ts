@@ -25,19 +25,19 @@ export const selectTaxonomyLoadError = createSelector(
   explorerState => explorerState.taxonomyLoadError,
 );
 
-export const selectCurrentRegion = createSelector(
+export const selectCurrentGeog = createSelector(
   [selectExplorer],
-  explorerState => explorerState.currentRegion,
+  explorerState => explorerState.currentGeog,
 );
 
-export const selectCurrentRegionIsLoading = createSelector(
+export const selectCurrentGeogIsLoading = createSelector(
   [selectExplorer],
-  explorerState => explorerState.currentRegionIsLoading,
+  explorerState => explorerState.currentGeogIsLoading,
 );
 
-export const selectCurrentRegionLoadError = createSelector(
+export const selectCurrentGeogLoadError = createSelector(
   [selectExplorer],
-  explorerState => explorerState.currentRegionLoadError,
+  explorerState => explorerState.currentGeogLoadError,
 );
 
 export const selectSelectedGeoLayer = createSelector(
@@ -45,7 +45,17 @@ export const selectSelectedGeoLayer = createSelector(
   explorerState => explorerState.selectedGeoLayer,
 );
 
-export const selectSelectedRegionDescriptor = createSelector(
+export const selectSelectedGeogIdentifier = createSelector(
   [selectExplorer],
-  explorerState => explorerState.selectedRegionDescriptor,
+  explorerState => explorerState.selectedGeogIdentifier,
+);
+
+export const selectGeogsListRecord = createSelector(
+  [selectExplorer],
+  explorerState => explorerState.geogsListsRecord,
+);
+
+export const selectGeogsListsAreLoadingRecord = createSelector(
+  [selectExplorer],
+  explorerState => explorerState.geogsListsAreLoadingRecord,
 );

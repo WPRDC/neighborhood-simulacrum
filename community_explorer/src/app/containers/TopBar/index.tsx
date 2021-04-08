@@ -11,12 +11,7 @@ import { useInjectReducer } from 'utils/redux-injectors';
 import { reducer, sliceKey } from './slice';
 
 import { actions as globalSettingActions } from '../GlobalSettings/slice';
-import {
-  ActionButton,
-  Flex,
-  Heading,
-  View,
-} from '@adobe/react-spectrum';
+import { ActionButton, Flex, Heading, View } from '@adobe/react-spectrum';
 
 import Dark from '@spectrum-icons/workflow/Moon';
 import Light from '@spectrum-icons/workflow/Light';

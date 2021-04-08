@@ -2,13 +2,13 @@ import county from './county';
 import countySubdivision from './countySubdivision';
 import tract from './tract';
 import blockGroup from './blockGroup';
-import { MenuLayer } from '../../../containers/Explorer/types';
-import {MenuLayerItem} from "../types";
+import { GeographyType } from '../../../types';
+import { MenuLayerItem } from '../types';
 
-const menuLayers: Record<MenuLayer, MenuLayerItem> = {
-  [MenuLayer.County]: county,
-  [MenuLayer.CountySubdivision]: countySubdivision,
-  [MenuLayer.BlockGroup]: blockGroup,
-  [MenuLayer.Tract]: tract,
+const menuLayers: Record<GeographyType, MenuLayerItem> = {
+  [GeographyType.County]: county,
+  [GeographyType.CountySubdivision]: countySubdivision,
+  [GeographyType.BlockGroup]: blockGroup,
+  [GeographyType.Tract]: tract,
 };
 export default menuLayers;

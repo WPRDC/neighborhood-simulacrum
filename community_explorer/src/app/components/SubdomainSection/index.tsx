@@ -6,11 +6,11 @@
 import React from 'react';
 import {
   Divider,
-  Heading,
-  View,
-  Text,
   Grid,
+  Heading,
   repeat,
+  Text,
+  View,
 } from '@adobe/react-spectrum';
 import { Subdomain } from '../../types';
 import { Indicator } from '../../containers/Indicator';

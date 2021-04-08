@@ -1,8 +1,8 @@
 import { LayerProps } from 'react-map-gl';
-import { MenuLayer } from '../../containers/Explorer/types';
+import { GeographyType } from '../../types';
 
 export interface MenuLayerItem {
-  slug: MenuLayer;
+  slug: GeographyType;
   name: string;
   source: {
     type: 'vector' | 'raster';

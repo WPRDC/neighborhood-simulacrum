@@ -178,3 +178,5 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 AVAILABLE_COUNTIES_IDS = ('42073', '42003', '42007', '42125', '42059', '42051', '42129', '42063', '42005', '42019',)
 
 MAP_HOST = 'https://api.profiles.wprdc.org/map_layer'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
