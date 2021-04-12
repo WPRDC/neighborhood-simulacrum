@@ -35,7 +35,7 @@ interface AxisProps extends Pick<BaseAxisProps, 'type' | 'dataKey'> {
 
 export function BarChart(props: Props) {
   const { data, dataKey, barName, layout, highlightIndex } = props;
-  // handle axis flipping based
+  // handle axis flipping
   let axesProps: AxisProps[] = [
     { type: 'number' },
     { type: 'category', dataKey: 'name', width: 200, interval: 0 },
@@ -50,7 +50,6 @@ export function BarChart(props: Props) {
       <RBarChart
         data={data}
         layout={layout}
-        margin={{ left: 1, top: 1, right: 0, bottom: 1 }}
       >
         <CartesianGrid
           strokeDasharray={tickLine ? '3 3' : undefined}

@@ -3,7 +3,7 @@ from django.db import models
 from .time import TimeAxis, RelativeTimeAxis, StaticTimeAxis, StaticConsecutiveTimeAxis
 from .source import Source, CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource
 from .variable import Variable, CensusVariable, CKANVariable, CensusVariableSource
-from .viz import DataViz, Table, MiniMap, OrderedVariable
+from .viz import DataViz, Table, MiniMap, VizVariable
 
 from .abstract import Described
 

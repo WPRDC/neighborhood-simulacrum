@@ -8,6 +8,10 @@ import { VariableSource } from './source';
 
 export type Variable = VariableBase;
 
+export interface VizVariable extends VariableBase {
+  options: VizVariableOptions;
+}
+
 export interface VariableBase extends Described {
   shortName?: string;
   displayName: string;
@@ -20,6 +24,10 @@ export interface VariableBase extends Described {
   localeOptions?: Intl.NumberFormatOptions;
   resourcetype: VariableResourceType;
 }
+
+
+
+type VizVariableOptions = Record<string, any>;
 
 export enum VariableResourceType {
   CKANVariable = 'CKANVariable',

@@ -1,14 +1,14 @@
 import itertools
+import re
 import uuid
 from operator import itemgetter
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Type, Dict, Optional
 
 import jenkspy
 import pystache
-
-from django.core.cache import cache
 from django.conf import settings
 from django.contrib.gis.db.models import Union
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import QuerySet, Manager, Value
@@ -32,12 +32,39 @@ CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
 
 CACHE_TTL = 60 * 60  # 60 mins
 
-class OrderedVariable(models.Model):
+pattern = re.compile(r'(?<!^)(?=[A-Z])')
+
+
+class VizVariable(models.Model):
+    """ Common fields and methods for all variables attached to data vizes """
     order = models.IntegerField()
+
+    @property
+    def options(self) -> Dict:
+        """ Per-viz x per-variable options for rendering """
+        return {}
 
     class Meta:
         abstract = True
         ordering = ['order']
+
+
+class StyledVariable(models.Model):
+    NONE = None
+    HIGHLIGHT = 'HI'
+    SUBTLE = 'SU'
+    AVERAGE = 'AVG'
+    STYLE_CHOICES = ((NONE, 'None'), (HIGHLIGHT, 'Highlight'), (SUBTLE, 'Subtle'), (AVERAGE, 'Avg/Mean'))
+
+    style = models.CharField(verbose_name='Special Style', max_length=4, choices=STYLE_CHOICES,
+                             default=None, null=True, blank=True)
+
+    @property
+    def options(self) -> Dict:
+        return {'style': self.style}
+
+    class Meta:
+        abstract = True
 
 
 class DataViz(PolymorphicModel, Described):
@@ -52,7 +79,6 @@ class DataViz(PolymorphicModel, Described):
     DEFAULT_HEIGHT: int = 2
 
     """ Base class for all Data Presentations """
-    _name: str
     vars: Manager['Variable']
     time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)
     indicator = models.ForeignKey('Indicator', related_name='data_vizes', on_delete=models.CASCADE)
@@ -77,20 +103,17 @@ class DataViz(PolymorphicModel, Described):
 
     @property
     def variables(self) -> QuerySet['Variable']:
+        """ Public property for accessing the variables int he viz. """
+        variable_to_viz = f'variable_to_{self.ref_name}'
         if self.vars:
-            return self.vars.annotate(viz_options=Value(self.options, output_field=models.JSONField()))
+            return self.vars.order_by(variable_to_viz)
         raise AttributeError('Subclasses of DataPresentation must provide their own `vars` ManyToManyField')
 
     @property
-    def options(self) -> dict:
-        options = {}
-        field: models.Field
-        for rel_obj in self.vars.through.objects.filter(**{self._name: self}):
-            for field in rel_obj._meta.get_fields():
-                if not field.is_relation and field.attname != 'id':
-                    field_name: str = field.get_attname()
-                    options[field_name] = getattr(rel_obj, field_name)
-        return options
+    def ref_name(self) -> str:
+        """ The snake case string used to reference this model in related names. """
+        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', self.__class__.__qualname__)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
     def can_handle_geography(self, geog: 'CensusGeography') -> bool:
         var: 'Variable'
@@ -113,8 +136,8 @@ class DataViz(PolymorphicModel, Described):
 # +  Map
 # ==================
 
-class MapLayer(PolymorphicModel, OrderedVariable):
-    minimap = models.ForeignKey('MiniMap', on_delete=models.CASCADE, related_name='map_to_variable')
+class MapLayer(PolymorphicModel, VizVariable):
+    viz = models.ForeignKey('MiniMap', on_delete=models.CASCADE, related_name='map_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_map')
 
     # options
@@ -131,7 +154,12 @@ class MapLayer(PolymorphicModel, OrderedVariable):
     # variables with aggregation methods can be used for styling geographies
     # variables with aggregation methods and "parcel_source"s can be used to style parcels
 
-    def options(self, geog_type_str: str, data: dict):
+    @property
+    def options(self):
+        # todo: make this the interface for `map_options`
+        return {**VizVariable.options.__get__(self)}
+
+    def map_options(self, geog_type_str: str, data: dict):
         raise NotImplementedError
 
 
@@ -153,7 +181,7 @@ class GeogChoroplethMapLayer(MapLayer):
         null=True
     )
 
-    def options(self, geog_type_str: str, data: dict):
+    def map_options(self, geog_type_str: str, data: dict):
         id = str(uuid.uuid4())
         host = settings.MAP_HOST
         # todo: make bucket count an option
@@ -235,7 +263,6 @@ class MiniMap(DataViz):
             ]
         },
     }
-    _name = 'minimap'
     vars = models.ManyToManyField('Variable', verbose_name='Layers', through=MapLayer)
 
     @property
@@ -315,7 +342,7 @@ class MiniMap(DataViz):
         for var in self.vars.all():
             geojson = self._get_map_data(type(geog), var)
             layer: MapLayer = self.vars.through.objects.get(variable=var, minimap=self)
-            source, tmp_layers, interactive_layer_ids, legend_option = layer.options(geog.geog_type, geojson)
+            source, tmp_layers, interactive_layer_ids, legend_option = layer.map_options(geog.geog_type, geojson)
             sources.append(source)
             legend_option['title'] = var.name
             legend_options.append(legend_option)
@@ -343,12 +370,17 @@ class MiniMap(DataViz):
 # +  Table
 # ==================
 
-class TableRow(OrderedVariable):
-    table = models.ForeignKey('Table', on_delete=models.CASCADE, related_name='table_to_variable')
+class TableRow(VizVariable):
+    viz = models.ForeignKey('Table', on_delete=models.CASCADE, related_name='table_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_table')
 
+    @property
+    def options(self):
+        # todo: make this the interface for `map_options`
+        return {**VizVariable.options.__get__(self)}
+
     class Meta:
-        unique_together = ('table', 'variable', 'order',)
+        unique_together = ('viz', 'variable', 'order',)
 
 
 class Table(DataViz):
@@ -356,7 +388,6 @@ class Table(DataViz):
     DEFAULT_WIDTH = 2
     DEFAULT_HEIGHT = 2
 
-    _name = 'table'
     vars = models.ManyToManyField('Variable', verbose_name='Rows', through=TableRow)
     transpose = models.BooleanField(default=False)
     show_percent = models.BooleanField(default=True)
@@ -397,7 +428,6 @@ class Chart(DataViz):
     DEFAULT_WIDTH = 3
     DEFAULT_HEIGHT = 2
 
-    _name = 'chart'
     """
     Abstract base class for charts
     """
@@ -492,19 +522,22 @@ class Chart(DataViz):
         abstract = True
 
 
-class BarChartPart(OrderedVariable):
-    NONE = None
-    HIGHLIGHT = 'HI'
-    SUBTLE = 'SU'
-    AVERAGE = 'AVG'
-    STYLE_CHOICES = ((NONE, 'None'), (HIGHLIGHT, 'Highlight'), (SUBTLE, 'Subtle'), (AVERAGE, 'Avg/Mean'))
-    chart = models.ForeignKey('BarChart', on_delete=models.CASCADE, related_name='bar_chart_to_variable')
-    variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_bar_chart')
-    style = models.CharField(verbose_name='Special Style', max_length=4, choices=STYLE_CHOICES,
-                             default=None, null=True, blank=True)
+class ChartPart(VizVariable, StyledVariable):
+    @property
+    def options(self):
+        return {**VizVariable.options.__get__(self), **StyledVariable.options.__get__(self)}
 
     class Meta:
-        unique_together = ('chart', 'variable', 'order',)
+        abstract = True
+        unique_together = ('viz', 'variable', 'order',)
+
+
+class BarChartPart(ChartPart):
+    viz = models.ForeignKey('BarChart', on_delete=models.CASCADE, related_name='bar_chart_to_variable')
+    variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_bar_chart')
+
+    class Meta:
+        unique_together = ('viz', 'variable', 'order',)
 
 
 class BarChart(Chart):
@@ -524,12 +557,12 @@ class BarChart(Chart):
         return self._get_chart_data(geog, 'variable_to_bar_chart')
 
 
-class PieChartPart(OrderedVariable):
-    chart = models.ForeignKey('PieChart', on_delete=models.CASCADE, related_name='pie_chart_to_variable')
+class PieChartPart(ChartPart):
+    viz = models.ForeignKey('PieChart', on_delete=models.CASCADE, related_name='pie_chart_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_pie_chart')
 
     class Meta:
-        unique_together = ('chart', 'variable', 'order',)
+        unique_together = ('viz', 'variable', 'order',)
 
 
 class PieChart(Chart):
@@ -546,12 +579,12 @@ class PieChart(Chart):
         return self._get_chart_data(geog, 'variable_to_pie_chart')
 
 
-class LineChartPart(OrderedVariable):
-    chart = models.ForeignKey('LineChart', on_delete=models.CASCADE, related_name='line_chart_to_variable')
+class LineChartPart(ChartPart):
+    viz = models.ForeignKey('LineChart', on_delete=models.CASCADE, related_name='line_chart_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_line_chart')
 
     class Meta:
-        unique_together = ('chart', 'variable', 'order',)
+        unique_together = ('viz', 'variable', 'order',)
 
 
 class LineChart(Chart):
@@ -571,14 +604,14 @@ class LineChart(Chart):
         return self._get_chart_data(geog, 'variable_to_line_chart')
 
 
-class PopulationPyramidChartPart(OrderedVariable):
-    chart = models.ForeignKey('PopulationPyramidChart', on_delete=models.CASCADE,
-                              related_name='population_pyramid_chart_to_variable')
+class PopulationPyramidChartPart(ChartPart):
+    viz = models.ForeignKey('PopulationPyramidChart', on_delete=models.CASCADE,
+                            related_name='population_pyramid_chart_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE,
                                  related_name='variable_to_population_pyramid_chart')
 
     class Meta:
-        unique_together = ('chart', 'variable', 'order',)
+        unique_together = ('viz', 'variable', 'order',)
 
 
 class PopulationPyramidChart(Chart):
@@ -592,18 +625,20 @@ class PopulationPyramidChart(Chart):
 # +  Alphanumeric
 # ==================
 class Alphanumeric(DataViz):
-    _name = 'alphanumeric'
-
     class Meta:
         abstract = True
 
 
-class BigValueVariable(OrderedVariable):
-    alphanumeric = models.ForeignKey('BigValue', on_delete=models.CASCADE, related_name='big_value_to_variable')
+class BigValueVariable(VizVariable):
+    viz = models.ForeignKey('BigValue', on_delete=models.CASCADE, related_name='big_value_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_big_value')
 
+    @property
+    def options(self):
+        return VizVariable.options.__get__(self)
+
     class Meta:
-        unique_together = ('alphanumeric', 'variable', 'order',)
+        unique_together = ('viz', 'variable', 'order',)
 
 
 class BigValue(Alphanumeric):
@@ -642,12 +677,16 @@ class BigValue(Alphanumeric):
         return self.width_override or self.DEFAULT_WIDTH
 
 
-class SentenceVariable(OrderedVariable):
-    alphanumeric = models.ForeignKey('Sentence', on_delete=models.CASCADE, related_name='sentence_to_variable')
+class SentenceVariable(VizVariable):
+    viz = models.ForeignKey('Sentence', on_delete=models.CASCADE, related_name='sentence_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_sentence')
 
+    @property
+    def options(self):
+        return VizVariable.options.__get__(self)
+
     class Meta:
-        unique_together = ('alphanumeric', 'variable', 'order',)
+        unique_together = ('viz', 'variable', 'order',)
 
 
 class Sentence(Alphanumeric):

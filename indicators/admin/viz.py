@@ -1,7 +1,7 @@
 from django.contrib import admin
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin, PolymorphicInlineSupportMixin
 
-from indicators.models import MiniMap, DataViz, Table, OrderedVariable
+from indicators.models import MiniMap, DataViz, Table, VizVariable
 
 import nested_admin
 

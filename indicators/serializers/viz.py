@@ -6,14 +6,14 @@ from rest_polymorphic.serializers import PolymorphicSerializer
 from geo.models import CensusGeography
 from geo.serializers import CensusGeographyPolymorphicSerializer
 from . import TimeAxisPolymorphicSerializer
-from .variable import BriefVariablePolymorphicSerializer
+from .variable import VizVariablePolymorphicSerializer
 from ..models import DataViz, Table
 from ..models.viz import BarChart, PopulationPyramidChart, PieChart, LineChart, BigValue, Sentence, MiniMap
 from ..utils import DataResponse
 
 
 class DataVizSerializer(serializers.HyperlinkedModelSerializer):
-    variables = BriefVariablePolymorphicSerializer(many=True)
+    variables = VizVariablePolymorphicSerializer(many=True)
     time_axis = TimeAxisPolymorphicSerializer()
 
     class Meta:

@@ -7,7 +7,7 @@ from django.template.defaultfilters import slugify
 
 from indicators.models import (Indicator, CensusVariable, CensusSource,
                                Subdomain, CensusVariableSource, Table,
-                               OrderedVariable, DataViz, StaticTimeAxis)
+                               VizVariable, DataViz, StaticTimeAxis)
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -127,5 +127,5 @@ def load():
                 table = get_or_generate_table(indicator_description, indicator, time_axis)
 
                 # add variable to table through VizVariable
-                OrderedVariable.objects.create(data_viz=table, variable=cur_var, order=i)
+                VizVariable.objects.create(data_viz=table, variable=cur_var, order=i)
                 i += 1

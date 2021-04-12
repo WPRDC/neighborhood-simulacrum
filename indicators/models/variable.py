@@ -1,23 +1,19 @@
-from dataclasses import dataclass
+from datetime import MINYEAR, MAXYEAR
 from functools import lru_cache
-from typing import Union, List, Dict, Optional, Type
+from typing import Union, Dict, Optional, Type
 
 import requests
-from datetime import MINYEAR, MAXYEAR
-
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import QuerySet, Sum, Value
+from django.db.models import QuerySet, Sum
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
+from census_data.models import CensusValue, CensusTable
 from geo.models import CensusGeography
-from indicators.models.viz import DataViz
-from indicators.models.time import TimeAxis
-from indicators.models.source import CensusSource, CKANSource
 from indicators.models.abstract import Described
-
-from census_data.models import CensusValue, CensusTable, CensusTablePointer
+from indicators.models.source import CensusSource, CKANSource
+from indicators.models.time import TimeAxis
+from indicators.models.viz import DataViz, VizVariable
 
 CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
@@ -122,6 +118,12 @@ class Variable(PolymorphicModel, Described):
             data[denom_variable.slug] = self.get_proportional_datum(geog, time_part, denom_variable)
 
         return data
+
+    def get_options_for_dataviz(self, data_viz: 'DataViz') -> Dict:
+        """ Extracts options from the through model used to link this variable to `data_viz` """
+        through_model: Type['VizVariable'] = data_viz.vars.through
+        viz_var: VizVariable = through_model.objects.get(**{'variable': self, 'viz': data_viz})
+        return viz_var.options
 
     def can_handle_time_part(self, time_part: TimeAxis.TimePart) -> bool:
         for source in self.sources.all():

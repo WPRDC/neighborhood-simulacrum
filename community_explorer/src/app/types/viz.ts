@@ -6,7 +6,7 @@
 
 import { Described } from './common';
 import { TimeAxis } from './time';
-import { Variable } from './variable';
+import { VizVariable } from './variable';
 import { SourceProps } from 'react-map-gl';
 import { LayerOptions, LegendProps, MapProps } from 'wprdc-components';
 import { LayoutType } from 'recharts/types/util/types';
@@ -19,7 +19,7 @@ export interface DataVizID extends Described {
 
 export interface DataVizBase extends DataVizID {
   timeAxis: TimeAxis;
-  variables: Variable[];
+  variables: VizVariable[];
   resourcetype: DataVizResourceType;
 }
 
@@ -73,7 +73,7 @@ export type DataVizData =
   | SentenceData
   | BigValueData;
 
-/** T with `data` required */
+/** DataViz type T with `data` required */
 export type Downloaded<T extends DataVizBase, D extends DataVizData> = T & {
   data: D;
   geog: GeogDescriptor;

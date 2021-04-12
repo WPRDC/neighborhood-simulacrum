@@ -1,8 +1,18 @@
+from typing import TYPE_CHECKING, Dict
+
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
-from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource
+from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource, VizVariable, DataViz
 from indicators.serializers import CKANSourceSerializer
+
+if TYPE_CHECKING:
+    from indicators.views import DataVizViewSet
+
+
+def get_dataviz_from_view(view: 'DataVizViewSet'):
+    data_viz_id = view.kwargs.get(view.lookup_field)
+    return DataViz.objects.get(pk=data_viz_id)
 
 
 class DenominatorSerializer(serializers.ModelSerializer):
@@ -90,6 +100,7 @@ class VariablePolymorphicSerializer(PolymorphicSerializer):
         CKANVariable: CKANVariableSerializer,
     }
 
+
 # Brief
 class CensusVariableBriefSerializer(VariableSerializer):
     sources = CensusVariableSourceSerializer(source='variable_to_source', many=True)
@@ -113,4 +124,37 @@ class BriefVariablePolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         CensusVariable: CensusVariableBriefSerializer,
         CKANVariable: CKANVariableBriefSerializer,
+    }
+
+
+# With Viz
+class CensusVizVariableSerializer(VariableSerializer):
+    denominators = DenominatorSerializer(many=True)
+    options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CensusVariable
+        fields = VariableSerializer.Meta.fields + ('sources', 'options')
+
+    def get_options(self, obj: 'CensusVariable') -> Dict:
+        data_viz: DataViz = get_dataviz_from_view(self.context['view'])
+        return obj.get_options_for_dataviz(data_viz)
+
+
+class CKANVizVariableSerializer(VariableSerializer):
+    denominators = DenominatorSerializer(many=True)
+    options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CKANVariable
+        fields = VariableSerializer.Meta.fields + ('sources', 'options')
+
+    def get_options(self, obj: 'CKANVariable'):
+        return obj.get_options()
+
+
+class VizVariablePolymorphicSerializer(PolymorphicSerializer):
+    model_serializer_mapping = {
+        CensusVariable: CensusVizVariableSerializer,
+        CKANVariable: CKANVizVariableSerializer,
     }
