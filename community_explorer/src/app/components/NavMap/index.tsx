@@ -79,7 +79,6 @@ export function NavMap(props: Props) {
 
   function handleHover(e) {
     if (e.features.length) {
-      console.debug('hover', e.features[0].properties);
       const { geogid: geogID } = e.features[0].properties;
       setHoveredFilter(filterLayerByGeogID(geogID));
     } else {

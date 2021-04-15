@@ -4,7 +4,7 @@
  *
  */
 
-import React, { Key } from 'react';
+import React, { Ref, RefObject, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { useInjectReducer, useInjectSaga } from 'utils/redux-injectors';
@@ -21,37 +21,29 @@ import {
 import More from '@spectrum-icons/workflow/More';
 import { makeSelectDataVizData } from './selectors';
 import { selectSelectedGeogIdentifier } from '../Explorer/selectors';
-import {
-  downloadChart,
-  downloadMiniMap,
-  downloadTable,
-  getSpecificDataViz,
-} from './util';
+import { getSpecificDataViz } from './util';
 
 import {
-  ChartData,
-  ChartViz,
+  DataVizBase,
+  DataVizData,
   DataVizID,
-  DataVizResourceType,
-  Downloaded,
-  MiniMapData,
-  MiniMapViz,
-  TableData,
-  TableViz,
   VariableSource,
+  VizProps,
 } from '../../types';
 import { ProgressBar } from '@react-spectrum/progress';
 import styled from 'styled-components/macro';
-import { DataVizAction } from './types';
 import { selectColorMode } from '../GlobalSettings/selectors';
+import { DOMRefValue, ViewStyleProps } from '@react-types/shared';
+import { DataVizVariant } from './types';
+import Measure from 'react-measure';
 
 interface Props {
   dataVizID: DataVizID;
-  preview?: boolean;
+  variant: DataVizVariant;
 }
 
 export function DataViz(props: Props) {
-  const { dataVizID, preview } = props;
+  const { dataVizID, variant } = props;
   useInjectReducer({ key: sliceKey, reducer: reducer });
   useInjectSaga({ key: sliceKey, saga: dataVizSaga });
 
@@ -63,8 +55,13 @@ export function DataViz(props: Props) {
   const dataVizDataRecord = useSelector(state =>
     selectDataVizDataRecord(state, { dataVizID: dataVizID }),
   );
-
   const colorScheme = useSelector(selectColorMode);
+
+  /* Keep track fo dimensions to send to vega charts */
+  const [{ width, height }, setDimensions] = React.useState({
+    width: 0,
+    height: 0,
+  });
 
   // when this badboy renders, we need to get its data.
   React.useEffect(() => {
@@ -76,82 +73,47 @@ export function DataViz(props: Props) {
     }
   }, [geogIdentifier]);
 
+  // if the record for this viz doesn't exist somehow, gtfo
+  // fixme: is this even possible? can these be addressed through better typing?
   if (!dataVizDataRecord) return null;
 
+  /* Extracting (meta)data from the dataviz */
   const { isLoading, error, dataViz } = dataVizDataRecord;
-
   if (error) console.warn(error);
+  const { name, description } = dataViz || {};
 
-  const { name, description, variables } = dataViz || {};
+  // get correct component
+  const CurrentViz:
+    | React.FunctionComponent<VizProps<DataVizBase, DataVizData>>
+    | undefined = getSpecificDataViz(dataViz);
 
-  // flatten all the sources attached to variables into one set
-  const sources_record =
-    variables &&
-    variables.reduce(
-      (acc, curr) => ({
-        ...acc,
-        ...curr.sources.reduce((a, c) => ({ ...a, [c.slug]: c }), {}),
-      }),
-      {} as Record<string, VariableSource>,
-    );
-
-  const sources = sources_record && Object.values(sources_record);
-
-  // handle style variations
-  const borderWidth = preview ? undefined : 'thin';
-
-  function handleDownload() {
-    switch (dataViz.resourcetype) {
-      case DataVizResourceType.BarChart:
-      case DataVizResourceType.LineChart:
-      case DataVizResourceType.PieChart:
-        downloadChart(dataViz as Downloaded<ChartViz, ChartData>);
-        break;
-      case DataVizResourceType.Table:
-        downloadTable(dataViz as Downloaded<TableViz, TableData>);
-        break;
-      case DataVizResourceType.MiniMap:
-        downloadMiniMap(dataViz as Downloaded<MiniMapViz, MiniMapData>);
-        break;
-    }
-  }
-
-  function handleMenuClick(actionKey: Key) {
-    switch (actionKey) {
-      case DataVizAction.Share:
-        break;
-      case DataVizAction.Embed:
-        break;
-      case DataVizAction.Download:
-        handleDownload();
-        break;
-      default:
-        console.warn(`Unknown action "${actionKey}"`);
-    }
-  }
-
-  if (!dataVizDataRecord) return <View />;
+  // get variant props
+  const wrapperProps = getVizWrapperProps(variant);
 
   return (
-    <View
-      gridColumn={`auto / span ${!!dataViz ? dataViz.viewWidth : 3}`}
-      gridRow={'auto / span 4 '}
-      overflow="auto"
-      position="relative"
-    >
-      <View
-        padding="size-100"
-        aria-label="data presentation preview"
-        height="size-3000"
-        overflow="auto"
-        backgroundColor={preview ? undefined : 'gray-100'}
-        borderRadius={preview ? undefined : 'small'}
-        marginX={preview ? undefined : 'size-100'}
-        margin={preview ? undefined : 'size-100'}
+    <>
+      <Measure
+        bounds
+        onResize={contentRect => {
+          if (contentRect.bounds) setDimensions(contentRect.bounds);
+        }}
       >
-        {!!dataViz && getSpecificDataViz(colorScheme, dataViz)}
-      </View>
-      <View padding="size-100">
+        {({ measureRef }) => (
+          <div ref={measureRef}>
+            <View aria-label="data presentation preview" {...wrapperProps}>
+              {!!CurrentViz && (
+                <CurrentViz
+                  dataViz={dataViz}
+                  colorScheme={colorScheme}
+                  vizHeight={height - 15}
+                  vizWidth={width - 35}
+                />
+              )}
+            </View>
+          </div>
+        )}
+      </Measure>
+      <View paddingTop="size-50">
         {isLoading && <LoadingMessage />}
         {!!error && <Text>{error}</Text>}
         {!!name && (
@@ -169,10 +131,36 @@ export function DataViz(props: Props) {
           </Flex>
         )}
         {description}
-        {!!sources && <SourceBox sources={sources} />}
       </View>
-    </View>
+    </>
   );
+}
+
+DataViz.defaultProps = {
+  variant: DataVizVariant.Default,
+};
+
+function getVizWrapperProps(variant: DataVizVariant): Partial<ViewStyleProps> {
+  switch (variant) {
+    case DataVizVariant.Preview:
+      return {
+        padding: 'size-100',
+        minHeight: 'size-2400',
+        overflow: 'auto',
+      };
+    case DataVizVariant.Blurb:
+      return {};
+    case DataVizVariant.Default:
+    default:
+      return {
+        borderWidth: 'thick',
+        backgroundColor: 'gray-100',
+        borderRadius: 'small',
+        minHeight: 'size-3600',
+        marginX: 'size-100',
+        margin: 'size-100',
+      };
+  }
 }
 
 const LoadingMessage = () => (
@@ -201,18 +189,6 @@ const SourceBox = ({ sources }: { sources: VariableSource[] }) => (
     </List>
   </View>
 );
-
-const HoverActionGroup = styled.div`
-  position: absolute;
-  right: 0;
-  z-index: 1000;
-  opacity: 0.3;
-  transition: 0.3s;
-
-  &:hover {
-    opacity: 1;
-  }
-`;
 
 const List = styled.ul`
   padding-left: 1rem;

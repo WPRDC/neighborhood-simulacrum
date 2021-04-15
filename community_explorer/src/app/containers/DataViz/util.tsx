@@ -1,236 +1,56 @@
 import React from 'react';
 
 import {
-  BarChartViz,
-  BigValueData,
-  BigValueViz,
   ChartData,
-  ChartViz,
-  ColorMode,
   DataVizBase,
   DataVizData,
-  DataVizDataPoint,
   DataVizID,
   DataVizResourceType,
   Downloaded,
   GeogIdentifier,
-  LineChartViz,
-  MiniMapData,
-  MiniMapViz,
-  PieChartViz,
-  SentenceData,
-  SentenceViz,
-  TableData,
-  TableViz,
   Variable,
+  VizProps,
 } from '../../types';
 
-import styled, { css } from 'styled-components';
-import { Table } from '../../components/Table';
-
-import { saveAs } from 'file-saver';
-
-import { Column as ColumnType, RowRecord } from 'wprdc-components';
-import { PieChart } from '../../components/PieChart';
-import { Sentence } from '../../components/Sentence';
-import BigValue from '../../components/BigValue';
-import { BarChart } from '../../components/BarChart';
-import { LineChart } from '../../components/LineChart';
-import { MiniMap } from '../../components/MiniMap';
-import { dumpCSV } from '../../util';
+import { Table } from '../../data-vizes/Table';
+import { PieChart } from '../../data-vizes/PieChart';
+import { Sentence } from '../../data-vizes/Sentence';
+import BigValue from '../../data-vizes/BigValue';
+import { BarChart } from '../../data-vizes/BarChart';
+import { LineChart } from '../../data-vizes/LineChart';
+import { MiniMap } from '../../data-vizes/MiniMap';
 import { Text } from '@react-spectrum/text';
-
-type DownloadedTable = Downloaded<TableViz, TableData>;
-type Row = RowRecord;
-type Column = ColumnType<Row>;
-
-type VizGenerator<T extends DataVizBase, D extends DataVizData> = (
-  dataViz: Downloaded<T, D>,
-  colorScheme: ColorMode,
-) => JSX.Element | null;
+import { PlainObject } from 'react-vega';
 
 export function getSpecificDataViz(
-  colorScheme: ColorMode,
-  dataViz?: Downloaded<DataVizBase, DataVizData>,
+  dataViz?: Downloaded<DataVizBase>,
 ) {
-  if (!dataViz) {
-    return null;
-  }
-  const generators: Record<DataVizResourceType, VizGenerator<any, any>> = {
-    [DataVizResourceType.Sentence]: generateSentence,
-    [DataVizResourceType.BigValue]: generateBigValue,
-    [DataVizResourceType.MiniMap]: generateMiniMap,
-    [DataVizResourceType.Table]: generateTable,
-    [DataVizResourceType.PieChart]: generatePieChart,
-    [DataVizResourceType.LineChart]: generateLineChart,
-    [DataVizResourceType.LineChart]: generateLineChart,
-    [DataVizResourceType.BarChart]: generateBarChart,
+  if (!dataViz) return undefined;
+
+  const componentMap: Record<
+    DataVizResourceType,
+    React.FC<VizProps<any, any>>
+  > = {
+    [DataVizResourceType.Sentence]: Sentence,
+    [DataVizResourceType.BigValue]: BigValue,
+    [DataVizResourceType.MiniMap]: MiniMap,
+    [DataVizResourceType.Table]: Table,
+    [DataVizResourceType.PieChart]: PieChart,
+    [DataVizResourceType.LineChart]: LineChart,
+    [DataVizResourceType.BarChart]: BarChart,
   };
-  const generator = generators[dataViz.resourcetype];
-  return generator(dataViz, colorScheme);
+  return componentMap[dataViz.resourcetype];
 }
-
-/*
- * Data Viz Generators
- */
-const generateSentence: VizGenerator<SentenceViz, SentenceData> = dataViz => (
-  <Sentence {...dataViz} />
-);
-
-const generateBigValue: VizGenerator<BigValueViz, BigValueData> = dataViz => {
-  const items = dataViz.variables.map((variable, idx) => ({
-    value: formatValue(variable, dataViz.data[idx].v),
-    label: variable.name,
-  }));
-
-  return <BigValue data={items} />;
-};
-
-const generateMiniMap: VizGenerator<MiniMapViz, MiniMapData> = (
-  dataViz,
-  colorScheme,
-) => {
-  return <MiniMap {...dataViz.data} colorScheme={colorScheme} />;
-};
-
-const generateTable: VizGenerator<TableViz, TableData> = table => {
-  // map data from API to format for Table
-  const columns: Column[] = [
-    {
-      accessor: 'label',
-      id: 'category',
-    },
-    ...table.timeAxis.timeParts.map(timePart => ({
-      Header: timePart.name,
-      accessor: timePart.slug,
-    })),
-  ];
-
-  const data: Row[] = table.variables.map((variable, idx) => ({
-    key: `${table.slug}/${variable.slug}`,
-    label: formatCategory(variable),
-    ...table.timeAxis.timeParts.reduce(rowValuesReducer(table, idx), {}),
-    subRows: getPercentRows(table, variable, idx),
-    expanded: true,
-  }));
-
-  return <Table columns={columns} data={data} />;
-};
-
-const generateBarChart: VizGenerator<BarChartViz, ChartData> = dataViz => {
-  // if acrossGeogs, then make sure its vertical and hide labels.
-  const layout = dataViz.acrossGeogs ? 'horizontal' : dataViz.layout;
-  const highlightKey = dataViz.acrossGeogs ? 'geoid' : undefined;
-  const highlightValue = dataViz.acrossGeogs ? dataViz.geog.geogID : undefined;
-  const dataKey = dataViz.timeAxis.timeParts[0].slug;
-  const highlightIndex = getHighlightIndex(
-    dataViz.data,
-    highlightKey,
-    highlightValue,
-  );
-
-  const data = dataViz.acrossGeogs
-    ? dataViz.data
-    : dataViz.data.map((d, i) => ({
-        ...d,
-        name: dataViz.variables[i].shortName || d.name,
-      }));
-
-  return (
-    <BarChart
-      layout={layout}
-      data={data}
-      dataKey={dataKey}
-      barName={dataViz.timeAxis.timeParts[0].name}
-      highlightIndex={highlightIndex}
-    />
-  );
-};
-
-const generatePieChart: VizGenerator<PieChartViz, ChartData> = dataViz => {
-  return (
-    <PieChart
-      data={dataViz.data}
-      dataKey={dataViz.timeAxis.timeParts[0].slug}
-    />
-  );
-};
-
-const generateLineChart: VizGenerator<LineChartViz, ChartData> = dataViz => {
-  return (
-    <LineChart
-      data={dataViz.data}
-      dataKey={dataViz.timeAxis.timeParts[0].slug}
-    />
-  );
-};
 
 export function makeKey(dataVizID: DataVizID, geogIdentifier: GeogIdentifier) {
   return `${dataVizID.slug}@${geogIdentifier.geogType}/${geogIdentifier.geogID}`;
 }
 
-const MoEWrapper = styled.span`
-  cursor: pointer;
-  ${({ theme }) => css`
-    color: #62a2ef;
-  `}
-`;
-
-function MoE({ moe }: { moe: number }) {
-  return (
-    <MoEWrapper title={`Margin of Error: ${moe.toFixed(2)}`}>
-      <sup>&#177;</sup>
-    </MoEWrapper>
-  );
-}
-
-function makeCellValue(d: DataVizDataPoint, v: Variable) {
-  let displayValue = d.v;
-  if (typeof d.v === 'number') {
-    displayValue = d.v.toLocaleString(undefined, v.localeOptions || undefined);
-  }
-  return (
-    <>
-      {displayValue}
-      {(d.m || d.m === 0) && <MoE moe={d.m} />}
-    </>
-  );
-}
-
-function getPercentValue(table: DownloadedTable, idx, denom, cur) {
-  const percentValue: number = table.data[idx][cur.slug][denom.slug];
-  return formatPercent(percentValue);
-}
-
-const rowValuesReducer = (table: DownloadedTable, idx) => (acc, cur) => ({
-  ...acc,
-  [cur.slug]: makeCellValue(table.data[idx][cur.slug], table.variables[idx]),
-});
-
-const percentRowValuesReducer = (table: DownloadedTable, idx, denom) => (
-  acc,
-  cur,
-) => ({
-  ...acc,
-  [cur.slug]: getPercentValue(table, idx, denom, cur),
-});
-
-export function getPercentRows(
-  table: DownloadedTable,
-  variable: Variable,
-  idx: number,
-) {
-  return variable.denominators.map(denom => ({
-    key: `${table.slug}/${variable.slug}/${denom.slug}`,
-    label: denom.percentLabel,
-    ...table.timeAxis.timeParts.reduce(
-      percentRowValuesReducer(table, idx, denom),
-      {},
-    ),
-    className: 'subrow',
-  }));
-}
-
+/**
+ * Formats `value` for `variable` per styling data extracted from `variable`.
+ * @param {Variable} variable
+ * @param {number} value
+ */
 export function formatValue(
   variable: Variable,
   value?: string | number | Date,
@@ -249,6 +69,10 @@ export function formatValue(
   }
 }
 
+/**
+ * Formats a percent value per site standards
+ * @param {number} value
+ */
 export function formatPercent(value?: number): React.ReactNode {
   if (typeof value === 'number')
     return value.toLocaleString(undefined, {
@@ -259,6 +83,10 @@ export function formatPercent(value?: number): React.ReactNode {
   return 'N/A';
 }
 
+/**
+ * Extracts title  from `Variable` and formats it.
+ * @param {Variable} variable
+ */
 export function formatCategory(variable: Variable): React.ReactNode {
   const dashes = Array(variable.depth).join('-');
   let category;
@@ -273,55 +101,51 @@ export function formatCategory(variable: Variable): React.ReactNode {
   );
 }
 
-function getHighlightIndex(
-  data: DataVizDataPoint[],
-  key?: string,
-  value?: string,
-) {
-  if (!!key && !!value) {
-    const idx = data.findIndex(v => v[key] === value);
-    if (idx >= 0) return idx;
-  }
-  return undefined;
+/**
+ * Copies the tabular data provided from the API and wraps it in the format `Vega` accepts.
+ * @param {ChartData} data - the tabular data from the viz API
+ */
+export function prepDataForVega(data: ChartData): PlainObject {
+  return { table: data.map(datum => ({ ...datum })) };
 }
 
-export function downloadTable(table: Downloaded<TableViz, TableData>): void {
-  const blob = new Blob([
-    dumpCSV(
-      table.data.map(record =>
-        Object.entries(record).reduce((a, [k, v]) => ({ ...a, k: v.v }), {}),
-      ),
-    ),
-  ]);
-  const fileName = `${table.slug}-${table.geog.title.replace(
-    RegExp('s+'),
-    '-',
-  )}`;
-  saveAs(blob, fileName);
-}
-
-export function downloadChart(chart: Downloaded<ChartViz, ChartData>): void {
-  const blob = new Blob([dumpCSV(chart.data as ChartData)], {
-    type: 'text/csv;charset=utf-8',
-  });
-  const fileName = `${chart.slug}-${chart.geog.title}.csv`;
-  saveAs(blob, fileName);
-}
-
-export function downloadMiniMap(
-  map: Downloaded<MiniMapViz, MiniMapData>,
-): void {
-  const urls: string[] = map.data.sources
-    .filter(s => typeof s.data === 'string')
-    .map(s => s.data as string);
-  const fileName = `${map.slug}.geojson?format=json`;
-
-  const a = document.createElement('a');
-  a.href = urls[0] + '?download=true';
-  a.download = fileName;
-  a.target = '_blank';
-  a.rel = 'noreferrer';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
+// export function downloadTable(table: Downloaded<TableViz, TableData>): void {
+//   const blob = new Blob([
+//     dumpCSV(
+//       table.data.map(record =>
+//         Object.entries(record).reduce((a, [k, v]) => ({ ...a, k: v.v }), {}),
+//       ),
+//     ),
+//   ]);
+//   const fileName = `${table.slug}-${table.geog.title.replace(
+//     RegExp('s+'),
+//     '-',
+//   )}`;
+//   saveAs(blob, fileName);
+// }
+//
+// export function downloadChart(chart: Downloaded<ChartViz, ChartData>): void {
+//   const blob = new Blob([dumpCSV(chart.data)], {
+//     type: 'text/csv;charset=utf-8',
+//   });
+//   const fileName = `${chart.slug}-${chart.geog.title}.csv`;
+//   saveAs(blob, fileName);
+// }
+//
+// export function downloadMiniMap(
+//   map: Downloaded<MiniMapViz, MiniMapData>,
+// ): void {
+//   const urls: string[] = map.data.sources
+//     .filter(s => typeof s.data === 'string')
+//     .map(s => s.data as string);
+//   const fileName = `${map.slug}.geojson?format=json`;
+//
+//   const a = document.createElement('a');
+//   a.href = urls[0] + '?download=true';
+//   a.download = fileName;
+//   a.target = '_blank';
+//   a.rel = 'noreferrer';
+//   document.body.appendChild(a);
+//   a.click();
+//   document.body.removeChild(a);
+// }

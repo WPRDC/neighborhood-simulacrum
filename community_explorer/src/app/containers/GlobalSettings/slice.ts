@@ -3,10 +3,10 @@ import { createSlice } from 'utils/@reduxjs/toolkit';
 import { ContainerState } from './types';
 import { ColorMode } from '../../types';
 
-const DEFAULT_COLOR_MODE: ColorMode =
-  window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? ColorMode.Dark
-    : ColorMode.Light;
+const DEFAULT_COLOR_MODE: ColorMode = ColorMode.Light;
+// window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+//   ? ColorMode.Dark
+//   : ColorMode.Light;
 
 export const initialState: ContainerState = {
   colorMode: DEFAULT_COLOR_MODE,

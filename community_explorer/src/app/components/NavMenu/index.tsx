@@ -29,20 +29,17 @@ export function NavMenu(props: Props) {
   } = props;
 
   function handleAreaSelect(selectedSlug: Key) {
-    console.log(selectedSlug);
     const selectedLayer = GEOG_TYPES.filter(({ id }) => id === selectedSlug)[0];
     onLayerSelect(selectedLayer);
   }
 
   function handleGeogSelect(selectedKey: Key) {
-    console.log(selectedKey);
     const [geogType, geogID] = splitKey(selectedKey as string);
     onGeogSelect({ geogType, geogID });
   }
 
   // const geogsLoading = geogsListsAreLoadingRecord[selectedGeoLayer.id];
   const geogs = geogsListsRecord[selectedGeoLayer.id] || [];
-  console.debug(geogs);
   const selectedGeogKey = makeGeogKey(selectedGeog);
   // handle selection of said geog from picker
   // whole app needs to get state of selected geog from same place

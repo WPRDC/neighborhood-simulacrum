@@ -137,8 +137,8 @@ class DataViz(PolymorphicModel, Described):
 # ==================
 
 class MapLayer(PolymorphicModel, VizVariable):
-    viz = models.ForeignKey('MiniMap', on_delete=models.CASCADE, related_name='map_to_variable')
-    variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_map')
+    viz = models.ForeignKey('MiniMap', on_delete=models.CASCADE, related_name='mini_map_to_variable')
+    variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_mini_map')
 
     # options
     visible = models.BooleanField()
@@ -196,7 +196,7 @@ class GeogChoroplethMapLayer(MapLayer):
         source = {
             'id': id,
             'type': 'geojson',
-            'data': f"{host}/{geog_type_str}:{self.minimap.id}:{self.variable.id}.geojson"
+            'data': f"{host}/{geog_type_str}:{self.viz.id}:{self.variable.id}.geojson"
         }
         layers = [{
             "id": f'{id}/boundary',
@@ -341,7 +341,7 @@ class MiniMap(DataViz):
         }
         for var in self.vars.all():
             geojson = self._get_map_data(type(geog), var)
-            layer: MapLayer = self.vars.through.objects.get(variable=var, minimap=self)
+            layer: MapLayer = self.vars.through.objects.get(variable=var, viz=self)
             source, tmp_layers, interactive_layer_ids, legend_option = layer.map_options(geog.geog_type, geojson)
             sources.append(source)
             legend_option['title'] = var.name
@@ -431,10 +431,6 @@ class Chart(DataViz):
     """
     Abstract base class for charts
     """
-    HORIZONTAL = 'horizontal'
-    VERTICAL = 'vertical'
-    LAYOUT_CHOICES = ((HORIZONTAL, 'Horizontal'), (VERTICAL, 'Vertical'))
-
     LINE = 'line'
     SQUARE = 'square'
     RECT = 'rect'
@@ -475,28 +471,33 @@ class Chart(DataViz):
         raise NotImplementedError('Each type of chart must define how to get chart data.')
 
     def _get_data_across_geogs(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> []:
-        cache_key = f'{self.slug}{variable.slug}@{geog_type.TYPE}'
+        # check cache first
+        cache_key = f'{self.slug}/{variable.slug}@{geog_type.TYPE}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return cached_data
 
-        data = []
+        # filter to geographic domain
         domain = County.objects \
             .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
             .aggregate(the_geom=Union('geom'))
 
-        for geog in geog_type.objects.filter(geom__coveredby=domain['the_geom']):
-            data.append(variable.get_chart_record(self, geog, by_geog=True))
+        # get data
+        data = []
+        for time_part in self.time_axis.time_parts:
+            for geog in geog_type.objects.filter(geom__coveredby=domain['the_geom']):
+                data.append(variable.get_chart_record(self, geog, time_part))
+            break  # only handling 1 time series for across-geog views for now
 
-        time_slug = self.time_axis.time_parts[0].slug
-        sorted_data = sorted([d for d in data if time_slug in d], key=itemgetter(time_slug))
-        cache.set(cache_key, sorted_data, CACHE_TTL)
-        return sorted_data
+        # set cache for next time
+        cache.set(cache_key, data, CACHE_TTL)
+        return data
 
     def _get_data_across_variables(self, geog: 'CensusGeography', variables: QuerySet['Variable']) -> []:
         data = []
-        for variable in variables:
-            data.append(variable.get_chart_record(self, geog))
+        for time_part in self.time_axis.time_parts:
+            for variable in variables:
+                data.append(variable.get_chart_record(self, geog, time_part))
         return data
 
     def _get_chart_data(self, geog: 'CensusGeography', through: str) -> DataResponse:
@@ -509,10 +510,12 @@ class Chart(DataViz):
                 data = self._get_data_across_geogs(type(geog), variables[0])
             else:
                 data = self._get_data_across_variables(geog, variables)
-            error = ErrorResponse(level=ErrorLevel.OK,
-                                  message=f'This Chart is not available for this {geog.name}.')
+            error = ErrorResponse(level=ErrorLevel.OK, message=None)
+
         else:
-            error = ErrorResponse(level=ErrorLevel.EMPTY, message=None)
+            error = ErrorResponse(level=ErrorLevel.EMPTY,
+                                  message=f'This Chart is not available for this {geog.name}.')
+
         return DataResponse(data=data, error=error)
 
     def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
@@ -542,12 +545,15 @@ class BarChartPart(ChartPart):
 
 class BarChart(Chart):
     DEFAULT_WIDTH = 5
+    BAR = 'bar'
+    COLUMN = 'column'
+    LAYOUT_CHOICES = ((BAR, 'Bar'), (COLUMN, 'Column'))
 
     vars = models.ManyToManyField('Variable', through=BarChartPart)
     layout = models.CharField(
         max_length=10,
-        choices=Chart.LAYOUT_CHOICES,
-        default=Chart.HORIZONTAL)
+        choices=LAYOUT_CHOICES,
+        default=BAR)
 
     @property
     def variables(self):
@@ -591,10 +597,6 @@ class LineChart(Chart):
     """
     """
     vars = models.ManyToManyField('Variable', through=LineChartPart)
-    layout = models.CharField(
-        max_length=10,
-        choices=Chart.LAYOUT_CHOICES,
-        default=Chart.HORIZONTAL)
 
     @property
     def variables(self):
@@ -619,6 +621,7 @@ class PopulationPyramidChart(Chart):
 
     def get_chart_data(self, geog: 'CensusGeography') -> DataResponse:
         return self._get_chart_data(geog, 'variable_to_population_pyramid_chart')
+
 
 
 # ==================

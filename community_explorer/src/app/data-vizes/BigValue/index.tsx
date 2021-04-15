@@ -6,19 +6,22 @@
 import React from 'react';
 
 import { Text, View } from '@adobe/react-spectrum';
+import { BigValueData, BigValueViz, VizProps } from '../../types';
+import { formatValue } from '../../containers/DataViz/util';
 
-interface Props {
-  data: { value: React.ReactNode; label: React.ReactNode }[];
-  note?: string;
-}
+interface Props extends VizProps<BigValueViz, BigValueData> {}
 
 export function BigValue(props: Props) {
-  const { data } = props;
+  const { dataViz } = props;
+  const items = dataViz.variables.map((variable, idx) => ({
+    value: formatValue(variable, dataViz.data[idx].v),
+    label: variable.name,
+  }));
 
   return (
     <View>
-      {data &&
-        data.map(({ value, label }) => (
+      {items &&
+        items.map(({ value, label }) => (
           <View>
             <View padding="none">
               <Text

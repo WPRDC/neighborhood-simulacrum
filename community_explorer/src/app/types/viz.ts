@@ -9,12 +9,13 @@ import { TimeAxis } from './time';
 import { VizVariable } from './variable';
 import { SourceProps } from 'react-map-gl';
 import { LayerOptions, LegendProps, MapProps } from 'wprdc-components';
-import { LayoutType } from 'recharts/types/util/types';
-import { GeogDescriptor } from './index';
+import { ColorMode, GeogDescriptor } from './index';
+import { PropsWithChildren } from 'react';
 
 export interface DataVizID extends Described {
   viewHeight: number;
   viewWidth: number;
+  resourcetype: DataVizResourceType;
 }
 
 export interface DataVizBase extends DataVizID {
@@ -50,7 +51,15 @@ export type ChartViz = LineChartViz | BarChartViz | PieChartViz;
 
 // Response data formats
 export type TableData = Record<string, DataVizDataPoint>[];
-export type ChartData = DataVizDataPoint[];
+
+export interface ChartRecord {
+  variable: string;
+  timeSeries: string;
+  geog: string;
+  value: number;
+}
+
+export type ChartData = ChartRecord[];
 export type MiniMapData = {
   sources: SourceProps[];
   layers: LayerOptions[];
@@ -74,7 +83,7 @@ export type DataVizData =
   | BigValueData;
 
 /** DataViz type T with `data` required */
-export type Downloaded<T extends DataVizBase, D extends DataVizData> = T & {
+export type Downloaded<T extends DataVizBase, D = DataVizData> = T & {
   data: D;
   geog: GeogDescriptor;
 };
@@ -91,7 +100,7 @@ export interface PieChartViz extends DataVizBase {
 
 export interface BarChartViz extends DataVizBase {
   data?: ChartData;
-  layout: LayoutType;
+  layout: 'bar' | 'column';
   acrossGeogs: boolean;
   resourcetype: DataVizResourceType.BarChart;
 }
@@ -117,4 +126,12 @@ export interface BigValueViz extends DataVizBase {
   note?: string;
   data?: BigValueData;
   resourcetype: DataVizResourceType.BigValue;
+}
+
+export interface VizProps<T extends DataVizBase, D extends DataVizData>
+  extends PropsWithChildren<any> {
+  dataViz: Downloaded<T, D>;
+  colorScheme?: ColorMode;
+  vizHeight?: number;
+  vizWidth?: number;
 }

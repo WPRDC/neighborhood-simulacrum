@@ -128,7 +128,6 @@ function requestGeogDescription(geogIdentifier: GeogIdentifier) {
 }
 
 function requestGeogList(geogType: GeographyType) {
-  console.debug(geogType);
   return callApi(Endpoint.Geog, Method.GET, { id: geogType });
 }
 

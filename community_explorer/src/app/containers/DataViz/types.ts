@@ -35,3 +35,9 @@ export enum DataVizAction {
   Download = 'download',
   Embed = 'embed',
 }
+
+export enum DataVizVariant {
+  Default,
+  Preview,
+  Blurb,
+}

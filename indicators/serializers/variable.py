@@ -150,7 +150,8 @@ class CKANVizVariableSerializer(VariableSerializer):
         fields = VariableSerializer.Meta.fields + ('sources', 'options')
 
     def get_options(self, obj: 'CKANVariable'):
-        return obj.get_options()
+        data_viz: DataViz = get_dataviz_from_view(self.context['view'])
+        return obj.get_options_for_dataviz(data_viz)
 
 
 class VizVariablePolymorphicSerializer(PolymorphicSerializer):

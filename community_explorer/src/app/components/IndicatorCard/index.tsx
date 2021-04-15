@@ -16,6 +16,7 @@ import {
 import { Heading } from '@react-spectrum/text';
 import More from '@spectrum-icons/workflow/More';
 import { DataViz } from 'app/containers/DataViz';
+import { DataVizVariant } from '../../containers/DataViz/types';
 
 interface Props {
   indicator: Indicator;
@@ -62,7 +63,7 @@ function IndicatorCard({ indicator, onExplore }: Props) {
       >
         {primaryDataViz && (
           <DataViz
-            preview
+            variant={DataVizVariant.Preview}
             key={primaryDataViz.slug}
             dataVizID={primaryDataViz}
           />

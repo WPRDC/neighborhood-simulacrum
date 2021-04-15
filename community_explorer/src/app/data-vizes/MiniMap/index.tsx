@@ -4,29 +4,18 @@
  *
  */
 import React from 'react';
-import {
-  LayerOptions,
-  Legend,
-  LegendProps,
-  Map,
-  MapProps,
-  SimpleLabelPopupContent,
-} from 'wprdc-components';
-import { SourceProps } from 'react-map-gl';
-import { MAPBOX_API_TOKEN } from '../../settings';
-import { View } from '@adobe/react-spectrum';
-import { ColorMode } from '../../types';
+import {Legend, Map, SimpleLabelPopupContent,} from 'wprdc-components';
+import {MAPBOX_API_TOKEN} from '../../settings';
+import {View} from '@adobe/react-spectrum';
+import {ColorMode, MiniMapData, MiniMapViz, VizProps} from '../../types';
 
-interface Props {
-  sources: SourceProps[];
-  layers: LayerOptions[];
-  mapOptions: Partial<MapProps>;
-  legends: LegendProps[];
-  colorScheme: ColorMode;
+interface Props extends VizProps<MiniMapViz, MiniMapData> {
+  colorScheme?: ColorMode;
 }
 
 export function MiniMap(props: Props) {
-  const { sources, layers, mapOptions, legends, colorScheme } = props;
+  const { dataViz, colorScheme } = props;
+  const { sources, layers, mapOptions, legends } = dataViz.data;
 
   return (
     <View borderWidth="thin" height="size-3400">
@@ -47,7 +36,7 @@ export function MiniMap(props: Props) {
         layers={layers}
         getCursor={() => 'crosshair'}
         minZoom={6}
-        basemapStyle={colorScheme}
+        basemapStyle={colorScheme || ColorMode.Light}
         {...mapOptions}
       />
     </View>
