@@ -6,8 +6,13 @@ import {
   DataVizDataRecord,
   DataVizRequest,
 } from './types';
-import { makeKey } from './util';
-import { DataVizID, GeogIdentifier } from '../../types';
+import { downloadCSV, makeKey } from './util';
+import {
+  DataVizBase,
+  DataVizID,
+  Downloaded,
+  GeogIdentifier,
+} from '../../types';
 
 // The initial state of the DataViz container
 export const initialState: ContainerState = {
@@ -77,6 +82,9 @@ const dataVizSlice = createSlice({
           error: errorMsg,
         },
       );
+    },
+    downloadDataVizData(state, action: PayloadAction<Downloaded<DataVizBase>>) {
+      downloadCSV(action.payload);
     },
   },
 });

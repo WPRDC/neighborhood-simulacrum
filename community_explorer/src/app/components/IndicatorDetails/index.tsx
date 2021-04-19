@@ -42,7 +42,7 @@ export function IndicatorDetails({
       <Grid
         columns={repeat('auto-fit', minmax('size-3600', 'size-6000'))}
         rows="auto"
-        gap="size-250"
+        gap="size-500"
       >
         {vizes.map(dataViz => (
           <View key={dataViz.slug} maxWidth="size-6000" minHeight="size-2400">

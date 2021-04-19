@@ -42,6 +42,7 @@ export function Table(props: Props) {
     subRows: getPercentRows(dataViz, variable, idx),
     expanded: true,
   }));
+
   return (
     <View padding="size-100">
       <WTable columns={columns} data={data} />

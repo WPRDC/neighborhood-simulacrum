@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Dict
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
-from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource, VizVariable, DataViz
-from indicators.serializers import CKANSourceSerializer
+from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource, DataViz
+from indicators.serializers.source import SourceSerializer, CKANSourceSerializer
 
 if TYPE_CHECKING:
     from indicators.views import DataVizViewSet
@@ -44,6 +44,7 @@ class VariableSerializer(serializers.ModelSerializer):
             'units',
             'unit_notes',
             'denominators',
+            'sources',
             'depth',
             'display_name',
             'percent_label',

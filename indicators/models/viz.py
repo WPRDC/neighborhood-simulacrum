@@ -21,6 +21,7 @@ from rest_framework.exceptions import NotFound
 from geo.models import BlockGroup, County
 from geo.serializers import CensusGeographyDataMapSerializer
 from indicators.helpers import clean_sql
+from indicators.models.source import Source
 from indicators.models.abstract import Described
 from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
 
@@ -114,6 +115,17 @@ class DataViz(PolymorphicModel, Described):
         """ The snake case string used to reference this model in related names. """
         name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', self.__class__.__qualname__)
         return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+
+    @property
+    def sources(self) -> QuerySet['Source']:
+        source_ids = set()
+        variable: Variable
+        print(source_ids)
+        for variable in self.variables:
+            var_source_ids = [s.id for s in variable.sources.all()]
+            for var_source_id in var_source_ids:
+                source_ids.add(var_source_id)
+        return Source.objects.filter(pk__in=list(source_ids))
 
     def can_handle_geography(self, geog: 'CensusGeography') -> bool:
         var: 'Variable'
@@ -621,7 +633,6 @@ class PopulationPyramidChart(Chart):
 
     def get_chart_data(self, geog: 'CensusGeography') -> DataResponse:
         return self._get_chart_data(geog, 'variable_to_population_pyramid_chart')
-
 
 
 # ==================

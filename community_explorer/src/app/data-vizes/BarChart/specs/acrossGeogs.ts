@@ -20,6 +20,10 @@ const acrossGeogs: vega.Spec = {
       name: 'table',
       values: [],
     },
+    {
+      name: 'highlight',
+      values: [],
+    },
   ],
   scales: [
     {
@@ -74,16 +78,28 @@ const acrossGeogs: vega.Spec = {
       type: 'rect',
       encode: {
         enter: {
+          tooltip: {
+            signal: "datum.geog + ': ' + format(datum.value, '1,')",
+          },
           x: { scale: 'geogScale', field: 'geog' },
           width: { scale: 'geogScale', band: 1 },
           y: { scale: 'valueScale', field: 'value' },
           y2: { scale: 'valueScale', value: 0 },
+          cornerRadiusTopLeft: { value: 2 },
+          cornerRadiusTopRight: { value: 2 },
         },
         update: {
-          fill: { value: 'steelblue' },
+          fill: [
+            {
+              test: "indata('highlight', 'highlight', datum.geog)",
+              value: '#F2B705',
+            },
+            { value: '#96C6D9' },
+          ],
+          stroke: { value: '' },
         },
         hover: {
-          fill: { value: 'red' },
+          stroke: { value: 'black' },
         },
       },
     },

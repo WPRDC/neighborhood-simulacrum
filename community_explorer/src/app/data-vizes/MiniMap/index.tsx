@@ -4,10 +4,10 @@
  *
  */
 import React from 'react';
-import {Legend, Map, SimpleLabelPopupContent,} from 'wprdc-components';
-import {MAPBOX_API_TOKEN} from '../../settings';
-import {View} from '@adobe/react-spectrum';
-import {ColorMode, MiniMapData, MiniMapViz, VizProps} from '../../types';
+import { Legend, Map, SimpleLabelPopupContent } from 'wprdc-components';
+import { MAPBOX_API_TOKEN } from '../../settings';
+import { View } from '@adobe/react-spectrum';
+import { ColorMode, MiniMapData, MiniMapViz, VizProps } from '../../types';
 
 interface Props extends VizProps<MiniMapViz, MiniMapData> {
   colorScheme?: ColorMode;
@@ -18,7 +18,7 @@ export function MiniMap(props: Props) {
   const { sources, layers, mapOptions, legends } = dataViz.data;
 
   return (
-    <View borderWidth="thin" height="size-3400">
+    <View height="size-3600">
       <Map
         mapboxApiAccessToken={MAPBOX_API_TOKEN}
         width="100%"

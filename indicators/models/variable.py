@@ -4,14 +4,14 @@ from typing import Union, Dict, Optional, Type
 
 import requests
 from django.db import models
-from django.db.models import QuerySet, Sum
+from django.db.models import QuerySet, Sum, Manager
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
 from census_data.models import CensusValue, CensusTable
 from geo.models import CensusGeography
 from indicators.models.abstract import Described
-from indicators.models.source import CensusSource, CKANSource
+from indicators.models.source import Source, CensusSource, CKANSource
 from indicators.models.time import TimeAxis
 from indicators.models.viz import DataViz, VizVariable
 
@@ -20,6 +20,7 @@ DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
 
 class Variable(PolymorphicModel, Described):
+    sources: Manager['Source']
     short_name = models.CharField(max_length=26, null=True, blank=True)
 
     units = models.CharField(

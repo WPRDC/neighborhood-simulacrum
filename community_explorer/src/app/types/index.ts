@@ -57,6 +57,7 @@ export interface GeogDescriptor extends GeogIdentifier {
 
 export interface GeogIdentifier {
   id?: string | number;
+  title?: string;
   geogType: GeogType;
   geogID: string;
 }

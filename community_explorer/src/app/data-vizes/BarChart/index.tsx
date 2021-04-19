@@ -5,29 +5,35 @@
  */
 import React from 'react';
 import { specs } from './specs';
-import { ChartData, BarChartViz, VizProps } from '../../types';
-import { Vega } from 'react-vega';
+import { BarChartViz, ChartData, GeogIdentifier, VizProps } from '../../types';
+import { PlainObject, Vega } from 'react-vega';
 import { prepDataForVega } from '../../containers/DataViz/util';
-import vega from 'vega';
+import * as vega from 'vega';
 
 interface Props extends VizProps<BarChartViz, ChartData> {}
 
 export function BarChart(props: Props) {
-  const { dataViz, vizHeight, vizWidth } = props;
+  const { dataViz, geog, vizHeight, vizWidth } = props;
   const data = prepDataForVega(dataViz.data);
   const spec = getSpec(dataViz);
-
-  console.log({ vizHeight, vizWidth });
+  const extraData = getExtraData(dataViz, geog);
 
   return (
     <Vega
       spec={spec}
-      data={data}
+      data={{ ...data, ...extraData }}
       height={vizHeight}
       width={vizWidth}
       actions={false}
     />
   );
+}
+
+function getExtraData(dataViz: BarChartViz, geog: GeogIdentifier): PlainObject {
+  if (dataViz.acrossGeogs) {
+    return { highlight: { highlight: geog.geogID } };
+  }
+  return {};
 }
 
 function getSpec(dataViz: BarChartViz): vega.Spec {

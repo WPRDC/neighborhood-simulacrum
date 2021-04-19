@@ -6,6 +6,7 @@ from rest_polymorphic.serializers import PolymorphicSerializer
 from geo.models import CensusGeography
 from geo.serializers import CensusGeographyPolymorphicSerializer
 from . import TimeAxisPolymorphicSerializer
+from .source import SourceSerializer
 from .variable import VizVariablePolymorphicSerializer
 from ..models import DataViz, Table
 from ..models.viz import BarChart, PopulationPyramidChart, PieChart, LineChart, BigValue, Sentence, MiniMap
@@ -15,6 +16,7 @@ from ..utils import DataResponse
 class DataVizSerializer(serializers.HyperlinkedModelSerializer):
     variables = VizVariablePolymorphicSerializer(many=True)
     time_axis = TimeAxisPolymorphicSerializer()
+    sources = SourceSerializer(many=True)
 
     class Meta:
         model = DataViz
@@ -22,6 +24,7 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
             'id',
             'name',
             'slug',
+            'sources',
             'time_axis',
             'variables',
             'indicator',
@@ -197,12 +200,15 @@ class DataVizWithDataPolymorphicSerializer(PolymorphicSerializer):
 # brief
 
 class DataVizIdentifiersSerializer(serializers.HyperlinkedModelSerializer):
+    sources = SourceSerializer(many=True)
+
     class Meta:
         model = DataViz
         fields = (
             'id',
             'name',
             'slug',
+            'sources',
             'view_height',
             'view_width',
         )

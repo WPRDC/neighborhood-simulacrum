@@ -9,8 +9,8 @@ import { TimeAxis } from './time';
 import { VizVariable } from './variable';
 import { SourceProps } from 'react-map-gl';
 import { LayerOptions, LegendProps, MapProps } from 'wprdc-components';
-import { ColorMode, GeogDescriptor } from './index';
-import { PropsWithChildren } from 'react';
+import { ColorMode, GeogDescriptor, GeogIdentifier, SourceBase } from './index';
+import React, { PropsWithChildren } from 'react';
 
 export interface DataVizID extends Described {
   viewHeight: number;
@@ -22,6 +22,7 @@ export interface DataVizBase extends DataVizID {
   timeAxis: TimeAxis;
   variables: VizVariable[];
   resourcetype: DataVizResourceType;
+  sources: SourceBase[];
 }
 
 export type DataVisualization =
@@ -52,7 +53,7 @@ export type ChartViz = LineChartViz | BarChartViz | PieChartViz;
 // Response data formats
 export type TableData = Record<string, DataVizDataPoint>[];
 
-export interface ChartRecord {
+export interface ChartRecord extends Record<string, string | number | boolean> {
   variable: string;
   timeSeries: string;
   geog: string;
@@ -60,6 +61,7 @@ export interface ChartRecord {
 }
 
 export type ChartData = ChartRecord[];
+
 export type MiniMapData = {
   sources: SourceProps[];
   layers: LayerOptions[];
@@ -131,7 +133,24 @@ export interface BigValueViz extends DataVizBase {
 export interface VizProps<T extends DataVizBase, D extends DataVizData>
   extends PropsWithChildren<any> {
   dataViz: Downloaded<T, D>;
+  geog: GeogIdentifier;
   colorScheme?: ColorMode;
   vizHeight?: number;
   vizWidth?: number;
+}
+
+export interface VizWrapperProps {
+  isLoading: boolean;
+  geogIdentifier: GeogIdentifier;
+  colorScheme: ColorMode;
+  dataViz?: Downloaded<DataVizBase>;
+  CurrentViz?: React.FC<VizProps<DataVizBase, DataVizData>>;
+  menu: JSX.Element;
+}
+
+export enum VizMenuItem {
+  DownloadData = 'DownloadData',
+  DownloadSVG = 'DownloadSvg',
+  Report = 'Report',
+  Share = 'Share',
 }

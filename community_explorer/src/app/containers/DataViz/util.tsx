@@ -1,17 +1,20 @@
 import React from 'react';
-
 import {
   ChartData,
+  ChartViz,
   DataVizBase,
-  DataVizData,
   DataVizID,
   DataVizResourceType,
   Downloaded,
   GeogIdentifier,
+  MiniMapData,
+  MiniMapViz,
+  TableData,
+  TableViz,
   Variable,
   VizProps,
 } from '../../types';
-
+import { saveAs } from 'file-saver';
 import { Table } from '../../data-vizes/Table';
 import { PieChart } from '../../data-vizes/PieChart';
 import { Sentence } from '../../data-vizes/Sentence';
@@ -21,10 +24,13 @@ import { LineChart } from '../../data-vizes/LineChart';
 import { MiniMap } from '../../data-vizes/MiniMap';
 import { Text } from '@react-spectrum/text';
 import { PlainObject } from 'react-vega';
+import { DataVizVariant } from './types';
+import { DataVizMini } from '../../components/DataVizMini';
+import { DataVizPreview } from '../../components/DataVizPreview';
+import { DataVizCard } from '../../components/DataVizCard';
+import { dumpCSV } from '../../util';
 
-export function getSpecificDataViz(
-  dataViz?: Downloaded<DataVizBase>,
-) {
+export function getSpecificDataViz(dataViz?: Downloaded<DataVizBase>) {
   if (!dataViz) return undefined;
 
   const componentMap: Record<
@@ -109,43 +115,61 @@ export function prepDataForVega(data: ChartData): PlainObject {
   return { table: data.map(datum => ({ ...datum })) };
 }
 
-// export function downloadTable(table: Downloaded<TableViz, TableData>): void {
-//   const blob = new Blob([
-//     dumpCSV(
-//       table.data.map(record =>
-//         Object.entries(record).reduce((a, [k, v]) => ({ ...a, k: v.v }), {}),
-//       ),
-//     ),
-//   ]);
-//   const fileName = `${table.slug}-${table.geog.title.replace(
-//     RegExp('s+'),
-//     '-',
-//   )}`;
-//   saveAs(blob, fileName);
-// }
-//
-// export function downloadChart(chart: Downloaded<ChartViz, ChartData>): void {
-//   const blob = new Blob([dumpCSV(chart.data)], {
-//     type: 'text/csv;charset=utf-8',
-//   });
-//   const fileName = `${chart.slug}-${chart.geog.title}.csv`;
-//   saveAs(blob, fileName);
-// }
-//
-// export function downloadMiniMap(
-//   map: Downloaded<MiniMapViz, MiniMapData>,
-// ): void {
-//   const urls: string[] = map.data.sources
-//     .filter(s => typeof s.data === 'string')
-//     .map(s => s.data as string);
-//   const fileName = `${map.slug}.geojson?format=json`;
-//
-//   const a = document.createElement('a');
-//   a.href = urls[0] + '?download=true';
-//   a.download = fileName;
-//   a.target = '_blank';
-//   a.rel = 'noreferrer';
-//   document.body.appendChild(a);
-//   a.click();
-//   document.body.removeChild(a);
-// }
+export function getVariantComponent(variant: DataVizVariant) {
+  switch (variant) {
+    case DataVizVariant.Blurb:
+      return DataVizMini;
+    case DataVizVariant.Preview:
+      return DataVizPreview;
+    case DataVizVariant.Default:
+    default:
+      return DataVizCard;
+  }
+}
+
+export function downloadCSV(dataViz: Downloaded<DataVizBase>) {
+  switch (dataViz.resourcetype) {
+    case DataVizResourceType.Table:
+      return downloadTable(dataViz as Downloaded<TableViz, TableData>);
+    case DataVizResourceType.BarChart:
+    case DataVizResourceType.LineChart:
+    case DataVizResourceType.PieChart:
+      return downloadChart(dataViz as Downloaded<ChartViz, ChartData>);
+    case DataVizResourceType.MiniMap:
+      return downloadMiniMap(dataViz as Downloaded<MiniMapViz, MiniMapData>);
+  }
+}
+
+export function downloadTable(table: Downloaded<TableViz, TableData>): void {
+  const blob = new Blob([
+    dumpCSV(
+      table.data.map(record =>
+        Object.entries(record).reduce((a, [k, v]) => ({ ...a, k: v.v }), {}),
+      ),
+    ),
+  ]);
+  const fileName = `${table.slug}-${table.geog.title.replace(
+    RegExp('s+'),
+    '-',
+  )}`;
+  saveAs(blob, fileName);
+}
+
+export function downloadChart(chart: Downloaded<ChartViz, ChartData>): void {
+  const blob = new Blob([dumpCSV(chart.data)], {
+    type: 'text/csv;charset=utf-8',
+  });
+  const fileName = `${chart.slug}-${chart.geog.title}.csv`;
+  saveAs(blob, fileName);
+}
+
+export function downloadMiniMap(
+  map: Downloaded<MiniMapViz, MiniMapData>,
+): void {
+  const urls: string[] = map.data.sources
+    .filter(s => typeof s.data === 'string')
+    .map(s => s.data as string);
+  const fileName = `${map.slug}.geojson?format=json`;
+  const url = urls[0] + '?download=true';
+  saveAs(url, fileName);
+}

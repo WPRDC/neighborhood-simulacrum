@@ -4,7 +4,9 @@ import {
   DataVizID,
   Downloaded,
   GeogIdentifier,
+  VizMenuItem,
 } from '../../types';
+import React from 'react';
 
 export interface DataVizState {
   dataVizDataCache: DataVizDataCache;
@@ -30,14 +32,20 @@ export interface DataVizRequest {
 
 export type ContainerState = DataVizState;
 
-export enum DataVizAction {
-  Share = 'share',
-  Download = 'download',
-  Embed = 'embed',
-}
-
 export enum DataVizVariant {
   Default,
   Preview,
   Blurb,
+  Details,
+}
+
+export interface MenuItem {
+  key: VizMenuItem;
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+}
+
+export enum AvailableDialogs {
+  Report,
+  Share,
 }
