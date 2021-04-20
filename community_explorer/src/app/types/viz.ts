@@ -70,12 +70,22 @@ export type MiniMapData = {
 };
 export type SentenceData = string;
 
-export interface BigValueDataPoint {
-  v: any;
-  options: Record<string, any>;
+type BigValueDataKeys = 'v' | 'p' | 'd';
+
+interface BigValueDataPoint {
+  /** value */
+  v: number;
+  /** percent */
+  p?: number;
+  /** denominator */
+  d?: number;
+  /** for styling the values */
+  localeOptions: Record<BigValueDataKeys, Partial<BigIntToLocaleStringOptions>>;
+  note?: string;
+  _raw?: Record<BigValueDataKeys | string, any>;
 }
 
-export type BigValueData = [BigValueDataPoint];
+export type BigValueData = BigValueDataPoint;
 
 export type DataVizData =
   | TableData

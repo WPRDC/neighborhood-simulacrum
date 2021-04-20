@@ -56,7 +56,7 @@ export function TopBar(props: Props) {
       <Flex alignSelf="center" alignItems="center">
         <View flexGrow={1}>
           <Heading level={1} alignSelf={'center'} margin="size-0">
-            Child Health Data Explorer
+            Children's Health Data Explorer
           </Heading>
         </View>
         <View paddingX="size-300">

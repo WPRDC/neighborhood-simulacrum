@@ -7,41 +7,65 @@ import React from 'react';
 
 import { Text, View } from '@adobe/react-spectrum';
 import { BigValueData, BigValueViz, VizProps } from '../../types';
-import { formatValue } from '../../containers/DataViz/util';
+import styled from 'styled-components';
 
 interface Props extends VizProps<BigValueViz, BigValueData> {}
 
 export function BigValue(props: Props) {
   const { dataViz } = props;
-  const items = dataViz.variables.map((variable, idx) => ({
-    value: formatValue(variable, dataViz.data[idx].v),
-    label: variable.name,
-  }));
-
+  const { v, p, d, localeOptions, note } = dataViz.data;
+  const value = v.toLocaleString('en-US', localeOptions.v);
+  if (typeof value == 'undefined') console.log('VALUE', v, dataViz);
+  const percent =
+    typeof p === 'number' ? (
+      <span style={{ fontSize: '3rem' }}>
+        {' '}
+        ({p.toLocaleString('en-US', localeOptions.p)})
+      </span>
+    ) : undefined;
+  const denom =
+    typeof d === 'number' ? (
+      <span style={{ fontSize: '3rem' }}>
+        {' / '}
+        {d.toLocaleString('en-US', localeOptions.d)}
+      </span>
+    ) : undefined;
   return (
     <View>
-      {items &&
-        items.map(({ value, label }) => (
-          <View>
-            <View padding="none">
-              <Text
-                UNSAFE_style={{
-                  fontSize: '5rem',
-                  fontWeight: 800,
-                  padding: 0,
-                  margin: 0,
-                }}
-              >
-                {value}
-              </Text>
-            </View>
-            <View>
-              <Text>{label}</Text>
-            </View>
-          </View>
-        ))}
+      <Text>
+        <BigValueText
+          style={{
+            fontSize: '5rem',
+            fontWeight: 800,
+            padding: 0,
+            margin: 0,
+          }}
+        >
+          {value}
+          {denom}
+          {percent}
+        </BigValueText>
+        <NoteText>{note || dataViz.name}</NoteText>
+      </Text>
     </View>
   );
 }
+
+const BigValueText = styled.p`
+  font-size: 5rem;
+  line-height: 5rem;
+  font-weight: 800;
+  padding: 0;
+  margin: 0;
+`;
+
+const NoteText = styled.p`
+  font-size: 1.4rem;
+  color: var(--spectrum-global-color-gray-700);
+  line-height: 2rem;
+  font-weight: 500;
+  padding: 0;
+  margin: 0;
+`;
 
 export default BigValue;

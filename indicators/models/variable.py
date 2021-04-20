@@ -66,7 +66,7 @@ class Variable(PolymorphicModel, Described):
                 return {'style': 'currency', 'currency': 'USD', 'minimumFractionDigits': 0}
             if self.units[0] == '%':
                 return {'style': 'percent'}
-        return None
+        return {}
 
     def get_primary_value(self, geog: CensusGeography, time_part: TimeAxis.TimePart) -> any:
         raise NotImplemented

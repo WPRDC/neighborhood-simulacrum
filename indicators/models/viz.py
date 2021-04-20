@@ -1,8 +1,7 @@
 import itertools
 import re
 import uuid
-from operator import itemgetter
-from typing import TYPE_CHECKING, Type, Dict, Optional
+from typing import TYPE_CHECKING, Type, Dict
 
 import jenkspy
 import pystache
@@ -11,7 +10,7 @@ from django.contrib.gis.db.models import Union
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import QuerySet, Manager, Value
+from django.db.models import QuerySet, Manager
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils.text import slugify
@@ -21,8 +20,8 @@ from rest_framework.exceptions import NotFound
 from geo.models import BlockGroup, County
 from geo.serializers import CensusGeographyDataMapSerializer
 from indicators.helpers import clean_sql
-from indicators.models.source import Source
 from indicators.models.abstract import Described
+from indicators.models.source import Source
 from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
 
 if TYPE_CHECKING:
@@ -656,32 +655,59 @@ class BigValueVariable(VizVariable):
 
 
 class BigValue(Alphanumeric):
-    DEFAULT_WIDTH = 2
+    PLAIN = 'PLN'
+    FRACTION = 'FRN'
+    PERCENT = 'PCT'
+    BOTH = 'BTH'
+    FORMAT_CHOICES = (
+        (PLAIN, "Plain"),
+        (FRACTION, "Approximate, human friendly, fraction over denominator."),
+        (PERCENT, "Percent of denominator"),
+        (BOTH, "Number and Fraction"),
+    )
     vars = models.ManyToManyField('Variable', through=BigValueVariable)
     note = models.TextField(blank=True, null=True)
+    format = models.TextField(max_length=3, choices=FORMAT_CHOICES, default=PLAIN,
+                              help_text="Only use percent for numbers with denominators. "
+                                        "Variables with 'percent' as a unit should use 'Plain'")
 
     def get_value_data(self, geog: 'CensusGeography') -> DataResponse:
-        data = []
-        error: ErrorResponse
         only_time_part = self.time_axis.time_parts[0]
-        if self.can_handle_geography(geog):
-            for variable in self.variables.order_by('variable_to_big_value'):
-                tmp_data = variable.get_table_row(self, geog)[only_time_part.slug]
+        try:
+            if self.can_handle_geography(geog) and len(self.variables.all()):
+                variable = self.variables.order_by('variable_to_big_value')[0]
+                datum = variable.get_table_row(self, geog)[only_time_part.slug]
 
-                if tmp_data is None or tmp_data['v'] is None:
-                    # todo: better error reporting
-                    error = ErrorResponse(level=ErrorLevel.EMPTY,
-                                          message=f'This Value is not available for {geog.name}.')
-                    data = None
-                else:
-                    # todo: add options
-                    data.append({'v': tmp_data['v'], 'options': None})
-                    error = ErrorResponse(level=ErrorLevel.OK, message=None)
+                if datum and datum['v'] is not None:
+                    # Percent
+                    if self.format == self.PERCENT:
+                        response_data = {'v': datum[variable.denominators.all()[0].slug],
+                                         'locale_options': {'v': {'style': 'percent'}}}
+                    # Fraction
+                    elif self.format == self.FRACTION:
+                        denom_var: 'Variable' = variable.denominators.all()[0]
+                        response_data = {'v': datum,
+                                         'd': denom_var.get_get_table_row(self, geog)[only_time_part],
+                                         'locale_options': {'v': variable.locale_options,
+                                                            'd': denom_var.locale_options}}
+                    # Both
+                    elif self.format == self.BOTH:
+                        response_data = {'v': datum['v'],
+                                         'p': datum[variable.denominators.all()[0].slug],
+                                         'locale_options': {'v': variable.locale_options,
+                                                            'p': {'style': 'percent'}}}
+                    # Plain
+                    else:
+                        response_data = {'v': datum['v'], 'locale_options': variable.locale_options}
 
-        else:
-            error = ErrorResponse(level=ErrorLevel.EMPTY, message=f'This Value is not available for {geog.name}.')
+                    return DataResponse(data={**response_data, 'note': self.note, '_raw': datum},
+                                        error=ErrorResponse(level=ErrorLevel.OK, message=None))
+        except Exception as e:
+            print(e)
 
-        return DataResponse(data=data, error=error)
+        return DataResponse(data=None,
+                            error=ErrorResponse(level=ErrorLevel.EMPTY,
+                                                message=f'This Value is not available for {geog.name}.'))
 
     def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
         return self.get_value_data(geog)

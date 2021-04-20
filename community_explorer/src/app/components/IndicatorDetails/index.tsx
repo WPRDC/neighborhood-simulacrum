@@ -4,7 +4,15 @@
  *
  */
 import React from 'react';
-import { Grid, minmax, repeat, Text, View } from '@adobe/react-spectrum';
+import {
+  Divider,
+  Grid,
+  Heading,
+  minmax,
+  repeat,
+  Text,
+  View,
+} from '@adobe/react-spectrum';
 import { DataViz } from '../../containers/DataViz';
 import { DataVizID, DataVizResourceType, Indicator } from '../../types';
 import { Breadcrumbs } from 'wprdc-components';
@@ -33,23 +41,36 @@ export function IndicatorDetails({
       <View padding="size-100" marginBottom="size-100">
         <Text>{description}</Text>
       </View>
-      <View padding="size-100">
-        {blurbs.map(blurb => (
-          <DataViz dataVizID={blurb} variant={DataVizVariant.Blurb} />
-        ))}
-      </View>
+      <Divider marginX="size-100" />
+      {!!blurbs && (
+        <View padding="size-100">
+          <Heading level={4}>Quick Facts</Heading>
+          {blurbs.map(blurb => (
+            <DataViz dataVizID={blurb} variant={DataVizVariant.Blurb} />
+          ))}
+        </View>
+      )}
 
-      <Grid
-        columns={repeat('auto-fit', minmax('size-3600', 'size-6000'))}
-        rows="auto"
-        gap="size-500"
-      >
-        {vizes.map(dataViz => (
-          <View key={dataViz.slug} maxWidth="size-6000" minHeight="size-2400">
-            <DataViz dataVizID={dataViz} />
-          </View>
-        ))}
-      </Grid>
+      {!!vizes && (
+        <View padding="size-100">
+          <Heading level={4}>Data Visualizations</Heading>
+          <Grid
+            columns={repeat('auto-fit', minmax('size-3600', 'size-6000'))}
+            rows="auto"
+            gap="size-500"
+          >
+            {vizes.map(dataViz => (
+              <View
+                key={dataViz.slug}
+                maxWidth="size-6000"
+                minHeight="size-2400"
+              >
+                <DataViz dataVizID={dataViz} />
+              </View>
+            ))}
+          </Grid>
+        </View>
+      )}
     </View>
   );
 }
