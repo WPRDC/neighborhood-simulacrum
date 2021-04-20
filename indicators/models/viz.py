@@ -225,7 +225,7 @@ class GeogChoroplethMapLayer(MapLayer):
             'source': id,
             'layout': {},
             'paint': {
-                'fill-opacity': 0.4,
+                'fill-opacity': 0.8,
                 'fill-color': fill_color
             },
         }]
