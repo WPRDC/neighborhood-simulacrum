@@ -76,7 +76,8 @@ type URLNavParamKeys =
   | 'geogID'
   | 'domainSlug'
   | 'subdomainSlug'
-  | 'indicatorSlug';
+  | 'indicatorSlug'
+  | 'dataVizSlug';
 
 export type URLNavParams = Record<URLNavParamKeys, string>;
 

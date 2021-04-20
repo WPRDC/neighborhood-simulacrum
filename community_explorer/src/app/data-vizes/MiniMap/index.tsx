@@ -14,15 +14,15 @@ interface Props extends VizProps<MiniMapViz, MiniMapData> {
 }
 
 export function MiniMap(props: Props) {
-  const { dataViz, colorScheme } = props;
+  const { dataViz, colorScheme, vizHeight, vizWidth } = props;
   const { sources, layers, mapOptions, legends } = dataViz.data;
 
   return (
-    <View height="size-3600">
+    <View maxHeight="size-6000">
       <Map
         mapboxApiAccessToken={MAPBOX_API_TOKEN}
-        width="100%"
-        height="100%"
+        width={vizWidth ? vizWidth + 13 : 0}
+        height={vizHeight ? vizHeight + 13 : 0}
         defaultViewport={{ zoom: 8, longitude: -79.9925 }}
         hoverPopupContent={SimpleLabelPopupContent}
         hoverPopupContentProps={{

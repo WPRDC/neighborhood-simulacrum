@@ -143,9 +143,12 @@ export interface VizWrapperProps {
   isLoading: boolean;
   geogIdentifier: GeogIdentifier;
   colorScheme: ColorMode;
+  menu: JSX.Element;
   dataViz?: Downloaded<DataVizBase>;
   CurrentViz?: React.FC<VizProps<DataVizBase, DataVizData>>;
-  menu: JSX.Element;
+  breadcrumbs?: JSX.Element[];
+  onExplore?: () => void;
+  onBreadcrumbClick?: (path: React.ReactText) => void;
 }
 
 export enum VizMenuItem {

@@ -22,27 +22,49 @@ import {
   DataVizBase,
   DataVizData,
   DataVizID,
+  Domain,
+  Indicator,
+  Subdomain,
+  Taxonomy,
+  URLNavParams,
   VizMenuItem,
   VizProps,
 } from '../../types';
 import { selectColorMode } from '../GlobalSettings/selectors';
 import { AvailableDialogs, DataVizVariant, MenuItem } from './types';
 import { DataVizMenu } from './DataVizMenu';
-import { DialogContainer } from '@adobe/react-spectrum';
+import { DialogContainer, Heading, Item } from '@adobe/react-spectrum';
 import { UserReportDialog } from '../../components/UserReportDialog';
 import { ShareDialog } from '../../components/ShareDialog';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 
 interface Props {
   dataVizID: DataVizID;
   variant: DataVizVariant;
+  taxonomy?: Taxonomy;
 }
 
 export function DataViz(props: Props) {
-  const { dataVizID, variant } = props;
+  const { dataVizID, variant, taxonomy } = props;
   useInjectReducer({ key: sliceKey, reducer: reducer });
   useInjectSaga({ key: sliceKey, saga: dataVizSaga });
 
+  const location = useLocation();
+  const history = useHistory();
   const dispatch = useDispatch();
+
+  const {
+    domainSlug,
+    subdomainSlug,
+    indicatorSlug,
+  } = useParams<URLNavParams>();
+
+  const taxonomyItems = getTaxonomyItems(
+    taxonomy,
+    domainSlug,
+    subdomainSlug,
+    indicatorSlug,
+  );
 
   /* Instance state */
   const geogIdentifier = useSelector(selectSelectedGeogIdentifier);
@@ -74,14 +96,19 @@ export function DataViz(props: Props) {
     }
   }
 
+  function handleExplore() {
+    const path = location.pathname;
+    history.push(path + `/${dataVizID.slug}`);
+  }
+
   const menuItems: MenuItem[] = [
     {
       key: VizMenuItem.DownloadData,
       label: 'Download Data',
       icon: <Download size="S" />,
     },
-    { key: VizMenuItem.Share, label: 'Share', icon: <Share size="S" /> },
-    { key: VizMenuItem.Report, label: 'Report', icon: <Report size="S" /> },
+    { key: VizMenuItem.Share, label: 'Share...', icon: <Share size="S" /> },
+    { key: VizMenuItem.Report, label: 'Report...', icon: <Report size="S" /> },
   ];
 
   // when this badboy renders, we need to get its data.
@@ -110,7 +137,8 @@ export function DataViz(props: Props) {
   // variant controls the contents and style of component around the actual dataviz
   const WrapperComponent = getVariantComponent(variant);
 
-  console.debug({ dataViz });
+  const breadcrumbs = getBreadCrumbs(taxonomyItems, dataVizID);
+
   return (
     <>
       <WrapperComponent
@@ -119,6 +147,8 @@ export function DataViz(props: Props) {
         CurrentViz={CurrentViz}
         colorScheme={colorScheme}
         isLoading={isLoading}
+        breadcrumbs={breadcrumbs}
+        onExplore={handleExplore}
         menu={
           <DataVizMenu
             menuItems={menuItems}
@@ -144,3 +174,57 @@ export function DataViz(props: Props) {
 DataViz.defaultProps = {
   variant: DataVizVariant.Default,
 };
+
+function getTaxonomyItems(
+  taxonomy?: Taxonomy,
+  domainSlug?: string,
+  subdomainSlug?: string,
+  indicatorSlug?: string,
+): { domain?: Domain; subdomain?: Subdomain; indicator?: Indicator } {
+  const domain =
+    !!taxonomy && !!domainSlug
+      ? taxonomy.find(d => d.slug === domainSlug)
+      : undefined;
+  const subdomain =
+    !!domain && !!subdomainSlug
+      ? domain.subdomains.find(sd => sd.slug === subdomainSlug)
+      : undefined;
+  const indicator =
+    !!subdomain && !!indicatorSlug
+      ? subdomain.indicators.find(i => i.slug === indicatorSlug)
+      : undefined;
+  return { domain, subdomain, indicator };
+}
+
+function getBreadCrumbs(
+  items: {
+    domain?: Domain;
+    subdomain?: Subdomain;
+    indicator?: Indicator;
+  },
+  dataViz: DataVizID,
+) {
+  const { domain, subdomain, indicator } = items;
+  const path = [domain, subdomain, indicator].reduce(
+    (filtered: JSX.Element[], item) => {
+      console.log({ item });
+      return !!item
+        ? [...filtered, <Item key={item.slug}>{item.name}</Item>]
+        : filtered;
+    },
+    [],
+  );
+  return [
+    ...path,
+    <Item key={dataViz.slug}>
+      <Heading
+        level={3}
+        margin="size-100"
+        marginTop-="size-0"
+        UNSAFE_style={{ fontSize: '2rem' }}
+      >
+        {dataViz.name}
+      </Heading>
+    </Item>,
+  ];
+}

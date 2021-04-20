@@ -29,6 +29,7 @@ import { DataVizMini } from '../../components/DataVizMini';
 import { DataVizPreview } from '../../components/DataVizPreview';
 import { DataVizCard } from '../../components/DataVizCard';
 import { dumpCSV } from '../../util';
+import { DataVizDetails } from '../../components/DataVizDetails';
 
 export function getSpecificDataViz(dataViz?: Downloaded<DataVizBase>) {
   if (!dataViz) return undefined;
@@ -121,6 +122,8 @@ export function getVariantComponent(variant: DataVizVariant) {
       return DataVizMini;
     case DataVizVariant.Preview:
       return DataVizPreview;
+    case DataVizVariant.Details:
+      return DataVizDetails;
     case DataVizVariant.Default:
     default:
       return DataVizCard;

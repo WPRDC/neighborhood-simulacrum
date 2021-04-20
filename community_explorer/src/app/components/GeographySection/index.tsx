@@ -54,7 +54,7 @@ export function GeographySection(props: Props) {
   ];
 
   return (
-    <View position="relative">
+    <View position="relative" padding="size-200">
       {geogIsLoading && (
         <ProgressCircle
           isIndeterminate

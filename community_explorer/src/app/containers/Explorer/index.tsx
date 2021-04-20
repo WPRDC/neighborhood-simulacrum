@@ -50,6 +50,7 @@ export function Explorer() {
     domainSlug,
     subdomainSlug,
     indicatorSlug,
+    dataVizSlug,
   } = useParams<URLNavParams>();
 
   const taxonomy = useSelector(selectTaxonomy);
@@ -96,8 +97,8 @@ export function Explorer() {
     const domainPath = domainSlug ? `/${domainSlug}` : '';
     const subdomainPath = subdomainSlug ? `/${subdomainSlug}` : '';
     const indicatorPath = indicatorSlug ? `/${indicatorSlug}` : '';
-
-    const extraPath = `${domainPath}${subdomainPath}${indicatorPath}`;
+    const dataVizPath = dataVizSlug ? `/${dataVizSlug}` : '';
+    const extraPath = `${domainPath}${subdomainPath}${indicatorPath}${dataVizPath}`;
     history.push(
       `/${geogIdentifier.geogType}/${geogIdentifier.geogID}${extraPath}`,
     );
@@ -163,6 +164,7 @@ export function Explorer() {
             currentDomainSlug={domainSlug}
             currentSubdomainSlug={subdomainSlug}
             currentIndicatorSlug={indicatorSlug}
+            currentDataVizSlug={dataVizSlug}
           />
         </View>
       </Grid>

@@ -26,7 +26,7 @@ export function App() {
         <Flex height="100vh" direction="column">
           <TopBar />
           <Switch>
-            <Route path="/:geogType?/:geogID?/:domainSlug?/:subdomainSlug?/:indicatorSlug?">
+            <Route path="/:geogType?/:geogID?/:domainSlug?/:subdomainSlug?/:indicatorSlug?/:dataVizSlug?">
               <Explorer />
             </Route>
             <Route component={NotFoundPage} />

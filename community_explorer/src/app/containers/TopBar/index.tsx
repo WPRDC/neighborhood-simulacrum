@@ -11,12 +11,20 @@ import { useInjectReducer } from 'utils/redux-injectors';
 import { reducer, sliceKey } from './slice';
 
 import { actions as globalSettingActions } from '../GlobalSettings/slice';
-import { ActionButton, Flex, Heading, View } from '@adobe/react-spectrum';
+import {
+  ActionButton,
+  Button,
+  DialogTrigger,
+  Flex,
+  Heading,
+  View,
+} from '@adobe/react-spectrum';
 
 import Dark from '@spectrum-icons/workflow/Moon';
 import Light from '@spectrum-icons/workflow/Light';
 import { selectColorMode } from '../GlobalSettings/selectors';
 import { ColorMode } from '../../types';
+import { AboutDialog } from '../../components/AboutDialog';
 
 interface Props {}
 
@@ -39,16 +47,23 @@ export function TopBar(props: Props) {
 
   return (
     <View
-      padding="size-150"
+      padding="size-200"
+      paddingTop="size-300"
       height="size-1000"
       backgroundColor="gray-100"
       borderBottomWidth="thick"
     >
-      <Flex>
+      <Flex alignSelf="center" alignItems="center">
         <View flexGrow={1}>
-          <Heading level={1} alignSelf={'center'}>
+          <Heading level={1} alignSelf={'center'} margin="size-0">
             Child Health Data Explorer
           </Heading>
+        </View>
+        <View paddingX="size-300">
+          <DialogTrigger>
+            <Button variant="primary">About</Button>
+            {onClose => <AboutDialog onClose={onClose} />}
+          </DialogTrigger>
         </View>
         <View>
           <ActionButton

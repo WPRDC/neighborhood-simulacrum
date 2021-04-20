@@ -46,7 +46,7 @@ export function NavMenu(props: Props) {
   // this and the navmap must update the selected geog through the same action
 
   return (
-    <View paddingX="size-100">
+    <View paddingX="size-200">
       <Heading level={2}>Select an area to explore</Heading>
       <Text>
         Use the dropdown and the map to find the place you're interested in.
