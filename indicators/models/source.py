@@ -158,7 +158,7 @@ class CKANSource(Source, PolymorphicModel):
         return f"""{aggr_mthd}(dt."{variable.field}"){cast} as v"""
 
     def _get_from_subquery(self,) -> str:
-        return f'({self.standardization_query.replace("", "" )})' if self.standardization_query else f'"self.resource_id"'
+        return f'({self.standardization_query.replace("", "" )})' if self.standardization_query else f'"{self.resource_id}"'
 
 
 class CKANGeomSource(CKANSource):

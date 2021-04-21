@@ -24,6 +24,7 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
             'id',
             'name',
             'slug',
+            'description',
             'sources',
             'time_axis',
             'variables',
