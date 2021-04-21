@@ -105,7 +105,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
         return context
 
     # Cache requested url for each user for 2 minutes
-    @method_decorator(cache_page(60 * 2))
+    # @method_decorator(cache_page(60 * 2))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 

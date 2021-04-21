@@ -7,24 +7,20 @@ import React, { memo } from 'react';
 import { View } from '@adobe/react-spectrum';
 import Measure from 'react-measure';
 import { VizWrapperProps } from '../../types';
+import { MissingVizMessage } from '../MissingVizMessage';
 
 interface Props extends VizWrapperProps {}
 
 export const DataVizMini = memo((props: Props) => {
-  const { dataViz, geogIdentifier, colorScheme, CurrentViz } = props;
+  const { dataViz, geogIdentifier, colorScheme, CurrentViz, error } = props;
 
   /* Keep track fo dimensions to send to vega charts */
   const [{ width, height }, setDimensions] = React.useState({
     width: 0,
     height: 0,
   });
-
   return (
-    <View
-      position="relative"
-      padding="size-100"
-      borderRadius="medium"
-    >
+    <View position="relative" padding="size-100" borderRadius="medium">
       <Measure
         bounds
         onResize={contentRect => {
@@ -36,8 +32,10 @@ export const DataVizMini = memo((props: Props) => {
             <View
               aria-label="data presentation preview"
               borderRadius="small"
+              maxWidth={!!error ? 'size-3000' : undefined}
             >
-              {!!CurrentViz && dataViz && (
+              {!!error && <MissingVizMessage error={error} />}
+              {!error && !!CurrentViz && !!dataViz && (
                 <CurrentViz
                   dataViz={dataViz}
                   geog={geogIdentifier}

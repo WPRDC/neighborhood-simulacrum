@@ -19,6 +19,7 @@ import { VizWrapperProps } from '../../types';
 import More from '@spectrum-icons/workflow/More';
 import { SourceList } from '../SourceList';
 import { LoadingMessage } from '../LoadingMessage';
+import {MissingVizMessage} from "../MissingVizMessage";
 
 interface Props extends VizWrapperProps {}
 
@@ -31,6 +32,7 @@ export function DataVizCard(props: Props) {
     isLoading,
     menu,
     onExplore,
+    error,
   } = props;
   const { name, description } = dataViz || {};
 
@@ -93,6 +95,7 @@ export function DataVizCard(props: Props) {
                 minHeight="size-3600"
               >
                 {isLoading && <LoadingMessage />}
+                {!!error && <MissingVizMessage error={error} />}
                 {!isLoading && !!CurrentViz && !!dataViz && (
                   <CurrentViz
                     dataViz={dataViz}

@@ -140,17 +140,21 @@ export interface BigValueViz extends DataVizBase {
   resourcetype: DataVizResourceType.BigValue;
 }
 
-export interface VizProps<T extends DataVizBase, D extends DataVizData>
-  extends PropsWithChildren<any> {
+export type VizProps<
+  T extends DataVizBase,
+  D extends DataVizData
+> = PropsWithChildren<{
   dataViz: Downloaded<T, D>;
   geog: GeogIdentifier;
   colorScheme?: ColorMode;
   vizHeight?: number;
   vizWidth?: number;
-}
+  error?: string;
+}>;
 
 export interface VizWrapperProps {
   isLoading: boolean;
+  error?: string;
   geogIdentifier: GeogIdentifier;
   colorScheme: ColorMode;
   menu: JSX.Element;

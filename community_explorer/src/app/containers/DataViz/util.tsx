@@ -30,8 +30,15 @@ import { DataVizPreview } from '../../components/DataVizPreview';
 import { DataVizCard } from '../../components/DataVizCard';
 import { dumpCSV } from '../../util';
 import { DataVizDetails } from '../../components/DataVizDetails';
+import { MissingVizMessage } from '../../components/MissingVizMessage';
 
-export function getSpecificDataViz(dataViz?: Downloaded<DataVizBase>) {
+export function getSpecificDataViz(
+  dataViz?: Downloaded<DataVizBase>,
+  error?: string,
+) {
+  console.log({ dataViz, error });
+  if (!!error) return MissingVizMessage;
+  console.log(error)
   if (!dataViz) return undefined;
 
   const componentMap: Record<

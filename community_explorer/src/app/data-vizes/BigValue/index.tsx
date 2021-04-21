@@ -7,7 +7,7 @@ import React from 'react';
 
 import { Text, View } from '@adobe/react-spectrum';
 import { BigValueData, BigValueViz, VizProps } from '../../types';
-import styled from 'styled-components';
+import styled from 'styled-components/macro';
 
 interface Props extends VizProps<BigValueViz, BigValueData> {}
 
@@ -15,7 +15,6 @@ export function BigValue(props: Props) {
   const { dataViz } = props;
   const { v, p, d, localeOptions, note } = dataViz.data;
   const value = v.toLocaleString('en-US', localeOptions.v);
-  if (typeof value == 'undefined') console.log('VALUE', v, dataViz);
   const percent =
     typeof p === 'number' ? (
       <span style={{ fontSize: '3rem' }}>

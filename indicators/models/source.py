@@ -152,7 +152,7 @@ class CKANSource(Source, PolymorphicModel):
         cast = ''
         aggr_mthd : str = variable.aggregation_method
         if variable.aggregation_method == variable.NONE:
-            cast = '::int'
+            cast = '::float'
             aggr_mthd = ''
 
         return f"""{aggr_mthd}(dt."{variable.field}"){cast} as v"""

@@ -10,6 +10,7 @@ import { VizWrapperProps } from '../../types';
 import { SourceList } from '../SourceList';
 import { LoadingMessage } from '../LoadingMessage';
 import { Breadcrumbs } from 'wprdc-components';
+import {MissingVizMessage} from "../MissingVizMessage";
 
 interface Props extends VizWrapperProps {}
 
@@ -23,6 +24,7 @@ export function DataVizDetails(props: Props) {
     breadcrumbs,
     onBreadcrumbClick,
     menu,
+    error,
   } = props;
   const { name, description } = dataViz || {};
   /* Keep track fo dimensions to send to vega charts */
@@ -59,6 +61,7 @@ export function DataVizDetails(props: Props) {
               borderWidth="thin"
               backgroundColor="gray-100"
             >
+              {!!error && <MissingVizMessage error={error} />}
               {isLoading && <LoadingMessage />}
               {!isLoading && !!CurrentViz && !!dataViz && (
                 <CurrentViz

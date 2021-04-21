@@ -698,7 +698,7 @@ class BigValue(Alphanumeric):
                                                             'p': {'style': 'percent'}}}
                     # Plain
                     else:
-                        response_data = {'v': datum['v'], 'locale_options': variable.locale_options}
+                        response_data = {'v': datum['v'], 'locale_options': {'v': variable.locale_options}}
 
                     return DataResponse(data={**response_data, 'note': self.note, '_raw': datum},
                                         error=ErrorResponse(level=ErrorLevel.OK, message=None))

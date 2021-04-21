@@ -84,7 +84,6 @@ export function DataViz(props: Props) {
         dispatch(actions.downloadDataVizData(dataViz));
         break;
       case VizMenuItem.DownloadSVG:
-        console.log('downloadSVG');
         // todo: use vega svg download
         break;
       case VizMenuItem.Share:
@@ -132,7 +131,7 @@ export function DataViz(props: Props) {
   // get correct component for the viz
   const CurrentViz:
     | React.FC<VizProps<DataVizBase, DataVizData>>
-    | undefined = getSpecificDataViz(dataViz);
+    | undefined = getSpecificDataViz(dataViz, error);
 
   // variant controls the contents and style of component around the actual dataviz
   const WrapperComponent = getVariantComponent(variant);
@@ -149,6 +148,7 @@ export function DataViz(props: Props) {
         isLoading={isLoading}
         breadcrumbs={breadcrumbs}
         onExplore={handleExplore}
+        error={error}
         menu={
           <DataVizMenu
             menuItems={menuItems}
@@ -207,7 +207,6 @@ function getBreadCrumbs(
   const { domain, subdomain, indicator } = items;
   const path = [domain, subdomain, indicator].reduce(
     (filtered: JSX.Element[], item) => {
-      console.log({ item });
       return !!item
         ? [...filtered, <Item key={item.slug}>{item.name}</Item>]
         : filtered;

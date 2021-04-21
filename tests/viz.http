@@ -23,3 +23,8 @@ Accept: application/json
 # Working region request
 GET http://localhost:8000/geo/region/?regionType=tract&geoid=42003070900
 Accept: application/json
+
+###
+# Complicated Data Center Query
+POST https://data.wprdc.org/api/3/action/datastore_search_sql
+Accept: application/json
