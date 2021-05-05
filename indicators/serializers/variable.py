@@ -1,21 +1,18 @@
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
-from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource, DataViz
-from indicators.serializers.source import SourceSerializer, CKANSourceSerializer
+from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource
+from indicators.serializers.source import CKANSourceSerializer
 
 if TYPE_CHECKING:
-    from indicators.views import DataVizViewSet
-
-
-def get_dataviz_from_view(view: 'DataVizViewSet'):
-    data_viz_id = view.kwargs.get(view.lookup_field)
-    return DataViz.objects.get(pk=data_viz_id)
+    pass
 
 
 class DenominatorSerializer(serializers.ModelSerializer):
+    locale_options = serializers.JSONField()
+
     class Meta:
         model = Variable
         fields = (
@@ -73,25 +70,21 @@ class CensusVariableSourceSerializer(serializers.ModelSerializer):
 
 class CensusVariableSerializer(VariableSerializer):
     sources = CensusVariableSourceSerializer(source='variable_to_source', many=True)
-    viz_options = serializers.JSONField()
 
     class Meta:
         model = CensusVariable
         fields = VariableSerializer.Meta.fields + (
             'sources',
-            'viz_options',
         )
 
 
 class CKANVariableSerializer(VariableSerializer):
     sources = CKANSourceSerializer(many=True)
-    viz_options = serializers.JSONField()
 
     class Meta:
         model = CKANVariable
         fields = VariableSerializer.Meta.fields + (
             'sources',
-            'viz_options'
         )
 
 
@@ -131,28 +124,18 @@ class BriefVariablePolymorphicSerializer(PolymorphicSerializer):
 # With Viz
 class CensusVizVariableSerializer(VariableSerializer):
     denominators = DenominatorSerializer(many=True)
-    options = serializers.SerializerMethodField()
 
     class Meta:
         model = CensusVariable
-        fields = VariableSerializer.Meta.fields + ('sources', 'options')
-
-    def get_options(self, obj: 'CensusVariable') -> Dict:
-        data_viz: DataViz = get_dataviz_from_view(self.context['view'])
-        return obj.get_options_for_dataviz(data_viz)
+        fields = VariableSerializer.Meta.fields + ('sources',)
 
 
 class CKANVizVariableSerializer(VariableSerializer):
     denominators = DenominatorSerializer(many=True)
-    options = serializers.SerializerMethodField()
 
     class Meta:
         model = CKANVariable
-        fields = VariableSerializer.Meta.fields + ('sources', 'options')
-
-    def get_options(self, obj: 'CKANVariable'):
-        data_viz: DataViz = get_dataviz_from_view(self.context['view'])
-        return obj.get_options_for_dataviz(data_viz)
+        fields = VariableSerializer.Meta.fields + ('sources', )
 
 
 class VizVariablePolymorphicSerializer(PolymorphicSerializer):

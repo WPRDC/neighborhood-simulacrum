@@ -5,8 +5,6 @@ from django.conf import settings
 from django.contrib.gis.db.models import QuerySet, Union
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, renderers
 from rest_framework.exceptions import NotFound
 from rest_framework.negotiation import BaseContentNegotiation
@@ -19,13 +17,10 @@ from rest_framework.views import APIView
 from geo.models import Geography, CensusGeography, County, BlockGroup
 from geo.serializers import CensusGeographyDataMapSerializer
 from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis
-from indicators.serializers import (DomainSerializer, IndicatorSerializer, SubdomainSerializer,
-                                    TimeAxisPolymorphicSerializer)
-from indicators.serializers.variable import VariablePolymorphicSerializer
-from indicators.serializers.viz import DataVizWithDataPolymorphicSerializer, DataVizPolymorphicSerializer
-from indicators.utils import (is_geog_data_request, get_geog_from_request,
-                              ErrorResponse, ErrorLevel, extract_geo_params,
-                              get_geog_model)
+from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
+    TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, DataVizSerializer
+from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorResponse, ErrorLevel, \
+    extract_geo_params, get_geog_model
 
 
 class GeoJSONRenderer(renderers.BaseRenderer):
@@ -89,8 +84,8 @@ class DataVizViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if is_geog_data_request(self.request):
-            return DataVizWithDataPolymorphicSerializer
-        return DataVizPolymorphicSerializer
+            return DataVizWithDataSerializer
+        return DataVizSerializer
 
     def get_serializer_context(self):
         context = super(DataVizViewSet, self).get_serializer_context()

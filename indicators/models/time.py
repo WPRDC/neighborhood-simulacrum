@@ -25,16 +25,20 @@ class TimeAxis(PolymorphicModel, Described):
 
     @dataclass
     class TimePart(object):
-        """ Holds what's necessary to describe one continuous chunk of time"""
+        """ Holds what's necessary to describe one continuous chunk of time """
         slug: str
         name: str
         time_point: timezone.datetime
         time_unit: int
 
         @property
+        def unit_str(self):
+            return TimeAxis.UNIT_FIELDS[self.time_unit]
+
+        @property
         def trunc_sql_str(self):
-            trunc_field = TimeAxis.UNIT_FIELDS[self.time_unit]
-            return f""" date_trunc('{trunc_field}', '{self.time_point}') """
+            trunc_field = self.unit_str
+            return f""" date_trunc('{trunc_field}', '{self.time_point.isoformat()}'::timestamp) """
 
         def __hash__(self):
             return hash((self.slug, self.time_point, self.time_unit))

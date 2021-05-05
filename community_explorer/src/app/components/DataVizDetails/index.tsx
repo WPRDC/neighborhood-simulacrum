@@ -10,7 +10,7 @@ import { VizWrapperProps } from '../../types';
 import { SourceList } from '../SourceList';
 import { LoadingMessage } from '../LoadingMessage';
 import { Breadcrumbs } from 'wprdc-components';
-import {MissingVizMessage} from "../MissingVizMessage";
+import { MissingVizMessage } from '../MissingVizMessage';
 
 interface Props extends VizWrapperProps {}
 
@@ -41,8 +41,7 @@ export function DataVizDetails(props: Props) {
       <View padding="size-200" paddingTop="size-50">
         <View>
           <Text>
-            {description ||
-              'Glos fatalis apolloniates est. Danistas sunt lacteas de noster calceus.'}
+            {description}
           </Text>
         </View>
       </View>

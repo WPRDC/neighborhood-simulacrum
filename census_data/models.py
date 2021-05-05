@@ -60,6 +60,9 @@ class CensusTablePointer(models.Model):
             moe = None
         return value, moe
 
+    def get_values_query(self, geog: 'CensusGeography'):
+        return CensusValue.objects.get('')
+
 
 class CensusTable(models.Model):
     dataset = models.CharField(

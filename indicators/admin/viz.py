@@ -1,13 +1,10 @@
-from django.contrib import admin
-from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin, PolymorphicInlineSupportMixin
-
-from indicators.models import MiniMap, DataViz, Table, VizVariable
-
 import nested_admin
+from django.contrib import admin
+from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin
 
-from indicators.models.viz import BarChart, LineChart, PieChart, PopulationPyramidChart, BigValue, Sentence, \
-    GeogChoroplethMapLayer, ObjectsLayer, MapLayer, ParcelsLayer, TableRow, BarChartPart, \
-    LineChartPart, PieChartPart, PopulationPyramidChartPart, SentenceVariable, BigValueVariable
+from indicators.models.viz import DataViz, MiniMap, Table, Chart, \
+    BigValue, Sentence, GeogChoroplethMapLayer, \
+    ObjectsLayer, TableRow, ChartPart, MapLayer, ParcelsLayer, SentenceVariable, BigValueVariable
 
 
 @admin.register(DataViz)
@@ -15,7 +12,7 @@ class DataVizAdmin(PolymorphicParentModelAdmin):
     list_display = ('id', 'name',)
     search_fields = ('name',)
     base_model = DataViz
-    child_models = (MiniMap, Table, BarChart, PieChart, LineChart, MiniMap)
+    child_models = (MiniMap, Table, Chart, MiniMap)
     prepopulated_fields = {"slug": ("name",)}
 
 
@@ -52,19 +49,14 @@ class TableRowInline(nested_admin.NestedTabularInline):
     model = TableRow
 
 
-class BarChartPartInline(nested_admin.NestedTabularInline):
+class TableRowInline(nested_admin.NestedTabularInline):
     autocomplete_fields = ('variable',)
-    model = BarChartPart
+    model = TableRow
 
 
-class LineChartPartInline(nested_admin.NestedTabularInline):
+class ChartPartInline(nested_admin.NestedTabularInline):
     autocomplete_fields = ('variable',)
-    model = LineChartPart
-
-
-class PieChartPartInline(nested_admin.NestedTabularInline):
-    autocomplete_fields = ('variable',)
-    model = PieChartPart
+    model = ChartPart
 
 
 class BigValueVariableInline(nested_admin.NestedTabularInline):
@@ -77,14 +69,6 @@ class SentenceVariableInline(nested_admin.NestedTabularInline):
     model = SentenceVariable
 
 
-class PopulationPyramidChartPartInline(nested_admin.NestedTabularInline):
-    autocomplete_fields = ('variable',)
-    model = PopulationPyramidChartPart
-
-
-# ==================
-# +  Map
-# ==================
 class MapLayerAdmin(PolymorphicParentModelAdmin):
     list_display = ('name', 'id')
     search_fields = ('name',)
@@ -103,9 +87,6 @@ class MiniMapAdmin(DataVizChildAdmin):
     autocomplete_fields = ('time_axis',)
 
 
-# ==================
-# +  Table
-# ==================
 @admin.register(Table)
 class TableAdmin(DataVizChildAdmin):
     list_display = (
@@ -115,48 +96,15 @@ class TableAdmin(DataVizChildAdmin):
     inlines = (TableRowInline,)
 
 
-# ==================
-# +  Charts
-# ==================
-@admin.register(BarChart)
-class BarChartAdmin(DataVizChildAdmin):
+@admin.register(Chart)
+class ChartAdmin(DataVizChildAdmin):
     list_display = (
         'name',
     )
     search_fields = ('name',)
-    inlines = (BarChartPartInline,)
+    inlines = (ChartPartInline,)
 
 
-@admin.register(LineChart)
-class LineChartAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
-    inlines = (LineChartPartInline,)
-
-
-@admin.register(PieChart)
-class PieChartAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
-    inlines = (PieChartPartInline,)
-
-
-@admin.register(PopulationPyramidChart)
-class PopulationPyramidChartAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
-    inlines = (PopulationPyramidChartPartInline,)
-
-
-# ==================
-# +  Alphanumeric
-# ==================
 @admin.register(BigValue)
 class BigValueAdmin(DataVizChildAdmin):
     list_display = (
@@ -187,21 +135,10 @@ class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
         inlines = (TableRowInline,)
 
     # Chart
-    class BarChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = BarChart
-        inlines = (BarChartPartInline,)
+    class ChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = Chart
+        inlines = (ChartPartInline,)
 
-    class LineChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = LineChart
-        inlines = (LineChartPartInline,)
-
-    class PieChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = PieChart
-        inlines = (PieChartPartInline,)
-
-    class PopulationPyramidChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = PopulationPyramidChart
-        inlines = (PopulationPyramidChartPartInline,)
 
     # Alphanumeric
     class BigValueInline(nested_admin.NestedStackedPolymorphicInline.Child):
@@ -216,10 +153,7 @@ class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
     child_inlines = (
         MiniMapInline,
         TableInline,
-        BarChartInline,
-        LineChartInline,
-        PieChartInline,
-        PopulationPyramidChartInline,
+        ChartInline,
         BigValueInline,
         SentenceInline,
     )

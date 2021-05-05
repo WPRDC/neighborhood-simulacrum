@@ -1,20 +1,10 @@
 from rest_framework import serializers
 
-from indicators.models import Domain, Subdomain, Indicator, Described
+from indicators.models import Domain, Subdomain, Indicator
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
-from .source import (
-    CensusSourceSerializer,
-    CKANSourceSerializer,
-    CKANRegionalSourceSerializer,
-    CKANGeomSourceSerializer)
-from .variable import CensusVariableSerializer, CKANVariableSerializer
-from .viz import (
-    DataVizIdentifiersPolymorphicSerializer,
-    TableIdentifiersSerializer,
-    DataVizPolymorphicSerializer,
-    DataVizWithDataPolymorphicSerializer,
-    TableSerializer,
-    TableWithDataSerializer)
+from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
+from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
+from .viz import DataVizSerializer, DataVizWithDataSerializer, DataVizIdentifiersSerializer
 
 
 class DomainBriefSerializer(serializers.ModelSerializer):
@@ -41,7 +31,7 @@ class HierarchySerializer(serializers.Serializer):
 
 
 class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
-    data_vizes = DataVizIdentifiersPolymorphicSerializer(many=True)
+    data_vizes = DataVizIdentifiersSerializer(many=True)
     hierarchies = HierarchySerializer(many=True, read_only=True)
 
     class Meta:

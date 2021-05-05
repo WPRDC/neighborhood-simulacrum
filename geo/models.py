@@ -1,8 +1,9 @@
 import json
 from abc import abstractmethod
-from typing import List
+from typing import List, Type
 
 from django.contrib.gis.db import models
+from django.contrib.postgres.fields import ArrayField
 from polymorphic.models import PolymorphicModel
 
 from geo.util import get_population, get_kid_population
@@ -13,15 +14,17 @@ class Geography(models.Model):
     """
     Abstract class for all Geographic regions
     """
-    BLOCK_GROUP = 'BLOCKGROUP'
-    TRACT = 'TRACT'
-    COUNTY_SUBDIVISION = 'COUNTY_SUBDIVISION'
-    PLACE = 'PLACE'
-    PUMA = 'PUMA'
-    SCHOOL_DISTRICT = 'SCHOOL_DISTRICT'
-    STATE_HOUSE = 'STATE_HOUSE'
-    STATE_SENATE = 'STATE_SENATE'
-    COUNTY = 'COUNTY'
+    BLOCK_GROUP = 'blockGroup'
+    TRACT = 'tract'
+    COUNTY_SUBDIVISION = 'countySubdivision'
+    PLACE = 'place'
+    PUMA = 'puma'
+    SCHOOL_DISTRICT = 'schoolDistrict'
+    STATE_HOUSE = 'stateHouse'
+    STATE_SENATE = 'stateSenate'
+    COUNTY = 'county'
+    ZCTA = 'zcta'
+    NEIGHBORHOOD = 'neighborhood'
 
     GEO_LEVELS = (
         ('NONE', 'N/A'),
@@ -33,10 +36,13 @@ class Geography(models.Model):
         (PUMA, 'PUMA'),
         (STATE_HOUSE, 'State House'),
         (STATE_SENATE, 'State Senate'),
-        (SCHOOL_DISTRICT, 'School District'),
+        (ZCTA, 'Zip Code Tabulation Area'),
+        (NEIGHBORHOOD, 'Neighborhood'),
     )
 
     objects = models.Manager()
+
+    child_geog_models: list[Type['Geography']] = []
 
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -74,13 +80,8 @@ class CensusGeography(PolymorphicModel, Geography):
     # Class fields
     TYPE: str
     TITLE: str
-    carto_table: str
-    carto_geoid_field: str = 'geoid'
-    carto_geom_field: str = 'the_geom'
-    carto_geom_webmercator_field: str = 'the_geom_webmercator'
 
     ckan_resource: str
-
     base_zoom: int
 
     common_geoid = models.CharField(max_length=21, null=True, blank=True)
@@ -155,11 +156,13 @@ class CensusGeography(PolymorphicModel, Geography):
 
 
 class BlockGroup(CensusGeography):
-    TYPE = "blockGroup"
+    TYPE = Geography.BLOCK_GROUP
     TITLE = "Block Group"
     carto_table = "census_blockgroup"
 
     ckan_resource = "b5f5480c-548d-46d8-b623-40a226d87517"
+
+    child_geog_models = []
 
     base_zoom = 12
 
@@ -197,9 +200,10 @@ class BlockGroup(CensusGeography):
 
 
 class Tract(CensusGeography):
-    TYPE = "tract"
+    TYPE = Geography.TRACT
     TITLE = 'Tract'
-    carto_table = "census_tract"
+    child_geog_models = [BlockGroup]
+
     geog_type = TYPE
 
     ckan_resource = "a6b6bd16-e9d4-4ac8-a17b-7c1183985c15"
@@ -237,7 +241,7 @@ class Tract(CensusGeography):
 
 
 class CountySubdivision(CensusGeography):
-    TYPE = "countySubdivision"
+    TYPE = Geography.COUNTY_SUBDIVISION
     TITLE = 'County Subdivision'
     carto_table = "census_county_subdivision"
     geog_type = TYPE
@@ -252,6 +256,8 @@ class CountySubdivision(CensusGeography):
     countyfp = models.CharField(max_length=3)
     cousubfp = models.CharField(max_length=5)
     cousubns = models.CharField(max_length=8)
+
+    child_geog_models = [Tract, BlockGroup]
 
     @property
     def title(self):
@@ -278,15 +284,14 @@ class CountySubdivision(CensusGeography):
 
 
 class County(CensusGeography):
-    TYPE = "county"
+    TYPE = Geography.COUNTY
     TITLE = "County"
-    carto_table = 'census_county'
+    child_geog_models = [CountySubdivision, Tract, BlockGroup]
     geog_type = TYPE
 
     ckan_resource = "b30b9dee-5527-4cc4-8ce9-5ab2c6cc664e"
 
     base_zoom = 9
-
 
     geoid = models.CharField(max_length=12, primary_key=True)
     statefp = models.CharField(max_length=2)
@@ -315,6 +320,43 @@ class County(CensusGeography):
 
     def __str__(self):
         return f'{self.name} County'
+
+
+class ZipCodeTabulationArea(CensusGeography):
+    TYPE = Geography.ZCTA
+    TILE = 'Zip Code'
+    child_geog_models = []
+
+    zctace = models.CharField(max_length=5)
+    geoid = models.CharField(max_length=5)
+
+    @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([geog.title for geog in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.sldust}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name = "Zip Code Tabulation Area"
+        verbose_name_plural = "Zip Code Tabulation Areas"
+
+
+class Neighborhood(CensusGeography):
+    TYPE = Geography.NEIGHBORHOOD
+    TITLE = 'Neighborhood'
+    child_geog_models = [BlockGroup]
+    pass
 
 
 # Todo: Use these

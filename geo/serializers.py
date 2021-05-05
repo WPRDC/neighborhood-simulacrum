@@ -1,8 +1,13 @@
+from typing import Optional, TYPE_CHECKING
+
 from rest_framework import serializers
 from rest_framework_gis import serializers as gis_serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
 from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County
+
+if TYPE_CHECKING:
+    from indicators.models.variable import Datum
 
 
 class CensusGeographyBriefSerializer(serializers.ModelSerializer):
@@ -46,13 +51,14 @@ class CensusGeographyDataMapSerializer(gis_serializers.GeoFeatureModelSerializer
             'map_value',
         )
 
-    def get_map_value(self, obj: CensusGeography):
+    def get_map_value(self, obj: CensusGeography) -> Optional[float]:
         """ Gets value for a variable at a time for each feature """
-        data: dict = self.context.get('data', None)
+        data: dict = {datum.geog: datum for datum in self.context.get('data', None)}
         geoid = obj.common_geoid
         if not data:
             return None
-        return data.get(geoid, None)
+        datum: Optional['Datum'] = data.get(geoid, None)
+        return datum.value if datum else None
 
 
 class CountySerializer(CensusGeographySerializer):

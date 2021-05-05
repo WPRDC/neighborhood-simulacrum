@@ -1,22 +1,20 @@
-from functools import reduce
-from typing import Type, Union, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass
 from enum import Enum
+from typing import Type, Union, Optional, List, TYPE_CHECKING
 
+from django.conf import settings
+from django.contrib.gis.db.models import Union as GeoUnion
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import F, OuterRef
 from rest_framework.request import Request
 
-from census_data.models import CensusValue
 from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography
 
 if TYPE_CHECKING:
-    from indicators.models import Variable, CensusVariable, Variable, DataViz, CKANVariable, TimeAxis
+    from indicators.models import Variable, Variable, DataViz
 
 # Constants
 # =-=-=-=-=
-
 CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
@@ -36,7 +34,6 @@ GEOG_MODEL_MAPPING = {
 
 # Types/Enums/Etc
 # =-=-=-=-=-=-=-=
-
 class ErrorLevel(Enum):
     OK = 0
     EMPTY = 1
@@ -60,8 +57,8 @@ class ErrorResponse:
 @dataclass
 class DataResponse:
     # todo: use generic types here
-    data: Optional[Union[List[dict], dict, list,]]
-    error: ErrorResponse
+    data: Optional[Union[List[dict], dict]]
+    error: ErrorResponse = ErrorResponse(ErrorLevel.OK)
 
     def as_dict(self):
         return {
@@ -72,6 +69,13 @@ class DataResponse:
 
 # Functions
 # =-=-=-=-=
+def limit_to_geo_extent(geog_type: Type['CensusGeography']):
+    """ Returns a queryset representing the geogs for `geog_type that fit within project extent. """
+    extent = County.objects \
+        .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+        .aggregate(the_geom=GeoUnion('geom'))
+    return geog_type.objects.filter(geom__coveredby=extent['the_geom'])
+
 
 def get_geog_model(geog_type: str) -> Type[CensusGeography]:
     if geog_type in GEOG_MODEL_MAPPING:
@@ -142,4 +146,3 @@ def tile_bbox(z, x, y, srid=3857):
     if srid != 3857:
         bbox.transform(srid)
     return bbox
-
