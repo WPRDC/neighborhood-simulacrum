@@ -206,7 +206,7 @@ class Tract(CensusGeography):
 
     geog_type = TYPE
 
-    ckan_resource = "a6b6bd16-e9d4-4ac8-a17b-7c1183985c15"
+    ckan_resource = "bb9a7972-981c-4026-8483-df8bdd1801c2"
 
     base_zoom = 10
 
@@ -246,7 +246,7 @@ class CountySubdivision(CensusGeography):
     carto_table = "census_county_subdivision"
     geog_type = TYPE
 
-    ckan_resource = "e7d6f272-0a50-4dc6-a140-c39992f1fc09"
+    ckan_resource = "8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"
 
     base_zoom = 7
 
@@ -289,7 +289,7 @@ class County(CensusGeography):
     child_geog_models = [CountySubdivision, Tract, BlockGroup]
     geog_type = TYPE
 
-    ckan_resource = "b30b9dee-5527-4cc4-8ce9-5ab2c6cc664e"
+    ckan_resource = "8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"
 
     base_zoom = 9
 

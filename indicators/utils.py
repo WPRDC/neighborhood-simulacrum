@@ -70,7 +70,7 @@ class DataResponse:
 # Functions
 # =-=-=-=-=
 def limit_to_geo_extent(geog_type: Type['CensusGeography']):
-    """ Returns a queryset representing the geogs for `geog_type that fit within project extent. """
+    """ Returns a queryset representing the geogs for `geog_type` that fit within project extent. """
     extent = County.objects \
         .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
         .aggregate(the_geom=GeoUnion('geom'))

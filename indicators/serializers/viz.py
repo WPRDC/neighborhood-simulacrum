@@ -47,7 +47,8 @@ class DataVizWithDataSerializer(DataVizSerializer):
     def get_data(self, obj: DataViz):
         if 'error' in self.context:
             return []
-        return self._get_data_response(obj, self.context['geography']).data
+        data_response: DataResponse = self._get_data_response(obj, self.context['geography'])
+        return data_response.data
 
     def get_error(self, obj: DataViz):
         if 'error' in self.context:

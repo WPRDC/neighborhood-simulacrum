@@ -12,7 +12,7 @@ class DataVizAdmin(PolymorphicParentModelAdmin):
     list_display = ('id', 'name',)
     search_fields = ('name',)
     base_model = DataViz
-    child_models = (MiniMap, Table, Chart, MiniMap)
+    child_models = (MiniMap, Table, Chart, MiniMap, BigValue, Sentence)
     prepopulated_fields = {"slug": ("name",)}
 
 

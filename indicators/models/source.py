@@ -1,3 +1,4 @@
+import datetime
 from dataclasses import dataclass
 from typing import Union, TYPE_CHECKING, Type, Optional
 
@@ -7,11 +8,20 @@ from django.db.models import QuerySet
 from polymorphic.models import PolymorphicModel
 
 from geo.models import CensusGeography, Tract, County, BlockGroup, CountySubdivision
-from indicators.models.time import TimeAxis
 from indicators.models.abstract import Described
+from indicators.models.time import TimeAxis
 
 if TYPE_CHECKING:
     from indicators.models import CKANVariable
+
+# todo moving to settings
+SQ_ALIAS = 'dt'
+GEO_ALIAS = '"GEO"'
+
+GEOG_DKEY = '__geog__'
+TIME_DKEY = '__time__'
+VALUE_DKEY = '__value__'
+DENOM_DKEY = '__denom__'
 
 
 class Source(PolymorphicModel, Described):
@@ -26,6 +36,14 @@ class Source(PolymorphicModel, Described):
     def info_link(self):
         """ Link to external resource where user can find info on data source and/or the source itself."""
         raise NotImplementedError
+
+    @property
+    def static_date(self) -> Optional[str]:
+        time_dict = {'year': 0, 'month': 1, 'day': 1, 'hour': 0, 'minute': 0}
+        for i in range(TimeAxis.YEAR, self.time_granularity - 1, -1):
+            unit = TimeAxis.UNIT_FIELDS[i]  # eg 'year'
+            time_dict[unit] = self.time_coverage_start.__getattribute__(unit)
+        return datetime.datetime(**time_dict).isoformat(sep=' ')
 
     def can_handle_time_part(self, time_part: 'TimeAxis.TimePart') -> bool:
         raise NotImplementedError
@@ -90,11 +108,6 @@ class CKANSource(Source, PolymorphicModel):
             return f""" "{self.time_field}" as {self.TIME_FIELD_ID} """
         return ""
 
-    def clean(self):
-        if not self.time_field:
-            # todo: check that the unit covers the time coverage
-            pass
-
     def can_handle_time_part(self, time_part: 'TimeAxis.TimePart') -> bool:
         if time_part.time_unit == TimeAxis.YEAR:
             return self.time_coverage_start <= time_part.time_point <= self.time_coverage_end
@@ -103,7 +116,42 @@ class CKANSource(Source, PolymorphicModel):
     def can_handle_geography(self, geog: CensusGeography):
         raise NotImplementedError
 
-    def get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
+    def get_data_query(self, variable: 'CKANVariable', geogs: QuerySet['CensusGeography'],
+                       time_part: 'TimeAxis.TimePart', denom_select: str = None,
+                       parent_geog_lvl: Optional[Type[CensusGeography]] = None) -> str:
+        # get fields from source to select
+        geog_select = self._get_geog_select(geogs, parent_geog_lvl)
+        time_select = self._get_time_select_sql()
+        value_select = f'{SQ_ALIAS}."{variable.field}"::float'
+        agg_method = variable.aggregation_method
+        agg_str = agg_method or ''
+        # get space and time filters
+        geog_filter = self._get_geog_filter_sql(geogs)
+        time_filter = self._get_time_filter_sql(time_part, time_select)
+
+        geog_type = geogs.all()[0].__class__
+        from_subq = self._get_from_subquery(geog_type, parent_geog_lvl=parent_geog_lvl)
+
+        denom_select_and_alias = f', {denom_select} as __denom__' if denom_select else ''
+
+        return f"""
+        SELECT 
+            {geog_select}                   as __geog__, 
+            '{time_part.slug}'              as __time__,
+            {agg_str}({value_select})       as __value__
+            {denom_select_and_alias}
+        FROM {from_subq} AS {SQ_ALIAS}
+        WHERE {geog_filter} AND {time_filter}
+        GROUP BY __geog__
+        """
+
+    def clean(self):
+        if not self.time_field:
+            # todo: check that the unit covers the time coverage
+            pass
+
+    # SQL Generators
+    def _get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
         """
         Returns chunk of SQL to go in the WHERE clause to filter the datasource to `geog`
         since the child models of CKANSource exist to handle different ways of representing geometry,
@@ -111,7 +159,7 @@ class CKANSource(Source, PolymorphicModel):
         """
         raise NotImplementedError
 
-    def get_time_filter_sql(self, time_part: 'TimeAxis.TimePart', time_select: str):
+    def _get_time_filter_sql(self, time_part: 'TimeAxis.TimePart', time_select: str):
         """
         Creates a chunk of SQL that will go in the WHERE clause that filters the dataset described by `source` to
         only have data within specific time frame.
@@ -126,67 +174,18 @@ class CKANSource(Source, PolymorphicModel):
         return f"""
         date_trunc('{time_unit}',{time_select}::timestamp) = {time_part.trunc_sql_str}
         """
-        pass
-
-    def get_subclass_instance(self):
-        """
-        Returns the object of the subclass for
-        a particular object of this model.
-
-        :return: (subclass of `Source` | None)
-        """
-        for attr in (
-                'ckangeomsource',
-                'ckanparcelsource',
-                'ckanregionalsource'
-        ):
-            if hasattr(self, attr):
-                return getattr(self, attr)
-        return None
-
-    def get_values_across_geo_sql(self, variable: 'CKANVariable', geog_type: Type['CensusGeography'], ) -> str:
-        raise NotImplementedError
-
-    def get_single_value_sql(self, variable: 'CKANVariable', geog: 'CensusGeography', ) -> str:
-        raise NotImplementedError
-
-        cast = '::float'
-        aggr_mthd: str = variable.aggregation_method
-        if variable.aggregation_method == variable.NONE:
-            aggr_mthd = 'SUM'
-
-        return f"""{aggr_mthd}(dt."{variable.field}"){cast}"""
 
     def _get_time_select_sql(self) -> str:
-        return f'dt."{self.time_field or "date"}"'
+        """ Returns the source's time field, or a string representing the sole time unit covered by the source"""
+        return f'{SQ_ALIAS}."{self.time_field}"' if self.time_field else f"'{self.static_date}'"
 
-    def _get_geog_select(self, geogs: QuerySet['CensusGeography']) -> str:
+    def _get_geog_select(self, geogs: QuerySet['CensusGeography'],
+                         parent_lvl_geog: Optional[Type[CensusGeography]]) -> str:
         raise NotImplementedError
 
-    def _get_from_subquery(self, geog_type: Type[CensusGeography]) -> str:
+    def _get_from_subquery(self, geog_type: Type[CensusGeography],
+                           parent_geog_lvl: Optional[Type[CensusGeography]] = None) -> str:
         raise NotImplementedError
-
-    def get_data_query(self, variable: 'CKANVariable', geogs: QuerySet['CensusGeography'],
-                       time_part: 'TimeAxis.TimePart') -> str:
-        # get fields from source to select
-        geog_select = self._get_geog_select(geogs)
-        time_select = self._get_time_select_sql()
-        value_select = self._get_value_select_sql(variable)
-
-        # get space and time filters
-        geog_filter = self.get_geog_filter_sql(geogs)
-        time_filter = self.get_time_filter_sql(time_part, time_select)
-
-        from_subq = self._get_from_subquery()
-
-        return f"""
-        SELECT 
-            {geog_select}       as __s_geog__, 
-            {time_select}       as __s_time__,
-            {value_select}      as __s_value__            
-        FROM {from_subq} as dt
-        WHERE {geog_filter} AND {time_filter}
-        """
 
 
 class CKANGeomSource(CKANSource):
@@ -209,10 +208,29 @@ class CKANGeomSource(CKANSource):
         # while there may be no data in a geog, geocoded datasets can work with any geog
         return True
 
-    def get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
+    def _get_ckan_geog_lookup(self, geog_type: Type['CensusGeography']) -> Optional[CKANLookupSource]:
         """
-        Returns a string of sql for use in where clause to filter results to those
-        in the union of the geographies in `geogs`.
+        Returns the resource ID for the appropriate lookup table in CKAN.
+
+        The lookup table has a columns for the geoid and geom (current hex string of its WKB).
+
+        Using these allows us to reference geospatial data in SQL without having to send the geom;
+        instead we can reference it through its geoid in the lookup table.
+        """
+        # todo: move this to settings
+        lookup_mapping = {
+            County: self.CKANLookupSource(table="8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"),
+            CountySubdivision: self.CKANLookupSource(table="35c72b10-147e-4bf3-8678-ae6e83ad1de2"),
+            Tract: self.CKANLookupSource(table='bb9a7972-981c-4026-8483-df8bdd1801c2'),
+            BlockGroup: self.CKANLookupSource(table="b5f5480c-548d-46d8-b623-40a226d87517"),
+        }
+        return lookup_mapping[geog_type] if geog_type in lookup_mapping else None
+
+    # SQL Generators
+    def _get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
+        """
+        Returns a string of sql for use in `WHERE` clause to filter results to those within
+        the boundary of the union of the geographies in `geogs`.
 
         :param geogs:
         :return:
@@ -224,51 +242,33 @@ class CKANGeomSource(CKANSource):
             {self.geom_field}
         )"""
 
-    def get_values_across_geo_sql(self, variable: 'CKANVariable', geog_type: Type['CensusGeography']) -> str:
-        """ Generates SQL to send to CKAN to get data on variable across all geogs in geog_type for this source"""
-        value_select = self._get_value_select_sql(variable)
-        from_sql = self._get_from_subquery()
+    def _get_geog_select(self, geogs: QuerySet['CensusGeography'],
+                         parent_lvl_geog: Optional[Type[CensusGeography]]) -> str:
+        if not parent_lvl_geog:
+            # return the geoid in the JOIN witht eh source sub query
+            return f'{GEO_ALIAS}.geoid'
+        parent_table = f'"{parent_lvl_geog.ckan_resource}"'
+
         # noinspection SqlResolve
-        return f"""SELECT {value_select}, gt.id as geog_id
-        FROM {from_sql} dt 
-        JOIN "{geog_type.ckan_resource}" gt 
-        ON ST_CoveredBy(dt."{self.geom_field}", ST_GeomFromWKB(decode(gt.geom, 'hex')))
-        GROUP BY gt.id
+        return f"SELECT geoid " \
+               f"FROM {parent_table} pt " \
+               f"WHERE ST_Covers(ST_GeomFromWKB(decode(pt.geom, 'hex')), {GEO_ALIAS}.the_geom)"
+
+    def _get_from_subquery(self, geog_type: Type[CensusGeography], parent_geog_lvl=None) -> str:
         """
+        Returns source table joined with geography table to get geoids.
 
-    def get_single_value_sql(self, variable: 'CKANVariable', geog: 'CensusGeography') -> str:
-        """ Generates SQL to send to CKAN to get data on variable across all geogs in geog_type for this source"""
-        value_select = self._get_value_select_sql(variable)
-        from_sql = self._get_from_subquery()
-        # noinspection SqlResolve
-        return f"""SELECT {value_select}
-        FROM {from_sql} dt 
-        WHERE ST_CoveredBy(dt."{self.geom_field}", ST_GeomFromWKT('{geog.geom.wkt}'))
+        :param parent_geog_lvl:
         """
-
-    def _get_geog_select(self, geogs: QuerySet['CensusGeography']) -> str:
-        """ """
-        return f'"GEO".the_geom'
-
-    def _get_ckan_geog_lookup(self, geog_type: Type['CensusGeography']) -> Optional[CKANLookupSource]:
-        lookup_mapping = {
-            County: self.CKANLookupSource(table="8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"),
-            CountySubdivision: self.CKANLookupSource(table="35c72b10-147e-4bf3-8678-ae6e83ad1de2"),
-            Tract: self.CKANLookupSource(table='bb9a7972-981c-4026-8483-df8bdd1801c2'),
-            BlockGroup: self.CKANLookupSource(table="b5f5480c-548d-46d8-b623-40a226d87517"),
-        }
-        return lookup_mapping[geog_type] if geog_type in lookup_mapping else None
-
-    def _get_from_subquery(self, geog_type: Type[CensusGeography]) -> str:
-        """ Returns source table joined with geography table to get geoids """
         if self.standardization_query:
             source_qry = f'({self.standardization_query.replace("", "")})'
         else:
             source_qry = f'"{self.resource_id}"'
 
-        geog_table = self._get_ckan_geog_lookup(geog_type)
-        return f'{source_qry} "SRC" '
-        f'JOIN {geog_table} "GEO" ON ST_Covers({geog_table}.the_geom, {source_qry}.{self.geom_field})'
+        geog_table = self._get_ckan_geog_lookup(parent_geog_lvl or geog_type)
+        return f'{source_qry} "SRC" ' \
+               f'JOIN {geog_table} {GEO_ALIAS} ' \
+               f'ON ST_Covers(ST_GeomFromWKB(decode({GEO_ALIAS}.geom, \'hex\')), "SRC".{self.geom_field})'
 
 
 class CKANRegionalSource(CKANSource):
@@ -280,6 +280,9 @@ class CKANRegionalSource(CKANSource):
 
     countysubdivision_field = models.CharField(max_length=100, null=True, blank=True)
     countysubdivision_field_is_sql = models.BooleanField(default=False)
+
+    county_field = models.CharField(max_length=100, null=True, blank=True)
+    county_field_is_sql = models.BooleanField(default=False)
 
     place_field = models.CharField(max_length=100, null=True, blank=True)
     place_field_is_sql = models.BooleanField(default=False)
@@ -293,25 +296,22 @@ class CKANRegionalSource(CKANSource):
     neighborhood_field = models.CharField(max_length=100, null=True, blank=True)
     neighborhood_field_is_sql = models.BooleanField(default=False)
 
-    def get_source_geog_field(self, geog: Type[CensusGeography]) -> object:
+    def can_handle_geography(self, geog: Union[CensusGeography, Type[CensusGeography]]):
+        return bool(self._get_source_geog_field(geog))
+
+    def _get_source_geog_field(self, geog: Union[CensusGeography, Type[CensusGeography]]) -> object:
         field_for_geoid_field = f'{geog.geog_type}_field'.lower()
         return getattr(self, field_for_geoid_field)
 
-    def get_is_sql(self, geog: Union[CensusGeography, Type[CensusGeography]]):
-        field_for_is_sql = f'{geog.geog_type}_field_is_sql'.lower()
-        return getattr(self, field_for_is_sql)
-
-    def can_handle_geography(self, geog: Union[CensusGeography, Type[CensusGeography]]):
-        return bool(self.get_geoid_field(geog))
-
-    def get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
+    # SQL Generators
+    def _get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
         """
         Creates a chunk of SQL to be used in the WHERE clause that
         filters a dataset described by `source` to data within the
         geographies in `geogs`
         """
         # based on the geog's type, pick which field in the source we want
-        source_geog_field = self.get_source_geog_field(geogs[0])
+        source_geog_field = self._get_source_geog_field(geogs[0])
         source_geog_field = f'"{source_geog_field}"'  # add double quotes to ensure case sensitivity
 
         # get filter by geoid
@@ -319,36 +319,20 @@ class CKANRegionalSource(CKANSource):
 
         return f""" {source_geog_field} IN {geoids} """
 
-    def get_geoid_field(self, geog: CensusGeography):
-        return self.get_source_geog_field(geog)
+    def _get_geog_select(self, geogs: QuerySet['CensusGeography'],
+                         parent_lvl_geog: Optional[Type[CensusGeography]]) -> str:
+        # regional sources need to be aggregated outside CKAN for now
+        if parent_lvl_geog:
+            print('parent_lvl_geog is ignored in CKANRegionalSources for now.')
+        field = self._get_source_geog_field(geogs[0].__class__)
+        return f'{SQ_ALIAS}."{field}"'
 
-    def get_values_across_geo_sql(self, variable: 'CKANVariable', geog_type: Type['CensusGeography'], ):
-        """ Generates SQL to send to CKAN to get data on variable across all geogs in geog_type for this source"""
-        value_select = self._get_value_select_sql(variable)
-        from_sql = self._get_from_subquery()
-        source_geog_field = self.get_source_geog_field(geog_type)
-        # noinspection SqlResolve
-        return f"""SELECT {value_select},  gt.id as geog_id
-        FROM {from_sql} dt 
-        JOIN "{geog_type.ckan_resource}" gt 
-        ON "{source_geog_field}" = gt.geoid
-        GROUP BY gt.id"""
-
-    def get_single_value_sql(self, variable: 'CKANVariable', geog: 'CensusGeography'):
-        value_select = self._get_value_select_sql(variable)
-        from_sql = self._get_from_subquery()
-        source_geog_field = self.get_source_geog_field(geog)
-        # noinspection SqlResolve
-        return f"""SELECT {value_select}
-        FROM {from_sql} dt 
-        WHERE "{source_geog_field}" = '{geog.geoid}'"""
-
-    def _get_geog_select(self, geogs: QuerySet['CensusGeography']) -> str:
-        # todo: this operates on the assumption that all the geogs are the same type,
-        #   this will probably remain true, but it should be formalized somewhere
-        field = self.get_source_geog_field(geogs[0].__class__)
-        return f'"{field}"'
-
-    def _get_from_subquery(self, *args) -> str:
-        """ Return subquery for source of data. """
-        return f'({self.standardization_query.replace("", "")})' if self.standardization_query else f'"{self.resource_id}"'
+    def _get_from_subquery(self, geog_type, parent_geog_lvl=None) -> str:
+        """
+        Return subquery for source of data.
+        :param parent_geog_lvl:
+        """
+        # join table or standardization query with the parent geog table on
+        if self.standardization_query:
+            return f'({self.standardization_query.replace("", "")})'
+        return f'"{self.resource_id}"'

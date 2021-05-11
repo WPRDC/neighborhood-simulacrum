@@ -16,18 +16,6 @@ DOMAIN = County.objects \
     .aggregate(the_geom=Union('geom'))
 
 
-class CensusGeographyViewSet(viewsets.ModelViewSet):
-    queryset = CensusGeography.objects.all()
-    serializer_class = CensusGeographyPolymorphicSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-    def get_queryset(self):
-        if is_geog_data_request(self.request):
-            geog = get_geog_from_request(self.request)
-            return CensusGeography.objects.filter(pk=geog.pk)
-        return self.queryset
-
-
 class GetGeog(views.APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 

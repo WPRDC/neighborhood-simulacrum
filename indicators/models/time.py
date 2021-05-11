@@ -38,7 +38,7 @@ class TimeAxis(PolymorphicModel, Described):
         @property
         def trunc_sql_str(self):
             trunc_field = self.unit_str
-            return f""" date_trunc('{trunc_field}', '{self.time_point.isoformat()}'::timestamp) """
+            return f""" date_trunc('{trunc_field}', '{self.time_point.isoformat(sep=' ')}'::timestamp) """
 
         def __hash__(self):
             return hash((self.slug, self.time_point, self.time_unit))

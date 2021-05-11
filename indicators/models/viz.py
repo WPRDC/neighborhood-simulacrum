@@ -16,6 +16,7 @@ from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
 from geo.serializers import CensusGeographyDataMapSerializer
+from indicators.errors import DataRetrievalError
 from indicators.models.abstract import Described
 from indicators.models.source import Source
 from indicators.utils import DataResponse, ErrorResponse, ErrorLevel, limit_to_geo_extent
@@ -70,7 +71,7 @@ class DataViz(PolymorphicModel, Described):
 
     @property
     def sources(self) -> QuerySet['Source']:
-        """ Queryset representing the set of sources attached to all variables in this viz."""
+        """ Queryset representing the set of sources attached to all variables in this viz. """
         source_ids = set()
         variable: Variable
         for variable in self.variables:
@@ -110,17 +111,21 @@ class DataViz(PolymorphicModel, Described):
         :param geog: the geography being examined
         :return: DataResponse with data and error information
         """
-        geogs = self._get_geog_queryset(geog)
-        if geogs:
-            agg_geog = geog if len(geogs.all()) > 1 else None
-            return DataResponse(data=self._get_viz_data(geogs, agg_geog_lvl=agg_geog))
+        # get queryset representing geog though itself or child geogs
+        geogs, use_agg = self._get_geog_queryset(geog)
+        parent_geog_lvl = type(geog) if use_agg else None
+        try:
+            if geogs:
+                return DataResponse(data=self._get_viz_data(geogs, parent_geog_lvl=parent_geog_lvl))
+        except DataRetrievalError as e:
+            return DataResponse(data=None, error=e.error_response)
 
         return DataResponse(data=None,
-                            error=ErrorResponse(level=ErrorLevel.WARNING,
+                            error=ErrorResponse(level=ErrorLevel.EMPTY,
                                                 message=f'This visualization is not available for {geog.name}.'))
 
     def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
-                      agg_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
         """
         Gets a representation of data for the viz.
 
@@ -133,14 +138,14 @@ class DataViz(PolymorphicModel, Described):
         data: list[dict] = []
         for variable in self.variables:
             data += [datum.as_dict() for datum in
-                     variable.get_values(geogs, self.time_axis, parent_geog_lvl=agg_geog_lvl)]
+                     variable.get_values(geogs, self.time_axis, parent_geog_lvl=parent_geog_lvl)]
 
         return data
 
-    def _get_geog_queryset(self, geog: 'CensusGeography') -> Optional[QuerySet['CensusGeography']]:
+    def _get_geog_queryset(self, geog: 'CensusGeography') -> tuple[Optional[QuerySet['CensusGeography']], bool]:
         """
         Returns a queryset representing the the minimum set of geographies to for which data can be
-        aggregated to represent `geog`.
+        aggregated to represent `geog` and a bool representing whether or not child geogs are used.
 
         `None` is returned if no such non-empty set exists.
 
@@ -150,15 +155,15 @@ class DataViz(PolymorphicModel, Described):
         # check how geog works for this viz
         # does it work directly for the goeg?
         if self.can_handle_geography(geog):
-            return geog.__class__.objects.filter(pk=geog.pk)
+            return type(geog).objects.filter(pk=geog.pk), False
 
         # does it work as an aggregate over a smaller geog?
         for child_geog_model in geog.child_geog_models:
             child_geogs = child_geog_model.objects.filter(geom__coveredby=geog.geom)
             if self.can_handle_geographies(child_geogs):
-                return child_geogs
+                return child_geogs, True
 
-        return None
+        return None, False
 
     class Meta:
         verbose_name = "Data Visualization"
@@ -201,13 +206,13 @@ class MiniMap(DataViz):
 
         # on cache miss, get data for geog
         geogs = limit_to_geo_extent(geog_type)
-        serializer_context = {'data': variable.get_values(geogs, self.time_axis, parent_geog_lvl=geog)}
+        serializer_context = {'data': variable.get_values(geogs, self.time_axis, parent_geog_lvl=geog_type)}
         # serialize data into geojson with the shape data
         geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
         cache.set(cache_key, geojson, CACHE_TTL)
         return geojson
 
-    def _get_viz_data(self, geogs: QuerySet['CensusGeography'], agg_geog_lvl=None) -> DataResponse:
+    def _get_viz_data(self, geogs: QuerySet['CensusGeography'], parent_geog_lvl=None) -> dict:
         """
         Collects and returns the data for this presentation at the `geog` provided
 
@@ -254,9 +259,7 @@ class MiniMap(DataViz):
         sources.append(highlight_source)
         layers.append(highlight_layer)
 
-        return DataResponse(
-            data={'sources': sources, 'layers': layers, 'map_options': map_options, 'legends': legend_options},
-            error=ErrorResponse(level=ErrorLevel.OK))
+        return {'sources': sources, 'layers': layers, 'map_options': map_options, 'legends': legend_options}
 
     def __str__(self):
         return self.name
@@ -304,7 +307,8 @@ class GeogChoroplethMapLayer(MapLayer):
         # todo: make bucket count an option
         values = [feat['properties']['map_value'] for feat in data['features'] if
                   feat['properties']['map_value'] is not None]
-        breaks = jenkspy.jenks_breaks(values, nb_class=6)[1:]
+
+        breaks = jenkspy.jenks_breaks(values, nb_class=min(len(values), 6))[1:]
 
         # zip breakpoints with colors
         steps = list(itertools.chain.from_iterable(zip(breaks, self.COLORS[1:len(breaks)])))
@@ -469,44 +473,6 @@ class BigValue(Alphanumeric):
                               help_text="Only use percent for numbers with denominators. "
                                         "Variables with 'percent' as a unit should use 'Plain'")
 
-    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
-                      agg_geog_lvl: Optional['CensusGeography'] = None) -> Optional[dict]:
-        """ Extract value and get format data for the first variable in viz """
-        only_time_part = self.time_axis.time_parts[0]
-        try:
-            if len(self.variables.all()):
-                variable: 'Variable' = self.variables.order_by('variable_to_big_value')[0]
-                data = variable.get_values(geogs, self.time_axis, parent_geog_lvl=agg_geog_lvl)
-                datum = data[0]
-                if datum and datum.value is not None:
-                    # Percent
-                    if self.format == self.PERCENT:
-                        response_data = {'v': datum.percent,
-                                         'locale_options': {'v': {'style': 'percent'}}}
-                    # Fraction
-                    elif self.format == self.FRACTION:
-                        denom_var: 'Variable' = variable.denominators.all()[0]
-                        response_data = {'v': datum.value,
-                                         'd': datum.denom,
-                                         'locale_options': {'v': variable.locale_options,
-                                                            'd': denom_var.locale_options}}
-                    # Both
-                    elif self.format == self.BOTH:
-                        response_data = {'v': datum.value,
-                                         'p': datum.percent,
-                                         'locale_options': {'v': variable.locale_options,
-                                                            'p': {'style': 'percent'}}}
-                    # Plain
-                    else:
-                        response_data = {'v': datum.value, 'locale_options': {'v': variable.locale_options}}
-
-                    return {**response_data, 'note': self.note, '_raw': datum}
-        except Exception as e:
-            print(e)
-
-        return None
-
-
     @property
     def view_width(self):
         return self.width_override or self.DEFAULT_WIDTH
@@ -550,9 +516,6 @@ class Sentence(Alphanumeric):
                                   message=f'This Sentence is not available for {geog.name}.')
 
         return DataResponse(data=data, error=error)
-
-    def _get_viz_data(self, geog: 'CensusGeography', agg_geog_lvl=None) -> DataResponse:
-        return self.get_text_data(geog)
 
 
 @receiver(m2m_changed, sender=DataViz.variables, dispatch_uid="check_var_timing")
