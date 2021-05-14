@@ -21,3 +21,7 @@ class AggregationError(DataRetrievalError):
 
 class MissingSourceError(DataRetrievalError):
     level = ErrorLevel.ERROR
+
+
+class EmptyResultsError(DataRetrievalError):
+    level = ErrorLevel.EMPTY

@@ -14,7 +14,7 @@ import {
   View,
 } from '@adobe/react-spectrum';
 import { DataViz } from '../../containers/DataViz';
-import { DataVizID, DataVizResourceType, Indicator } from '../../types';
+import { DataVizID, DataVizType, Indicator } from '../../types';
 import { Breadcrumbs } from 'wprdc-components';
 import { DataVizVariant } from '../../containers/DataViz/types';
 
@@ -24,7 +24,7 @@ interface Props {
   onBreadcrumbClick: (path: React.ReactText) => void;
 }
 
-const BLURBS = [DataVizResourceType.BigValue, DataVizResourceType.Sentence];
+const BLURBS = [DataVizType.BigValue, DataVizType.Sentence];
 
 export function IndicatorDetails({
   indicator,
@@ -42,7 +42,7 @@ export function IndicatorDetails({
         <Text>{description}</Text>
       </View>
       <Divider marginX="size-100" />
-      {!!blurbs && (
+      {!!blurbs.length && (
         <View padding="size-100">
           <Heading level={4}>Quick Facts</Heading>
           {blurbs.map(blurb => (
@@ -82,7 +82,7 @@ function splitVizes(dataVizes: DataVizID[]) {
   };
 
   return dataVizes.reduce((splitRecord, dataViz) => {
-    if (BLURBS.includes(dataViz.resourcetype)) {
+    if (BLURBS.includes(dataViz.vizType)) {
       return {
         blurbs: [...splitRecord.blurbs, dataViz],
         vizes: splitRecord.vizes,

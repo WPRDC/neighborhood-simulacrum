@@ -1,26 +1,22 @@
 import React from 'react';
 import {
-  ChartData,
+  TabularData,
   ChartViz,
   DataVizBase,
   DataVizID,
-  DataVizResourceType,
+  DataVizType,
   Downloaded,
   GeogIdentifier,
-  MiniMapData,
+  MiniMapOptions,
   MiniMapViz,
-  TableData,
   TableViz,
   Variable,
   VizProps,
 } from '../../types';
 import { saveAs } from 'file-saver';
 import { Table } from '../../data-vizes/Table';
-import { PieChart } from '../../data-vizes/PieChart';
 import { Sentence } from '../../data-vizes/Sentence';
 import BigValue from '../../data-vizes/BigValue';
-import { BarChart } from '../../data-vizes/BarChart';
-import { LineChart } from '../../data-vizes/LineChart';
 import { MiniMap } from '../../data-vizes/MiniMap';
 import { Text } from '@react-spectrum/text';
 import { PlainObject } from 'react-vega';
@@ -31,6 +27,7 @@ import { DataVizCard } from '../../components/DataVizCard';
 import { dumpCSV } from '../../util';
 import { DataVizDetails } from '../../components/DataVizDetails';
 import { MissingVizMessage } from '../../components/MissingVizMessage';
+import { BarChart } from '../../data-vizes/BarChart';
 
 export function getSpecificDataViz(
   dataViz?: Downloaded<DataVizBase>,
@@ -38,22 +35,17 @@ export function getSpecificDataViz(
 ) {
   console.log({ dataViz, error });
   if (!!error) return MissingVizMessage;
-  console.log(error)
+  console.log(error);
   if (!dataViz) return undefined;
 
-  const componentMap: Record<
-    DataVizResourceType,
-    React.FC<VizProps<any, any>>
-  > = {
-    [DataVizResourceType.Sentence]: Sentence,
-    [DataVizResourceType.BigValue]: BigValue,
-    [DataVizResourceType.MiniMap]: MiniMap,
-    [DataVizResourceType.Table]: Table,
-    [DataVizResourceType.PieChart]: PieChart,
-    [DataVizResourceType.LineChart]: LineChart,
-    [DataVizResourceType.BarChart]: BarChart,
+  const componentMap: Record<DataVizType, React.FC<VizProps<any, any>>> = {
+    [DataVizType.Table]: Table,
+    [DataVizType.Chart]: BarChart, // fixme: make a generic chart viz
+    [DataVizType.MiniMap]: MiniMap,
+    [DataVizType.BigValue]: BigValue,
+    [DataVizType.Sentence]: Sentence,
   };
-  return componentMap[dataViz.resourcetype];
+  return componentMap[dataViz.vizType];
 }
 
 export function makeKey(dataVizID: DataVizID, geogIdentifier: GeogIdentifier) {
@@ -84,7 +76,7 @@ export function formatValue(
 }
 
 /**
- * Formats a percent value per site standards
+ * Formats a percent value to site standards
  * @param {number} value
  */
 export function formatPercent(value?: number): React.ReactNode {
@@ -117,9 +109,9 @@ export function formatCategory(variable: Variable): React.ReactNode {
 
 /**
  * Copies the tabular data provided from the API and wraps it in the format `Vega` accepts.
- * @param {ChartData} data - the tabular data from the viz API
+ * @param {TabularData} data - the tabular data from the viz API
  */
-export function prepDataForVega(data: ChartData): PlainObject {
+export function prepDataForVega(data: TabularData): PlainObject {
   return { table: data.map(datum => ({ ...datum })) };
 }
 
@@ -138,26 +130,18 @@ export function getVariantComponent(variant: DataVizVariant) {
 }
 
 export function downloadCSV(dataViz: Downloaded<DataVizBase>) {
-  switch (dataViz.resourcetype) {
-    case DataVizResourceType.Table:
-      return downloadTable(dataViz as Downloaded<TableViz, TableData>);
-    case DataVizResourceType.BarChart:
-    case DataVizResourceType.LineChart:
-    case DataVizResourceType.PieChart:
-      return downloadChart(dataViz as Downloaded<ChartViz, ChartData>);
-    case DataVizResourceType.MiniMap:
-      return downloadMiniMap(dataViz as Downloaded<MiniMapViz, MiniMapData>);
+  switch (dataViz.vizType) {
+    case DataVizType.Table:
+      return downloadTable(dataViz as Downloaded<TableViz, TabularData>);
+    case DataVizType.Chart:
+      return downloadChart(dataViz as Downloaded<ChartViz, TabularData>);
+    case DataVizType.MiniMap:
+      return downloadMiniMap(dataViz as Downloaded<MiniMapViz, MiniMapOptions>);
   }
 }
 
-export function downloadTable(table: Downloaded<TableViz, TableData>): void {
-  const blob = new Blob([
-    dumpCSV(
-      table.data.map(record =>
-        Object.entries(record).reduce((a, [k, v]) => ({ ...a, k: v.v }), {}),
-      ),
-    ),
-  ]);
+export function downloadTable(table: Downloaded<TableViz, TabularData>): void {
+  const blob = new Blob([dumpCSV(table.data)]);
   const fileName = `${table.slug}-${table.geog.title.replace(
     RegExp('s+'),
     '-',
@@ -165,7 +149,7 @@ export function downloadTable(table: Downloaded<TableViz, TableData>): void {
   saveAs(blob, fileName);
 }
 
-export function downloadChart(chart: Downloaded<ChartViz, ChartData>): void {
+export function downloadChart(chart: Downloaded<ChartViz, TabularData>): void {
   const blob = new Blob([dumpCSV(chart.data)], {
     type: 'text/csv;charset=utf-8',
   });
@@ -174,7 +158,7 @@ export function downloadChart(chart: Downloaded<ChartViz, ChartData>): void {
 }
 
 export function downloadMiniMap(
-  map: Downloaded<MiniMapViz, MiniMapData>,
+  map: Downloaded<MiniMapViz, MiniMapOptions>,
 ): void {
   const urls: string[] = map.data.sources
     .filter(s => typeof s.data === 'string')

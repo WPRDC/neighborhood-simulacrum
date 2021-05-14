@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Type, Optional
 import jenkspy
 import pystache
 from django.conf import settings
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import QuerySet, Manager
@@ -16,7 +15,7 @@ from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
 from geo.serializers import CensusGeographyDataMapSerializer
-from indicators.errors import DataRetrievalError
+from indicators.errors import DataRetrievalError, EmptyResultsError
 from indicators.models.abstract import Described
 from indicators.models.source import Source
 from indicators.utils import DataResponse, ErrorResponse, ErrorLevel, limit_to_geo_extent
@@ -99,50 +98,7 @@ class DataViz(PolymorphicModel, Described):
                 return False
         return True
 
-    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
-        """
-        Returns a `DataResponse` object with the viz's data at `geog`.
-
-        All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
-        harmonize should return an empty dataset and an error response explaining what went wrong (e.g. not available
-        for 'geog' because of privacy reasons)
-
-        This method is the primary interface to request data.
-        :param geog: the geography being examined
-        :return: DataResponse with data and error information
-        """
-        # get queryset representing geog though itself or child geogs
-        geogs, use_agg = self._get_geog_queryset(geog)
-        parent_geog_lvl = type(geog) if use_agg else None
-        try:
-            if geogs:
-                return DataResponse(data=self._get_viz_data(geogs, parent_geog_lvl=parent_geog_lvl))
-        except DataRetrievalError as e:
-            return DataResponse(data=None, error=e.error_response)
-
-        return DataResponse(data=None,
-                            error=ErrorResponse(level=ErrorLevel.EMPTY,
-                                                message=f'This visualization is not available for {geog.name}.'))
-
-    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
-                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
-        """
-        Gets a representation of data for the viz.
-
-        If representing the data as a list of records doesn't make sense for the visualization (e.g. maps),
-        this method can be overridden.
-
-        :param geogs:
-        :return:
-        """
-        data: list[dict] = []
-        for variable in self.variables:
-            data += [datum.as_dict() for datum in
-                     variable.get_values(geogs, self.time_axis, parent_geog_lvl=parent_geog_lvl)]
-
-        return data
-
-    def _get_geog_queryset(self, geog: 'CensusGeography') -> tuple[Optional[QuerySet['CensusGeography']], bool]:
+    def get_geog_queryset(self, geog: 'CensusGeography') -> tuple[Optional[QuerySet['CensusGeography']], bool]:
         """
         Returns a queryset representing the the minimum set of geographies to for which data can be
         aggregated to represent `geog` and a bool representing whether or not child geogs are used.
@@ -164,6 +120,55 @@ class DataViz(PolymorphicModel, Described):
                 return child_geogs, True
 
         return None, False
+
+    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+        """
+        Returns a `DataResponse` object with the viz's data at `geog`.
+
+        All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
+        harmonize should return an empty dataset and an error response explaining what went wrong (e.g. not available
+        for 'geog' because of privacy reasons)
+
+        This method is the primary interface to request data.
+        :param geog: the geography being examined
+        :return: DataResponse with data and error information
+        """
+        # get queryset representing geog though itself or child geogs
+        geogs, use_agg = self.get_geog_queryset(geog)
+        parent_geog_lvl = type(geog) if use_agg else None
+        data, options, error = None, None, ErrorResponse(ErrorLevel.OK)
+        try:
+            if geogs:
+                data = self._get_viz_data(geogs, parent_geog_lvl=parent_geog_lvl)
+                options = self._get_viz_options(geog)
+            else:
+                error = ErrorResponse(level=ErrorLevel.EMPTY,
+                                      message=f'This visualization is not available for {geog.name}.')
+        except DataRetrievalError as e:
+            error = e.error_response
+        finally:
+            return DataResponse(data, options, error)
+
+    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
+                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+        """
+        Gets a representation of data for the viz.
+
+        If representing the data as a list of records doesn't make sense for the visualization (e.g. maps),
+        this method can be overridden.
+
+        :param geogs:
+        :return:
+        """
+        data: list[dict] = []
+        for variable in self.variables:
+            data += [datum.as_dict() for datum in
+                     variable.get_values(geogs, self.time_axis, parent_geog_lvl=parent_geog_lvl)]
+
+        return data
+
+    def _get_viz_options(self, geog: 'CensusGeography') -> Optional[dict]:
+        return {}
 
     class Meta:
         verbose_name = "Data Visualization"
@@ -189,6 +194,7 @@ class MiniMap(DataViz):
         },
     }
     vars = models.ManyToManyField('Variable', verbose_name='Layers', through='MapLayer')
+    use_percent = models.BooleanField(default=False)
 
     @property
     def layers(self):
@@ -198,21 +204,18 @@ class MiniMap(DataViz):
         """
         returns geojson dict with data for `variable` and the geogs of type `geog_type`
         """
-        # todo: move caching to variable
-        cache_key = f'{self.slug}/{variable.slug}@{geog_type.TYPE}'
-        cached_geojson = cache.get(cache_key)
-        if cached_geojson:
-            return cached_geojson
-
-        # on cache miss, get data for geog
         geogs = limit_to_geo_extent(geog_type)
-        serializer_context = {'data': variable.get_values(geogs, self.time_axis, parent_geog_lvl=geog_type)}
+        data = variable.get_values(geogs, self.time_axis, parent_geog_lvl=geog_type)
+        serializer_context = {'data': data, 'percent': self.use_percent}
         # serialize data into geojson with the shape data
         geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
-        cache.set(cache_key, geojson, CACHE_TTL)
         return geojson
 
-    def _get_viz_data(self, geogs: QuerySet['CensusGeography'], parent_geog_lvl=None) -> dict:
+    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
+                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+        return []  # map data is stored in geojson that is served elsewhere
+
+    def _get_viz_options(self, geog: 'CensusGeography', parent_geog_lvl=None) -> dict:
         """
         Collects and returns the data for this presentation at the `geog` provided
 
@@ -223,8 +226,8 @@ class MiniMap(DataViz):
         layers: [dict] = []
         interactive_layer_ids: [str] = []
         legend_options: [dict] = []
+        locale_options = {'style': 'percent'} if self.use_percent else self.variables[0].locale_options
 
-        geog: CensusGeography = geogs.all()[0]  # todo: handle multiple geographies?
         for var in self.vars.all():
             # for each variable/layer, get its data geojson, style and options
             geojson = self._get_map_data_geojson(type(geog), var)
@@ -232,6 +235,7 @@ class MiniMap(DataViz):
             source, tmp_layers, interactive_layer_ids, legend_option = layer.get_map_options(geog.geog_type, geojson)
             sources.append(source)
             legend_option['title'] = var.name
+            legend_option['locale_options'] = locale_options
             legend_options.append(legend_option)
             layers += tmp_layers
 
@@ -259,7 +263,8 @@ class MiniMap(DataViz):
         sources.append(highlight_source)
         layers.append(highlight_layer)
 
-        return {'sources': sources, 'layers': layers, 'map_options': map_options, 'legends': legend_options}
+        return {'sources': sources, 'layers': layers, 'legends': legend_options,
+                'map_options': map_options, 'locale_options': locale_options}
 
     def __str__(self):
         return self.name
@@ -290,11 +295,11 @@ class GeogChoroplethMapLayer(MapLayer):
     - choropleths
     - categorical maps for admin regions
     """
-    COLORS = ['#fff7fb', '#ece7f2', '#d0d1e6', '#a6bddb', '#74a9cf', '#3690c0', '#0570b0', '#045a8d', '#023858']
+    COLORS = ['#FFF7FB', '#ECE7F2', '#D0D1E6', '#A6BDDB', '#74A9CF', '#3690C0', '#0570B0', '#045A8D', '#023858']
 
     sub_geog = models.ForeignKey(
         'geo.CensusGeography',
-        help_text='If provided, this geography will be styled within the target geography.  '
+        help_text='If provided, this geography will be styled within the target geography. '
                   'Otherwise, the provided geography will be styled along with others of the same level.',
         on_delete=models.SET_NULL,
         blank=True,
@@ -308,7 +313,7 @@ class GeogChoroplethMapLayer(MapLayer):
         values = [feat['properties']['map_value'] for feat in data['features'] if
                   feat['properties']['map_value'] is not None]
 
-        breaks = jenkspy.jenks_breaks(values, nb_class=min(len(values), 6))[1:]
+        breaks = jenkspy.jenks_breaks(values, nb_class=min(len(values), 6))[0:]
 
         # zip breakpoints with colors
         steps = list(itertools.chain.from_iterable(zip(breaks, self.COLORS[1:len(breaks)])))
@@ -340,7 +345,8 @@ class GeogChoroplethMapLayer(MapLayer):
         }]
 
         legend_type = 'choropleth'
-        legend_items = [{'label': str(breaks[i]), 'marker': self.COLORS[i]} for i in range(len(breaks))]
+        legend_items = [{'label': breaks[i],
+                         'marker': self.COLORS[i]} for i in range(len(breaks))]
 
         interactive_layer_ids = [f'{_id}/fill']
         return source, layers, interactive_layer_ids, {'type': legend_type, 'items': legend_items}
@@ -386,6 +392,25 @@ class Table(DataViz):
     def variables(self):
         return self.vars.order_by('variable_to_table')
 
+    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
+                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+        """ Gets data for each variable across time """
+        data_check = []
+        results = []
+        for variable in self.variables:
+            var_data = variable.get_values(geogs, self.time_axis, parent_geog_lvl=parent_geog_lvl)
+            data_check += var_data
+            time_data = {datum.time: datum.as_value_dict() for datum in var_data}
+            results.append({'variable': variable.slug, **time_data})
+        if not data_check:
+            raise EmptyResultsError('Data not available.')
+        return results
+
+    def _get_viz_options(self, geog: 'CensusGeography') -> Optional[dict]:
+        columns = [{"Header": '', "accessor": 'variable'}, ] + \
+                  [{"Header": tp.name, "accessor": tp.slug} for tp in self.time_axis.time_parts]
+        return {'transpose': self.transpose, 'show_percent': self.show_percent, 'columns': columns}
+
 
 class TableRow(VizVariable):
     viz = models.ForeignKey('Table', on_delete=models.CASCADE, related_name='table_to_variable')
@@ -425,11 +450,18 @@ class Chart(DataViz):
         (NONE, 'None'),
     )
     vars = models.ManyToManyField('Variable', verbose_name='Rows', through='ChartPart')
-    legendType = models.CharField(max_length=10, choices=LEGEND_TYPE_CHOICES, default='circle')
+    legend_type = models.CharField(max_length=10, choices=LEGEND_TYPE_CHOICES, default='circle')
 
     across_geogs = models.BooleanField(
         help_text='Check if you want this chart to compare the statistic across geographies instead of across time',
         default=False)
+
+    @property
+    def options(self) -> dict:
+        return {'across_geogs': self.across_geogs}
+
+    def _get_viz_options(self, geog: 'CensusGeography') -> Optional[dict]:
+        return {'legend_type': self.legend_type, 'across_geogs': self.across_geogs}
 
 
 class ChartPart(VizVariable):

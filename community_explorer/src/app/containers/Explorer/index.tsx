@@ -132,7 +132,6 @@ export function Explorer() {
             onClick={handleMapClick}
             colorScheme={colorScheme}
             selectedGeog={selectedGeog}
-
           />
         </View>
 

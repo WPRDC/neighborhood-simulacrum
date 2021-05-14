@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Type, Union, Optional, List, TYPE_CHECKING
 
@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.gis.db.models import Union as GeoUnion
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import QuerySet
 from rest_framework.request import Request
 
 from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography
@@ -56,20 +57,21 @@ class ErrorResponse:
 
 @dataclass
 class DataResponse:
-    # todo: use generic types here
     data: Optional[Union[List[dict], dict]]
+    options: dict = field(default_factory={})
     error: ErrorResponse = ErrorResponse(ErrorLevel.OK)
 
     def as_dict(self):
         return {
             'data': self.data,
+            'options': self.options,
             'error': self.error.as_dict()
         }
 
 
 # Functions
 # =-=-=-=-=
-def limit_to_geo_extent(geog_type: Type['CensusGeography']):
+def limit_to_geo_extent(geog_type: Type['CensusGeography']) -> QuerySet['CensusGeography']:
     """ Returns a queryset representing the geogs for `geog_type` that fit within project extent. """
     extent = County.objects \
         .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \

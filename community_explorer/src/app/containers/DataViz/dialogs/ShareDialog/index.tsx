@@ -4,7 +4,7 @@
  *
  */
 import React from 'react';
-import { DataVizBase, Downloaded } from '../../types';
+import { DataVizBase, Downloaded } from '../../../../types';
 import {
   Content,
   Dialog,

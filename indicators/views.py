@@ -5,6 +5,8 @@ from django.conf import settings
 from django.contrib.gis.db.models import QuerySet, Union
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, renderers
 from rest_framework.exceptions import NotFound
 from rest_framework.negotiation import BaseContentNegotiation
@@ -16,7 +18,7 @@ from rest_framework.views import APIView
 
 from geo.models import Geography, CensusGeography, County, BlockGroup
 from geo.serializers import CensusGeographyDataMapSerializer
-from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis
+from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis, MiniMap
 from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, DataVizSerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorResponse, ErrorLevel, \
@@ -100,7 +102,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
         return context
 
     # Cache requested url for each user for 2 minutes
-    # @method_decorator(cache_page(60 * 2))
+    @method_decorator(cache_page(60 * 2))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
@@ -109,10 +111,11 @@ class GeoJSONWithDataView(APIView):
     permission_classes = [AllowAny, ]
     content_negotiation_class = GeoJSONContentNegotiation
 
+    @method_decorator(cache_page(60 * 60))
     def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
         try:
             geog_type: Type[CensusGeography] = get_geog_model(geog_type_id)
-            data_viz: DataViz = DataViz.objects.get(pk=data_viz_id)
+            data_viz: MiniMap = DataViz.objects.get(pk=data_viz_id)
             variable: Variable = Variable.objects.get(pk=variable_id)
             time_part = data_viz.time_axis.time_parts[0]
         except KeyError as e:
@@ -126,7 +129,11 @@ class GeoJSONWithDataView(APIView):
             # todo: actually handle this error, then this case
             return Http404
 
-        serializer_context = {'data': variable.get_layer_data(data_viz, geog_type)}
+        locale_options = {'style': 'percent'} if data_viz.use_percent else variable.locale_options
+
+        serializer_context = {'data': variable.get_layer_data(data_viz, geog_type),
+                              'percent': data_viz.use_percent,
+                              'locale_options': locale_options}
 
         domain = County.objects \
             .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \

@@ -5,24 +5,27 @@ from typing import Dict, Optional, Type, List
 
 import requests
 from django.db import models
-from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery, Value
+from django.core.cache import caches
+from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery, Value, Case, When
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
 from census_data.models import CensusValue, CensusTable, CensusTablePointer
 from geo.models import CensusGeography
-from indicators.errors import AggregationError, MissingSourceError
+from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
 from indicators.models.abstract import Described
 from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource, DENOM_DKEY, \
     VALUE_DKEY, TIME_DKEY, GEOG_DKEY
 from indicators.models.time import TimeAxis
 from indicators.models.viz import DataViz
+from indicators.utils import ErrorLevel, limit_to_geo_extent
 
 # todo: move to settings
-from indicators.utils import ErrorLevel
-
 CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
+
+LT_CACHE_TTL = 60 * 60 * 24  # 24 hours
+
 
 @dataclass
 class Datum:
@@ -76,8 +79,11 @@ class Datum:
         return dataclasses.replace(self, denom=denom_val, percent=(self.value / denom_val))
 
     def as_dict(self):
-        return {'variable': self.variable, 'geog': self.geog, 'time': self.time, 'value': self.value,
-                'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
+        return {'variable': self.variable, 'geog': self.geog, 'time': self.time,
+                'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
+
+    def as_value_dict(self):
+        return {'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
 
 
 class Variable(PolymorphicModel, Described):
@@ -173,7 +179,7 @@ class Variable(PolymorphicModel, Described):
         denoms = self.denominators.all()
         return denoms[0] if len(denoms) else None
 
-    def get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=False,
+    def get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True,
                    agg_method=None, parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list['Datum']:
         """
         Collects data for this `Variable` instance across geographies in `geogs` and times in `time_axis`.
@@ -185,7 +191,68 @@ class Variable(PolymorphicModel, Described):
         :param {bool} use_denom: whether or not to also gather percent and denominator data
         :return:
         """
+        cache = caches['long_term']
+        cache_key = self._generate_cache_key(geogs, time_axis, use_denom=use_denom, agg_method=agg_method,
+                                             parent_geog_lvl=parent_geog_lvl)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print('Using cached data', cache_key)
+            return cached_data
+        data: list[Datum] = self._get_values(geogs, time_axis, use_denom=use_denom, agg_method=agg_method,
+                                parent_geog_lvl=parent_geog_lvl)
+        
+        self._check_values(data)
+        
+        cache.set(cache_key, data, LT_CACHE_TTL)
+        print('Cached', cache_key)
+        return data
+
+    def get_primary_value(self, geog: 'CensusGeography', time_part: 'TimeAxis.TimePart') -> Optional[float]:
+        geogs, use_agg = self._get_geog_queryset(geog)
+        parent_geog_lvl = type(geog) if use_agg else None
+        time_axis = TimeAxis.from_time_parts([time_part])
+        values = self.get_values(geogs, time_axis, parent_geog_lvl=parent_geog_lvl)
+        return values[0].value if len(values) else None
+
+    def _get_geog_queryset(self, geog: 'CensusGeography') -> tuple[Optional[QuerySet['CensusGeography']], bool]:
+        # check how geog works for this viz
+        # does it work directly for the goeg?
+        if self.can_handle_geography(geog):
+            return type(geog).objects.filter(pk=geog.pk), False
+
+        # does it work as an aggregate over a smaller geog?
+        for child_geog_model in geog.child_geog_models:
+            child_geogs = child_geog_model.objects.filter(geom__coveredby=geog.geom)
+            if self.can_handle_geographies(child_geogs):
+                return child_geogs, True
+
+    def _get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True,
+                    agg_method=None, parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list['Datum']:
         raise NotImplementedError
+
+    @staticmethod
+    def _check_values(data: list[Datum]):
+        for datum in data:
+            if datum.value is not None:
+                continue
+            raise EmptyResultsError('No values returned.')
+
+    def _generate_cache_key(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True,
+                            agg_method=None, parent_geog_lvl: Optional[Type['CensusGeography']] = None):
+        geog_key = tuple(sorted((geog.common_geoid for geog in geogs.all())))
+        time_key = time_axis.slug
+        denom_key = int(use_denom)
+        agg_key = str(agg_method)
+        pgl_key = str(parent_geog_lvl)
+        print(self.slug, geog_key, time_key, denom_key, agg_key, pgl_key)
+        return str(hash((self.slug, geog_key, time_key, denom_key, agg_key, pgl_key)))
+
+    def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> list[Datum]:
+        time_part = data_viz.time_axis.time_parts[0]
+        time_axis = TimeAxis.from_time_parts([time_part])
+        geogs = limit_to_geo_extent(geog_type)
+        data = self.get_values(geogs, time_axis)
+        return data
 
     def can_handle_time_part(self, time_part: TimeAxis.TimePart) -> bool:
         """ Returns `True` if any of a variable instance's sources can can handle `time_part`. """
@@ -215,21 +282,24 @@ class CensusVariable(Variable):
         through='CensusVariableSource'
     )
 
-    def get_values(self, geogs, time_axis, use_denom=False, agg_method=None, parent_geog_lvl=None) -> list[Datum]:
+    def _get_values(self, geogs, time_axis, use_denom=True, agg_method=None, parent_geog_lvl=None) -> list[Datum]:
         if not agg_method:
             # todo: make unified agg method class to share between sources
             agg_method = Sum
 
         if not parent_geog_lvl:
-            parent_geog_lvl = geogs[0]
+            if len(geogs) == 1:
+                parent_geog_lvl = geogs[0]
+            else:
+                parent_geog_lvl = type(geogs[0])
 
         # gather all censustables (roll up variables and time)
-        census_table_ptrs_by_year = self._get_census_table_ptrs_for_time_axis(time_axis)
+        census_table_ptrs_by_year = self.get_census_table_ptrs_for_time_axis(time_axis)
         denom_census_table_ptrs_by_year = {}
 
         if use_denom:
             denoms = self.denominators.all()
-            denom_census_table_ptrs_by_year = denoms[0].get_census_table_prts_for_time_axis(
+            denom_census_table_ptrs_by_year = denoms[0].get_census_tables_for_time_axis(
                 time_axis) if denoms else {}
 
         results = []
@@ -270,8 +340,11 @@ class CensusVariable(Variable):
                 ).values('geography__common_geoid').annotate(val=agg_method('value')).values('val'))
 
                 denom_sq = Sum('pre_denom')
-                percent_sq = Value(F('value') / F('denom'),
-                                   output_field=models.FloatField(null=True))
+                percent_sq = Case(
+                    When(denom=0, then=None),
+                    default=F('value') / F('denom')
+                )
+
             else:
                 pre_denom_sq = Value(None, output_field=models.FloatField(null=True))
                 denom_sq = Value(None, output_field=models.FloatField(null=True))
@@ -313,11 +386,14 @@ class CensusVariable(Variable):
 
         return results
 
-    def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> Dict[str, any]:
-        time_part = data_viz.time_axis.time_parts[0]
-        # get data {geoid -> value}
-        data = self.get_values_over_geog_type(geog_type, time_part)
-        return data
+    def _get_values_over_geog_type(self, geog_type, time_part):
+        geogs = geog_type.objects.all()
+        # queryset of relevant census tables
+        census_tables = self.get_census_tables_for_time_part(time_part)
+        # get values for all geogs at time, group by geog and sum values
+        qs = CensusValue.objects.filter(geography__common_geoid__in=geogs, census_table__in=census_tables).values(
+            "geography__common_geoid").annotate(value=Sum('value'))
+        return {g['geography__common_geoid']: g['value'] for g in qs.all()}
 
     # Utils
     def _get_source_for_time_point(self, time_point: timezone.datetime) -> 'CensusSource':
@@ -336,6 +412,12 @@ class CensusVariable(Variable):
         census_table_ptrs = self._get_census_ptr_for_time_part(time_part)
         return CensusTable.objects.filter(value_to_pointer__in=census_table_ptrs)
 
+    def get_census_tables_for_time_axis(self, time_axis: 'TimeAxis') -> Dict[str, QuerySet['CensusTable']]:
+        data = {}
+        for time_part in time_axis.time_parts:
+            data[time_part.slug] = self.get_census_tables_for_time_part(time_part)
+        return data
+
     def _get_census_ptr_for_time_part(self, time_part: 'TimeAxis.TimePart') -> QuerySet['CensusTablePointer']:
         """
         Returns a queryset that represents all `CensusTablePointer`s (value and margin of error) related to `time_part`.
@@ -346,8 +428,8 @@ class CensusVariable(Variable):
         source = self._get_source_for_time_point(time_part.time_point)
         return source.source_to_variable.get(variable=self).census_table_pointers.all()
 
-    def _get_census_table_ptrs_for_time_axis(self,
-                                             time_axis: 'TimeAxis') -> Dict[str, QuerySet['CensusTablePointer']]:
+    def get_census_table_ptrs_for_time_axis(self,
+                                            time_axis: 'TimeAxis') -> Dict[str, QuerySet['CensusTablePointer']]:
         data = {}
         for time_part in time_axis.time_parts:
             data[time_part.slug] = self._get_census_ptr_for_time_part(time_part)
@@ -365,8 +447,8 @@ class CKANVariable(Variable):
     )
     sql_filter = models.TextField(help_text='SQL clause that will be used to filter data.', null=True, blank=True)
 
-    def get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=False, agg_method=None,
-                   parent_geog_lvl=None) -> list[Datum]:
+    def _get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True, agg_method=None,
+                    parent_geog_lvl=None) -> list[Datum]:
         results: list[Datum] = []
 
         for time_part in time_axis.time_parts:
@@ -393,11 +475,6 @@ class CKANVariable(Variable):
                 results += var_data
 
         return results
-
-    def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> Dict[str, any]:
-        time_part = data_viz.time_axis.time_parts[0]
-        data = self.get_values_over_geog_type(geog_type, time_part)
-        return data
 
     # Utils
     def _query_datastore(self, query: str) -> list[Datum]:

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
@@ -78,16 +78,29 @@ class TimeAxis(PolymorphicModel, Described):
 
     unit = models.IntegerField(choices=UNIT_CHOICES)
 
+    _time_parts: Optional[list[TimePart]] = None
+
     @property
     def time_points(self) -> List[timezone.datetime]:
         return []
 
     @property
     def time_parts(self):
-        return [TimeAxis.TimePart(slug=self._get_slug_for_time_point(time_point),
-                                  name=self._get_name_for_time_point(time_point),
-                                  time_point=time_point,
-                                  time_unit=self.unit) for time_point in self.time_points]
+        if self._time_parts:
+            return self._time_parts
+        self._time_parts = [TimeAxis.TimePart(slug=self._get_slug_for_time_point(time_point),
+                                              name=self._get_name_for_time_point(time_point),
+                                              time_point=time_point,
+                                              time_unit=self.unit) for time_point in self.time_points]
+        return self._time_parts
+
+    @staticmethod
+    def from_time_parts(time_parts: list[TimePart]) -> 'TimeAxis':
+        t = TimeAxis(unit=time_parts[0].time_unit)
+        t._time_parts = time_parts
+        t.slug = '-'.join(sorted([tp.slug for tp in time_parts]))
+        t.name = f'Custom Time Axis ({t.slug})'
+        return t
 
     def _get_slug_for_time_point(self, time_point: timezone.datetime):
         if self.unit == self.QUARTER:

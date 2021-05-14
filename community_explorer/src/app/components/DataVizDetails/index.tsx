@@ -40,9 +40,7 @@ export function DataVizDetails(props: Props) {
       </Breadcrumbs>
       <View padding="size-200" paddingTop="size-50">
         <View>
-          <Text>
-            {description}
-          </Text>
+          <Text>{description}</Text>
         </View>
       </View>
       <Measure

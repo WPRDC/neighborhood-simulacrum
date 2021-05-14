@@ -7,8 +7,8 @@ import React from 'react';
 import { DataVizID, Geog, Indicator, Taxonomy } from '../../types';
 import { DomainSection } from '../DomainSection';
 
-import { Content, Item, Text } from '@adobe/react-spectrum';
-import { Tabs } from '@react-spectrum/tabs';
+import { View, Item, Text } from '@adobe/react-spectrum';
+import { TabList, TabPanels, Tabs } from '@react-spectrum/tabs';
 import { useHistory } from 'react-router-dom';
 import { Indicator as IndicatorContainer } from '../../containers/Indicator';
 import { DataViz as DataVizContainer } from '../../containers/DataViz';
@@ -50,31 +50,39 @@ export function TaxonomySection(props: Props) {
   if (taxonomyIsLoading) {
     return <Text margin="size-200">Gathering data...</Text>;
   }
-
   if (taxonomy) {
     return (
       <Tabs
+        aria-label="primary categories"
         onSelectionChange={handleTabChange}
         selectedKey={currentDomainSlug}
         defaultSelectedKey={taxonomy[0].slug}
       >
-        {taxonomy.map((domain, i) => (
-          <Item title={domain.name} key={domain.slug}>
-            <Content margin="size-200">
-              {!!content ? (
-                content
-              ) : (
-                <DomainSection
-                  domain={domain}
-                  currentSubdomainSlug={currentSubdomainSlug}
-                />
-              )}
-            </Content>
-          </Item>
-        ))}
+        <View paddingX="size-200">
+          <TabList>
+            {taxonomy.map(domain => (
+              <Item key={domain.slug}>{domain.name}</Item>
+            ))}
+          </TabList>
+          <TabPanels>
+            {taxonomy.map(domain => (
+              <Item key={domain.slug}>
+                {!!content ? (
+                  content
+                ) : (
+                  <DomainSection
+                    domain={domain}
+                    currentSubdomainSlug={currentSubdomainSlug}
+                  />
+                )}
+              </Item>
+            ))}
+          </TabPanels>
+        </View>
       </Tabs>
     );
   }
+  console.warn('No taxonomy found.');
   return <div />;
 }
 

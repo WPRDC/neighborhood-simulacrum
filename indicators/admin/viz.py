@@ -49,11 +49,6 @@ class TableRowInline(nested_admin.NestedTabularInline):
     model = TableRow
 
 
-class TableRowInline(nested_admin.NestedTabularInline):
-    autocomplete_fields = ('variable',)
-    model = TableRow
-
-
 class ChartPartInline(nested_admin.NestedTabularInline):
     autocomplete_fields = ('variable',)
     model = ChartPart
@@ -138,7 +133,6 @@ class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
     class ChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
         model = Chart
         inlines = (ChartPartInline,)
-
 
     # Alphanumeric
     class BigValueInline(nested_admin.NestedStackedPolymorphicInline.Child):

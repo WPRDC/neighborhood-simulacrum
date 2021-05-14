@@ -6,27 +6,56 @@
 import React from 'react';
 
 import { Text, View } from '@adobe/react-spectrum';
-import { BigValueData, BigValueViz, VizProps } from '../../types';
+import { BigValueViz, TabularData, VizProps } from '../../types';
 import styled from 'styled-components/macro';
 
-interface Props extends VizProps<BigValueViz, BigValueData> {}
+interface Props extends VizProps<BigValueViz, TabularData> {}
 
 export function BigValue(props: Props) {
   const { dataViz } = props;
-  const { v, p, d, localeOptions, note } = dataViz.data;
-  const value = v.toLocaleString('en-US', localeOptions.v);
-  const percent =
-    typeof p === 'number' ? (
+  const { data, error } = dataViz;
+
+  if (!data) return <View />;
+  if (error.level) {
+    return (
+      <View>
+        <Text>{error.message}</Text>
+      </View>
+    );
+  }
+
+  const { variable, value, percent, denom } = data[0];
+  const primaryVariable = dataViz.variables.find(v => v.slug === variable);
+
+  const denomVariable =
+    primaryVariable && primaryVariable.denominators
+      ? primaryVariable.denominators[0]
+      : undefined;
+
+  const displayValue =
+    typeof value === 'number'
+      ? value.toLocaleString(
+          'en-US',
+          primaryVariable ? primaryVariable.localeOptions : undefined,
+        )
+      : undefined;
+
+  const displayPercent =
+    typeof percent === 'number' ? (
       <span style={{ fontSize: '3rem' }}>
         {' '}
-        ({p.toLocaleString('en-US', localeOptions.p)})
+        ({percent.toLocaleString('en-US', { style: 'percent' })})
       </span>
     ) : undefined;
-  const denom =
-    typeof d === 'number' ? (
+
+  const displayDenom =
+    typeof denom === 'number' ? (
       <span style={{ fontSize: '3rem' }}>
         {' / '}
-        {d.toLocaleString('en-US', localeOptions.d)}
+        {denom.toLocaleString(
+          'en-US',
+          denomVariable ? denomVariable.localeOptions : undefined,
+        )}
       </span>
     ) : undefined;
   return (
@@ -40,11 +69,11 @@ export function BigValue(props: Props) {
             margin: 0,
           }}
         >
-          {value}
-          {denom}
-          {percent}
+          {displayValue}
+          {displayDenom}
+          {displayPercent}
         </BigValueText>
-        <NoteText>{note || dataViz.name}</NoteText>
+        <NoteText>{dataViz.name}</NoteText>
       </Text>
     </View>
   );

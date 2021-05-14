@@ -7,7 +7,7 @@ import React, { memo } from 'react';
 import { View } from '@adobe/react-spectrum';
 import Measure from 'react-measure';
 import { VizWrapperProps } from '../../types';
-import {MissingVizMessage} from "../MissingVizMessage";
+import { MissingVizMessage } from '../MissingVizMessage';
 
 interface Props extends VizWrapperProps {}
 

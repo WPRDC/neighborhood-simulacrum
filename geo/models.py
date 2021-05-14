@@ -3,11 +3,9 @@ from abc import abstractmethod
 from typing import List, Type
 
 from django.contrib.gis.db import models
-from django.contrib.postgres.fields import ArrayField
 from polymorphic.models import PolymorphicModel
 
 from geo.util import get_population, get_kid_population
-from indicators.helpers import clean_sql
 
 
 class Geography(models.Model):
@@ -109,6 +107,14 @@ class CensusGeography(PolymorphicModel, Geography):
             return self.geoid
         raise NotImplementedError('Geographies without a `geoid` field must override `geog_id`')
 
+    @property
+    def population(self):
+        return int(get_population(self))
+
+    @property
+    def kid_population(self):
+        return int(get_kid_population(self))
+
     # Abstract properties
     @property
     @abstractmethod
@@ -129,30 +135,6 @@ class CensusGeography(PolymorphicModel, Geography):
     @abstractmethod
     def census_geo(self) -> dict:
         raise NotImplementedError
-
-    @property
-    def carto_geom_sql(self):
-        return clean_sql(f"""
-                    SELECT {self.carto_geom_field}
-                    FROM {self.carto_table}
-                    WHERE {self.carto_geoid_field} = '{self.geoid}'
-                    """)
-
-    @property
-    def carto_sql(self):
-        return clean_sql(f"""
-                    SELECT {self.carto_geom_field}, {self.carto_geom_webmercator_field}
-                    FROM {self.carto_table}
-                    WHERE {self.carto_geoid_field} = '{self.geoid}'
-                    """)
-
-    @property
-    def population(self):
-        return get_population(self)
-
-    @property
-    def kid_population(self):
-        return get_kid_population(self)
 
 
 class BlockGroup(CensusGeography):
@@ -356,7 +338,33 @@ class Neighborhood(CensusGeography):
     TYPE = Geography.NEIGHBORHOOD
     TITLE = 'Neighborhood'
     child_geog_models = [BlockGroup]
-    pass
+
+    geoid = models.CharField(max_length=12, primary_key=True)
+
+    @property
+    def countyfp(self):
+        return '42003'
+
+    @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([geog.title for geog in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.sldust}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name = "Zip Code Tabulation Area"
+        verbose_name_plural = "Zip Code Tabulation Areas"
 
 
 # Todo: Use these
