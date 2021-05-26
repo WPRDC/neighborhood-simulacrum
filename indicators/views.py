@@ -119,8 +119,7 @@ class GeoJSONWithDataView(APIView):
             variable: Variable = Variable.objects.get(pk=variable_id)
             time_part = data_viz.time_axis.time_parts[0]
         except KeyError as e:
-            # when the geog is wrong todo: make 400 malf
-            #  ormed with info on available geo types
+            # when the geog is wrong todo: make 400 malformed with info on available geo types
             raise NotFound
         except ObjectDoesNotExist as e:
             raise NotFound

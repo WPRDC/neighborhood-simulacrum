@@ -15,7 +15,7 @@ export function BigValue(props: Props) {
   const { dataViz } = props;
   const { data, error } = dataViz;
 
-  if (!data) return <View />;
+  if (!data || !data[0]) return <View />;
   if (error.level) {
     return (
       <View>
