@@ -102,7 +102,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
         return context
 
     # Cache requested url for each user for 2 minutes
-    @method_decorator(cache_page(60 * 2))
+    # @method_decorator(cache_page(60 * 2))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
@@ -111,7 +111,7 @@ class GeoJSONWithDataView(APIView):
     permission_classes = [AllowAny, ]
     content_negotiation_class = GeoJSONContentNegotiation
 
-    @method_decorator(cache_page(60 * 60))
+    # @method_decorator(cache_page(60 * 60 * 24))
     def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
         try:
             geog_type: Type[CensusGeography] = get_geog_model(geog_type_id)
@@ -129,18 +129,7 @@ class GeoJSONWithDataView(APIView):
             # todo: actually handle this error, then this case
             return Http404
 
-        locale_options = {'style': 'percent'} if data_viz.use_percent else variable.locale_options
-
-        serializer_context = {'data': variable.get_layer_data(data_viz, geog_type),
-                              'percent': data_viz.use_percent,
-                              'locale_options': locale_options}
-
-        domain = County.objects \
-            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
-            .aggregate(the_geom=Union('geom'))
-
-        geogs: QuerySet['CensusGeography'] = geog_type.objects.filter(geom__coveredby=domain['the_geom'])
-        geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
+        geojson = data_viz.get_map_data_geojson(geog_type, variable)
 
         if request.query_params.get('download', False):
             headers = {

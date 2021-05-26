@@ -199,10 +199,10 @@ class Variable(PolymorphicModel, Described):
             print('Using cached data', cache_key)
             return cached_data
         data: list[Datum] = self._get_values(geogs, time_axis, use_denom=use_denom, agg_method=agg_method,
-                                parent_geog_lvl=parent_geog_lvl)
-        
+                                             parent_geog_lvl=parent_geog_lvl)
+
         self._check_values(data)
-        
+
         cache.set(cache_key, data, LT_CACHE_TTL)
         print('Cached', cache_key)
         return data
@@ -244,15 +244,7 @@ class Variable(PolymorphicModel, Described):
         denom_key = int(use_denom)
         agg_key = str(agg_method)
         pgl_key = str(parent_geog_lvl)
-        print(self.slug, geog_key, time_key, denom_key, agg_key, pgl_key)
         return str(hash((self.slug, geog_key, time_key, denom_key, agg_key, pgl_key)))
-
-    def get_layer_data(self, data_viz: DataViz, geog_type: Type[CensusGeography]) -> list[Datum]:
-        time_part = data_viz.time_axis.time_parts[0]
-        time_axis = TimeAxis.from_time_parts([time_part])
-        geogs = limit_to_geo_extent(geog_type)
-        data = self.get_values(geogs, time_axis)
-        return data
 
     def can_handle_time_part(self, time_part: TimeAxis.TimePart) -> bool:
         """ Returns `True` if any of a variable instance's sources can can handle `time_part`. """

@@ -83,6 +83,7 @@ class CountySubdivisionSerializer(CensusGeographySerializer):
 
 
 class TractSerializer(CensusGeographySerializer):
+
     class Meta:
         model = Tract
         fields = CensusGeographySerializer.Meta.fields

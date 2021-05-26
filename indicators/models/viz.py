@@ -200,14 +200,16 @@ class MiniMap(DataViz):
     def layers(self):
         return self.vars.all()
 
-    def _get_map_data_geojson(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> dict:
+    def get_map_data_geojson(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> dict:
         """
         returns geojson dict with data for `variable` and the geogs of type `geog_type`
         """
-        geogs = limit_to_geo_extent(geog_type)
+        geogs = limit_to_geo_extent(geog_type) # todo: also figure out parent geog
         data = variable.get_values(geogs, self.time_axis, parent_geog_lvl=geog_type)
-        serializer_context = {'data': data, 'percent': self.use_percent}
-        # serialize data into geojson with the shape data
+
+        locale_options = {'style': 'percent'} if self.use_percent else variable.locale_options
+        serializer_context = {'data': data, 'percent': self.use_percent, 'locale_options': locale_options}
+
         geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
         return geojson
 
@@ -230,7 +232,7 @@ class MiniMap(DataViz):
 
         for var in self.vars.all():
             # for each variable/layer, get its data geojson, style and options
-            geojson = self._get_map_data_geojson(type(geog), var)
+            geojson = self.get_map_data_geojson(type(geog), var)
             layer: MapLayer = self.vars.through.objects.get(variable=var, viz=self)
             source, tmp_layers, interactive_layer_ids, legend_option = layer.get_map_options(geog.geog_type, geojson)
             sources.append(source)
