@@ -19,7 +19,7 @@ export const GEOG_TYPES: GeogTypeDescriptor[] = [
     name: 'Counties',
     id: GeographyType.County,
     tableName: 'census_county',
-    description: 'Largest subdivision of the state.',
+    description: 'Drawn to encompass ~2500-8000 people',
   },
   {
     name: 'County Subdivisions',

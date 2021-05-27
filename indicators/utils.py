@@ -9,7 +9,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from rest_framework.request import Request
 
-from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography
+from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography, SchoolDistrict, Neighborhood, \
+    ZipCodeTabulationArea
 
 if TYPE_CHECKING:
     from indicators.models import Variable, Variable, DataViz
@@ -30,6 +31,9 @@ GEOG_MODEL_MAPPING = {
     'county': County,
     'blockGroup': BlockGroup,
     'countySubdivision': CountySubdivision,
+    'schoolDistrict': SchoolDistrict,
+    'neighborhood': Neighborhood,
+    'zcta': ZipCodeTabulationArea
 }
 
 

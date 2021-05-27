@@ -22,3 +22,5 @@ api.bak
 
 # for now at least
 bin/
+
+static/

@@ -79,6 +79,8 @@ class CensusGeography(PolymorphicModel, Geography):
     TYPE: str
     TITLE: str
 
+    carto_table: str
+    type_description: str
     ckan_resource: str
     base_zoom: int
 
@@ -136,11 +138,20 @@ class CensusGeography(PolymorphicModel, Geography):
     def census_geo(self) -> dict:
         raise NotImplementedError
 
+    def get_menu_record(self) -> dict:
+        return {
+            'id': self.TYPE,
+            'name': self.TITLE,
+            'table_name': self.carto_table,
+            'description': self.type_description,
+        }
+
 
 class BlockGroup(CensusGeography):
     TYPE = Geography.BLOCK_GROUP
     TITLE = "Block Group"
     carto_table = "census_blockgroup"
+    type_description = 'Smallest geographical unit w/ ACS sample data.'
 
     ckan_resource = "b5f5480c-548d-46d8-b623-40a226d87517"
 
@@ -184,6 +195,9 @@ class BlockGroup(CensusGeography):
 class Tract(CensusGeography):
     TYPE = Geography.TRACT
     TITLE = 'Tract'
+    carto_table = "census_tracts"
+    type_description = "Drawn to encompass ~2500-8000 people"
+
     child_geog_models = [BlockGroup]
 
     geog_type = TYPE
@@ -226,6 +240,8 @@ class CountySubdivision(CensusGeography):
     TYPE = Geography.COUNTY_SUBDIVISION
     TITLE = 'County Subdivision'
     carto_table = "census_county_subdivision"
+    type_description = "Townships, municipalities, boroughs and cities."
+
     geog_type = TYPE
 
     ckan_resource = "8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"
@@ -268,6 +284,9 @@ class CountySubdivision(CensusGeography):
 class County(CensusGeography):
     TYPE = Geography.COUNTY
     TITLE = "County"
+    carto_table = "census_county"
+    type_description = "Largest subdivision of a state."
+
     child_geog_models = [CountySubdivision, Tract, BlockGroup]
     geog_type = TYPE
 
@@ -306,9 +325,11 @@ class County(CensusGeography):
 
 class ZipCodeTabulationArea(CensusGeography):
     TYPE = Geography.ZCTA
-    TILE = 'Zip Code'
-    child_geog_models = []
+    TITLE = 'Zip Code'
+    carto_table = "census_zip_codes"
+    type_description = "The area covered by a postal Zip code."
 
+    child_geog_models = []
     zctace = models.CharField(max_length=5)
     geoid = models.CharField(max_length=5)
 
@@ -337,9 +358,12 @@ class ZipCodeTabulationArea(CensusGeography):
 class Neighborhood(CensusGeography):
     TYPE = Geography.NEIGHBORHOOD
     TITLE = 'Neighborhood'
+    carto_table = "pgh_neighborhoods"
+    type_description = 'Official City of Pittsburgh neighborhood boundaries'
+
     child_geog_models = [BlockGroup]
 
-    geoid = models.CharField(max_length=12, primary_key=True)
+    geoid = models.CharField(max_length=12)
 
     @property
     def countyfp(self):
@@ -365,6 +389,46 @@ class Neighborhood(CensusGeography):
     class Meta:
         verbose_name = "Zip Code Tabulation Area"
         verbose_name_plural = "Zip Code Tabulation Areas"
+
+
+class SchoolDistrict(CensusGeography):
+    TYPE = "schoolDistrict"
+    TITLE = "School District"
+    carto_table = 'census_school_districts'
+    type_description = 'Area served by a School District.'
+
+    geog_type = TYPE
+
+    ckan_resource = '35e9b048-c9fb-4412-a9d8-a751f975eb2a'
+
+    geoid = models.CharField(max_length=12, primary_key=True)
+
+    statefp = models.CharField(max_length=2)
+    unsdlea = models.CharField(max_length=5)
+    placens = models.CharField(max_length=8)
+
+    @property
+    def title(self):
+        return f'{self.name}'
+
+    @property
+    def subtitle(self):
+        return '/'.join([geog.title for geog in self.hierarchy])
+
+    @property
+    def hierarchy(self):
+        return []
+
+    @property
+    def census_geo(self):
+        return {'for': f'tract:{self.unsdlea}',
+                'in': f'state:{self.statefp}'}
+
+    class Meta:
+        verbose_name_plural = "School Districts"
+
+    def __str__(self):
+        return f'{self.name} School District - {self.geoid}'
 
 
 # Todo: Use these
@@ -447,44 +511,6 @@ class Puma(CensusGeography):
 
     def __str__(self):
         return f'PUMA {self.geoid}'
-
-
-class SchoolDistrict(CensusGeography):
-    TYPE = "schoolDistrict"
-    TITLE = "School District"
-    carto_table = 'census_school_districts'
-    geog_type = TYPE
-
-    ckan_resource = '35e9b048-c9fb-4412-a9d8-a751f975eb2a'
-
-    geoid = models.CharField(max_length=12, primary_key=True)
-
-    statefp = models.CharField(max_length=2)
-    unsdlea = models.CharField(max_length=5)
-    placens = models.CharField(max_length=8)
-
-    @property
-    def title(self):
-        return f'{self.name}'
-
-    @property
-    def subtitle(self):
-        return '/'.join([geog.title for geog in self.hierarchy])
-
-    @property
-    def hierarchy(self):
-        return []
-
-    @property
-    def census_geo(self):
-        return {'for': f'tract:{self.unsdlea}',
-                'in': f'state:{self.statefp}'}
-
-    class Meta:
-        verbose_name_plural = "School Districts"
-
-    def __str__(self):
-        return f'{self.name} School District - {self.geoid}'
 
 
 class StateHouse(CensusGeography):

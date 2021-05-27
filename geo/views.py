@@ -3,13 +3,15 @@ from typing import Type
 from django.conf import settings
 from django.contrib.gis.db.models import Union
 from rest_framework import viewsets, views, response, serializers
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
 
 from geo.models import CensusGeography, Tract, County, CountySubdivision, BlockGroup
 from geo.serializers import CensusGeographyPolymorphicSerializer, CensusGeographyBriefSerializer, \
     CensusGeographySerializer
 from geo.util import all_geogs_in_domain
-from indicators.utils import is_geog_data_request, get_geog_from_request
+from indicators.utils import is_geog_data_request, get_geog_from_request, get_geog_model
 
 DOMAIN = County.objects \
     .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
@@ -56,3 +58,16 @@ class CountySubdivisionViewSet(CensusGeographyViewSet):
 
 class CountyViewSet(CensusGeographyViewSet):
     model = County
+
+
+@api_view(http_method_names=['GET'])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def geog_list(request):
+    records = []
+
+    for type_str in settings.AVAILABLE_GEOG_TYPES:
+        geog: Type[CensusGeography] = get_geog_model(type_str)
+        # fixme: this seems like such a waste
+        geog_record = geog.objects.all()[0].get_menu_record()
+        records.append(geog_record)
+    return Response(records)
