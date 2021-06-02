@@ -3,9 +3,24 @@ from abc import abstractmethod
 from typing import List, Type
 
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 from polymorphic.models import PolymorphicModel
 
 from geo.util import get_population, get_kid_population
+
+COUNTY_FPS = (
+    '003',  # Allegheny county
+    '019',
+    '128',
+    '007',
+    '005',
+    '063',
+    '129',
+    '051',
+    '059',
+    '125',
+    '073',
+)
 
 
 class Geography(models.Model):
@@ -45,6 +60,7 @@ class Geography(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     geom = models.MultiPolygonField()
+    mini_geom = models.MultiPolygonField(null=True)
     geo_level = models.CharField(
         max_length=30,
         choices=GEO_LEVELS,
@@ -66,6 +82,24 @@ class Geography(models.Model):
                 "name": self.name
             }
         }
+
+    @property
+    def _mini_geom(self) -> GEOSGeometry:
+        return self.geom.buffer(-0.0002)
+
+    @property
+    def big_geom(self) -> GEOSGeometry:
+        return self.geom.buffer(0.0005)
+
+    def save(self, *args, **kwargs):
+        # in_extent =
+        if not self.mini_geom:
+            print(self.name)
+            if type(self._mini_geom) == Polygon:
+                self.mini_geom = MultiPolygon(self._mini_geom)
+            else:
+                self.mini_geom = self._mini_geom
+        super(Geography, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -120,11 +154,6 @@ class CensusGeography(PolymorphicModel, Geography):
     # Abstract properties
     @property
     @abstractmethod
-    def title(self) -> str:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
     def subtitle(self) -> []:
         raise NotImplementedError
 
@@ -138,11 +167,26 @@ class CensusGeography(PolymorphicModel, Geography):
     def census_geo(self) -> dict:
         raise NotImplementedError
 
+    @property
+    def carto_sql(self):
+        return f"{self._carto_select} {self._carto_filter}"
+
+    @property
+    def _carto_select(self):
+        # noinspection SqlResolve
+        return f"SELECT *, name as map_name, '{self.TYPE}' as geogType, geoid as geogID " \
+               f"FROM {self.carto_table} "
+
+    @property
+    def _carto_filter(self):
+        return f"""WHERE statefp = '42' AND countyfp IN ({','.join((f"'{cfp}'" for cfp in COUNTY_FPS))})"""
+
     def get_menu_record(self) -> dict:
         return {
             'id': self.TYPE,
             'name': self.TITLE,
             'table_name': self.carto_table,
+            'carto_sql': self.carto_sql,
             'description': self.type_description,
         }
 
@@ -350,6 +394,18 @@ class ZipCodeTabulationArea(CensusGeography):
         return {'for': f'tract:{self.sldust}',
                 'in': f'state:{self.statefp}'}
 
+    @property
+    def _carto_filter(self):
+        return "WHERE st_intersects(the_geom, (select the_geom from profiles_extent))"
+
+    @property
+    def population(self):
+        return None
+
+    @property
+    def kid_population(self):
+        return None
+
     class Meta:
         verbose_name = "Zip Code Tabulation Area"
         verbose_name_plural = "Zip Code Tabulation Areas"
@@ -363,7 +419,7 @@ class Neighborhood(CensusGeography):
 
     child_geog_models = [BlockGroup]
 
-    geoid = models.CharField(max_length=12)
+    geoid = models.CharField(max_length=12, primary_key=True)
 
     @property
     def countyfp(self):
@@ -382,13 +438,20 @@ class Neighborhood(CensusGeography):
         return []
 
     @property
-    def census_geo(self):
-        return {'for': f'tract:{self.sldust}',
-                'in': f'state:{self.statefp}'}
+    def _carto_filter(self):
+        return ""  # we want all of them.
+
+    @property
+    def population(self):
+        return None
+
+    @property
+    def kid_population(self):
+        return None
 
     class Meta:
-        verbose_name = "Zip Code Tabulation Area"
-        verbose_name_plural = "Zip Code Tabulation Areas"
+        verbose_name = "Neighborhood"
+        verbose_name_plural = "Neighborhoods"
 
 
 class SchoolDistrict(CensusGeography):
@@ -462,11 +525,6 @@ class Place(CensusGeography):
     def census_geo(self):
         return {'for': f'county subdivision:{self.cousubfp}',
                 'in': f'state:{self.statefp} county:{self.countyfp}'}
-
-    @property
-    def census_geo(self):
-        return {'for': f'tract:{self.placefp}',
-                'in': f'state:{self.statefp}'}
 
     class Meta:
         verbose_name_plural = "Places"

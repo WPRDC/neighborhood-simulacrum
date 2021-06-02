@@ -82,6 +82,11 @@ def limit_to_geo_extent(geog_type: Type['CensusGeography']) -> QuerySet['CensusG
         .aggregate(the_geom=GeoUnion('geom'))
     return geog_type.objects.filter(geom__coveredby=extent['the_geom'])
 
+def in_geo_extent(geog: 'CensusGeography') -> bool:
+    return County.objects \
+        .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+        .aggregate(the_geom=GeoUnion('geom')).values('the_geom').contains(geog)
+
 
 def get_geog_model(geog_type: str) -> Type[CensusGeography]:
     if geog_type in GEOG_MODEL_MAPPING:

@@ -17,10 +17,12 @@ import { SourceProps } from 'react-map-gl';
 import menuLayers from './menuLayers';
 import { MAPBOX_API_TOKEN } from '../../settings';
 import { ColorMode, GeogIdentifier } from '../../types';
+import { censusFilter } from './settings';
+import layerSpec, { makeLayers } from './layerSpec';
 
 interface Props {
-  selectedGeoLayer: GeogTypeDescriptor;
-  selectedGeog: GeogIdentifier;
+  selectedGeoLayer?: GeogTypeDescriptor;
+  selectedGeog?: GeogIdentifier;
   onClick: (selection: {
     geogType: string;
     geogID: string;
@@ -49,8 +51,7 @@ export function NavMap(props: Props) {
   // todo: on init, fetch all of the carto data
   React.useEffect(() => {
     if (selectedGeoLayer) {
-      const usedLayer = menuLayers[selectedGeoLayer.id];
-      const { source, layers } = usedLayer || {};
+      const { source, layers } = makeMapData(selectedGeoLayer);
       setMbLayers(layers as LayerOptions[]);
       setMbSource(undefined);
       setInteractiveLayerIds(
@@ -61,7 +62,7 @@ export function NavMap(props: Props) {
       );
 
       fetchCartoVectorSource(
-        usedLayer.slug,
+        selectedGeoLayer.id,
         source.sql,
         // eslint-disable-next-line no-console
       ).then(receiveMbSource, err => console.warn('CARTO', err));
@@ -153,4 +154,17 @@ function filteredLayers(
 function getLayerType(layer: LayerOptions) {
   if (!!layer.id) return layer.id.split('/')[1];
   return '';
+}
+
+function makeMapData(selectedGeoLayer: GeogTypeDescriptor) {
+  const source = {
+    type: 'vector',
+    minzoom: 0,
+    maxzoom: 11,
+    source: selectedGeoLayer.tableName,
+    sql: selectedGeoLayer.cartoSql,
+  };
+  const layers = makeLayers(selectedGeoLayer.id);
+
+  return { source, layers };
 }

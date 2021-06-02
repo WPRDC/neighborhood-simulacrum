@@ -138,7 +138,7 @@ export type VizProps<
 export interface VizWrapperProps {
   isLoading: boolean;
   error?: string;
-  geogIdentifier: GeogIdentifier;
+  geogIdentifier?: GeogIdentifier;
   colorScheme: ColorMode;
   menu: JSX.Element;
   dataViz?: Downloaded<DataVizBase>;

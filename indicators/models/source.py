@@ -7,7 +7,7 @@ from django.db import models
 from django.db.models import QuerySet
 from polymorphic.models import PolymorphicModel
 
-from geo.models import CensusGeography, Tract, County, BlockGroup, CountySubdivision
+from geo.models import CensusGeography, Tract, County, BlockGroup, CountySubdivision, SchoolDistrict
 from indicators.models.abstract import Described
 from indicators.models.time import TimeAxis
 
@@ -74,8 +74,9 @@ class CensusSource(Source):
         return False
 
     def can_handle_geography(self, geog: CensusGeography):
-        # todo: update this when we add neighborhoods etc
-        return True
+        if type(geog) in (Tract, County, BlockGroup, SchoolDistrict, CountySubdivision):
+            return True
+        return False
 
 
 class CKANSource(Source, PolymorphicModel):

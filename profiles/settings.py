@@ -189,7 +189,7 @@ AVAILABLE_GEOG_TYPES = (
     'blockGroup',
     'tract',
     'countySubdivision',
-    'schoolDistrict',
+    # 'schoolDistrict',
     'county',
     'neighborhood',
     'zcta',

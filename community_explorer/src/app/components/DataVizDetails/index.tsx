@@ -60,7 +60,7 @@ export function DataVizDetails(props: Props) {
             >
               {!!error && <MissingVizMessage error={error} />}
               {isLoading && <LoadingMessage />}
-              {!isLoading && !!CurrentViz && !!dataViz && (
+              {!isLoading && !!CurrentViz && !!dataViz && !!geogIdentifier && (
                 <CurrentViz
                   dataViz={dataViz}
                   geog={geogIdentifier}

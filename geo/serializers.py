@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework_gis import serializers as gis_serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
-from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County
+from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County, Neighborhood, ZipCodeTabulationArea
 
 if TYPE_CHECKING:
     from indicators.models.variable import Datum
@@ -18,7 +18,6 @@ class CensusGeographyBriefSerializer(serializers.ModelSerializer):
             'title',
             'geog_type',
             'geogID',
-            'population',
         )
 
 
@@ -83,7 +82,6 @@ class CountySubdivisionSerializer(CensusGeographySerializer):
 
 
 class TractSerializer(CensusGeographySerializer):
-
     class Meta:
         model = Tract
         fields = CensusGeographySerializer.Meta.fields
@@ -95,10 +93,24 @@ class BlockGroupSerializer(CensusGeographySerializer):
         fields = CensusGeographySerializer.Meta.fields
 
 
+class NeighborhoodSerializer(CensusGeographySerializer):
+    class Meta:
+        model = Neighborhood
+        fields = CensusGeographySerializer.Meta.fields
+
+
+class ZipCodeTabulationAreaSerializer(CensusGeographySerializer):
+    class Meta:
+        model = ZipCodeTabulationArea
+        fields = CensusGeographySerializer.Meta.fields
+
+
 class CensusGeographyPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         County: CountySerializer,
         Tract: TractSerializer,
         CountySubdivision: CountySubdivisionSerializer,
-        BlockGroup: BlockGroupSerializer
+        BlockGroup: BlockGroupSerializer,
+        Neighborhood: NeighborhoodSerializer,
+        ZipCodeTabulationArea: ZipCodeTabulationAreaSerializer,
     }

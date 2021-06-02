@@ -35,7 +35,7 @@ export const DataVizMini = memo((props: Props) => {
               maxWidth={!!error ? 'size-3000' : undefined}
             >
               {!!error && <MissingVizMessage error={error} />}
-              {!error && !!CurrentViz && !!dataViz && (
+              {!error && !!CurrentViz && !!dataViz && !!geogIdentifier && (
                 <CurrentViz
                   dataViz={dataViz}
                   geog={geogIdentifier}

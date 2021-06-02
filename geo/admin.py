@@ -94,7 +94,6 @@ class NeighborhoodAdmin(GeoModelAdmin):
         'lsad',
         'aland',
         'awater',
-
     )
     search_fields = ('name',)
 

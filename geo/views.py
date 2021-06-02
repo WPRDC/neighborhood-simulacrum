@@ -7,7 +7,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from geo.models import CensusGeography, Tract, County, CountySubdivision, BlockGroup
+from geo.models import CensusGeography, Tract, County, CountySubdivision, BlockGroup, ZipCodeTabulationArea, \
+    Neighborhood
 from geo.serializers import CensusGeographyPolymorphicSerializer, CensusGeographyBriefSerializer, \
     CensusGeographySerializer
 from geo.util import all_geogs_in_domain
@@ -58,6 +59,14 @@ class CountySubdivisionViewSet(CensusGeographyViewSet):
 
 class CountyViewSet(CensusGeographyViewSet):
     model = County
+
+
+class NeighborhoodViewSet(CensusGeographyViewSet):
+    model = Neighborhood
+
+
+class ZipCodeViewSet(CensusGeographyViewSet):
+    model = ZipCodeTabulationArea
 
 
 @api_view(http_method_names=['GET'])

@@ -20,6 +20,7 @@ enum Endpoint {
   // Indicator = 'indicator', //   or here
   DataViz = 'data-viz',
   Geog = 'geo',
+  GeogTypes = 'geo/geog-types',
 }
 
 /**
@@ -111,6 +112,10 @@ function requestTaxonomy() {
   return callApi(Endpoint.Domain, Method.GET);
 }
 
+function requestGeoLayers() {
+  return callApi(Endpoint.GeogTypes, Method.GET);
+}
+
 function requestDataViz(dataVizID: DataVizID, geogIdentifier: GeogIdentifier) {
   const { geogType, geogID } = geogIdentifier;
   return callApi(Endpoint.DataViz, Method.GET, {
@@ -133,6 +138,7 @@ function requestGeogList(geogType: GeographyType) {
 
 const Api = {
   requestTaxonomy,
+  requestGeoLayers,
   requestDataViz,
   requestGeogDescription,
   requestGeogList,

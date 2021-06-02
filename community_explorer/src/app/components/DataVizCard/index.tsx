@@ -96,15 +96,18 @@ export function DataVizCard(props: Props) {
               >
                 {isLoading && <LoadingMessage />}
                 {!!error && <MissingVizMessage error={error} />}
-                {!isLoading && !!CurrentViz && !!dataViz && (
-                  <CurrentViz
-                    dataViz={dataViz}
-                    geog={geogIdentifier}
-                    colorScheme={colorScheme}
-                    vizHeight={height - 15}
-                    vizWidth={width - 15}
-                  />
-                )}
+                {!isLoading &&
+                  !!CurrentViz &&
+                  !!dataViz &&
+                  !!geogIdentifier && (
+                    <CurrentViz
+                      dataViz={dataViz}
+                      geog={geogIdentifier}
+                      colorScheme={colorScheme}
+                      vizHeight={height - 15}
+                      vizWidth={width - 15}
+                    />
+                  )}
               </View>
             </div>
           )}

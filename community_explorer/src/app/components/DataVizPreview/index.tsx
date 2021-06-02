@@ -42,7 +42,7 @@ export const DataVizPreview = memo((props: Props) => {
               minHeight="size-3600"
             >
               {!!error && <MissingVizMessage error={error} />}
-              {!!CurrentViz && dataViz && (
+              {!!CurrentViz && dataViz && !!geogIdentifier && (
                 <CurrentViz
                   dataViz={dataViz}
                   geog={geogIdentifier}

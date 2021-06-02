@@ -6,9 +6,10 @@ from typing import TYPE_CHECKING, Type, Optional
 import jenkspy
 import pystache
 from django.conf import settings
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import QuerySet, Manager
+from django.db.models import QuerySet, Manager, F
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils.text import slugify
@@ -115,7 +116,8 @@ class DataViz(PolymorphicModel, Described):
 
         # does it work as an aggregate over a smaller geog?
         for child_geog_model in geog.child_geog_models:
-            child_geogs = child_geog_model.objects.filter(geom__coveredby=geog.geom)
+            child_geogs = child_geog_model.objects.filter(mini_geom__coveredby=geog.big_geom)
+
             if self.can_handle_geographies(child_geogs):
                 return child_geogs, True
 

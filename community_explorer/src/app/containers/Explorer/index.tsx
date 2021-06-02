@@ -17,6 +17,8 @@ import {
   selectCurrentGeogIsLoading,
   selectGeogsListRecord,
   selectGeogsListsAreLoadingRecord,
+  selectGeoLayers,
+  selectGeoLayersIsLoading,
   selectSelectedGeogIdentifier,
   selectSelectedGeoLayer,
   selectTaxonomy,
@@ -33,8 +35,6 @@ import { TaxonomySection } from '../../components/TaxonomySection';
 import { Grid, Text, View } from '@adobe/react-spectrum';
 import { selectColorMode } from '../GlobalSettings/selectors';
 import { Link } from 'wprdc-components';
-import { DEFAULT_GEOG_TYPE } from '../../settings';
-import { getDescriptorForGeogType } from '../../util';
 
 export function Explorer() {
   useInjectReducer({ key: sliceKey, reducer: reducer });
@@ -57,6 +57,10 @@ export function Explorer() {
   const taxonomyIsLoading = useSelector(selectTaxonomyIsLoading);
   // const taxonomyLoadError = useSelector(selectTaxonomyLoadError);
 
+  const geoLayers = useSelector(selectGeoLayers);
+  const geoLayersIsLoading = useSelector(selectGeoLayersIsLoading);
+  // const geoLayersLoadError = useSelector(selectGeoLayersLoadError);
+
   const currentGeog = useSelector(selectCurrentGeog);
   const currentGeogIsLoading = useSelector(selectCurrentGeogIsLoading);
   // const currentGeogLoadError = useSelector(selectCurrentGeogLoadError);
@@ -73,11 +77,10 @@ export function Explorer() {
 
   // init
   React.useEffect(() => {
-    dispatch(
-      actions.selectGeoType(
-        getDescriptorForGeogType(geogType) || DEFAULT_GEOG_TYPE,
-      ),
-    );
+    if (!geoLayers && !geoLayersIsLoading) {
+      dispatch(actions.requestGeoLayers());
+    }
+
     if (!taxonomy && !taxonomyIsLoading) {
       dispatch(actions.requestTaxonomy());
     }
@@ -137,6 +140,8 @@ export function Explorer() {
 
         <View gridArea="sidebar">
           <NavMenu
+            geoLayers={geoLayers}
+            geoLayersIsLoading={geoLayersIsLoading}
             onLayerSelect={handleSelectGeoLayer}
             onGeogSelect={handleGeogChange}
             selectedGeoLayer={selectedGeoLayer}
