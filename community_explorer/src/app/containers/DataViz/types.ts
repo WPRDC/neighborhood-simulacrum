@@ -48,4 +48,5 @@ export interface MenuItem {
 export enum AvailableDialogs {
   Report,
   Share,
+  API,
 }

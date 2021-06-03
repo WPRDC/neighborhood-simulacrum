@@ -14,9 +14,10 @@ import { makeSelectDataVizData } from './selectors';
 import { selectSelectedGeogIdentifier } from '../Explorer/selectors';
 import { getSpecificDataViz, getVariantComponent } from './util';
 
-import Download from '@spectrum-icons/workflow/DataDownload';
-import Share from '@spectrum-icons/workflow/Share';
-import Report from '@spectrum-icons/workflow/AlertCircleFilled';
+import DownloadIcon from '@spectrum-icons/workflow/DataDownload';
+import ShareIcon from '@spectrum-icons/workflow/Share';
+import ReportIcon from '@spectrum-icons/workflow/AlertCircleFilled';
+import APIIcon from '@spectrum-icons/workflow/FileJson';
 
 import {
   DataVizBase,
@@ -34,8 +35,9 @@ import { selectColorMode } from '../GlobalSettings/selectors';
 import { AvailableDialogs, DataVizVariant, MenuItem } from './types';
 import { DataVizMenu } from './DataVizMenu';
 import { DialogContainer, Heading, Item } from '@adobe/react-spectrum';
-import { UserReportDialog } from '../../components/UserReportDialog';
-import { ShareDialog } from '../../components/ShareDialog';
+import { UserReportDialog } from './dialogs/UserReportDialog';
+import { ShareDialog } from './dialogs/ShareDialog';
+import { ApiDialog } from './dialogs/ApiDialog';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 
 interface Props {
@@ -78,6 +80,27 @@ export function DataViz(props: Props) {
     null,
   );
 
+  function handleExplore() {
+    const path = location.pathname;
+    history.push(path + `/${dataVizID.slug}`);
+  }
+
+  // extra actions menu
+  const menuItems: MenuItem[] = [
+    {
+      key: VizMenuItem.DownloadData,
+      label: 'Download Data',
+      icon: <DownloadIcon size="S" />,
+    },
+    { key: VizMenuItem.Share, label: 'Share...', icon: <ShareIcon size="S" /> },
+    {
+      key: VizMenuItem.Report,
+      label: 'Report...',
+      icon: <ReportIcon size="S" />,
+    },
+    { key: VizMenuItem.API, label: 'API Endpoint', icon: <APIIcon size="S" /> },
+  ];
+
   function handleMenuSelection(key: React.Key): void {
     switch (key as VizMenuItem) {
       case VizMenuItem.DownloadData:
@@ -92,23 +115,10 @@ export function DataViz(props: Props) {
       case VizMenuItem.Report:
         setOpenDialog(AvailableDialogs.Report);
         break;
+      case VizMenuItem.API:
+        setOpenDialog(AvailableDialogs.API);
     }
   }
-
-  function handleExplore() {
-    const path = location.pathname;
-    history.push(path + `/${dataVizID.slug}`);
-  }
-
-  const menuItems: MenuItem[] = [
-    {
-      key: VizMenuItem.DownloadData,
-      label: 'Download Data',
-      icon: <Download size="S" />,
-    },
-    { key: VizMenuItem.Share, label: 'Share...', icon: <Share size="S" /> },
-    { key: VizMenuItem.Report, label: 'Report...', icon: <Report size="S" /> },
-  ];
 
   // when this badboy renders, we need to get its data.
   React.useEffect(() => {
@@ -138,6 +148,7 @@ export function DataViz(props: Props) {
 
   const breadcrumbs = getBreadCrumbs(taxonomyItems, dataVizID);
 
+  console.debug('dv', CurrentViz);
   return (
     <>
       <WrapperComponent
@@ -165,6 +176,9 @@ export function DataViz(props: Props) {
         )}
         {openDialog === AvailableDialogs.Share && !!dataViz && (
           <ShareDialog onClose={() => setOpenDialog(null)} dataViz={dataViz} />
+        )}
+        {openDialog === AvailableDialogs.API && !!dataViz && (
+          <ApiDialog onClose={() => setOpenDialog(null)} dataViz={dataViz} />
         )}
       </DialogContainer>
     </>

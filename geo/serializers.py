@@ -1,8 +1,13 @@
+from typing import Optional, TYPE_CHECKING
+
 from rest_framework import serializers
 from rest_framework_gis import serializers as gis_serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
-from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County
+from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County, Neighborhood, ZipCodeTabulationArea
+
+if TYPE_CHECKING:
+    from indicators.models.variable import Datum
 
 
 class CensusGeographyBriefSerializer(serializers.ModelSerializer):
@@ -12,7 +17,7 @@ class CensusGeographyBriefSerializer(serializers.ModelSerializer):
             'id',
             'title',
             'geog_type',
-            'geogID'
+            'geogID',
         )
 
 
@@ -35,6 +40,7 @@ class CensusGeographySerializer(serializers.ModelSerializer):
 class CensusGeographyDataMapSerializer(gis_serializers.GeoFeatureModelSerializer):
     """ Generates GeoJSON with dataviz data for a variable."""
     map_value = serializers.SerializerMethodField()
+    locale_options = serializers.SerializerMethodField()
 
     class Meta:
         model = CensusGeography
@@ -44,15 +50,23 @@ class CensusGeographyDataMapSerializer(gis_serializers.GeoFeatureModelSerializer
             'title',
             'geom',
             'map_value',
+            'locale_options'
         )
 
-    def get_map_value(self, obj: CensusGeography):
+    def get_map_value(self, obj: CensusGeography) -> Optional[float]:
         """ Gets value for a variable at a time for each feature """
-        data: dict = self.context.get('data', None)
         geoid = obj.common_geoid
+        data: dict = {datum.geog: datum for datum in self.context.get('data', None)}
+        use_percent = self.context.get('percent', False)
         if not data:
             return None
-        return data.get(geoid, None)
+        datum: Optional['Datum'] = data.get(geoid, None)
+        if use_percent:
+            return datum.percent if datum else None
+        return datum.value if datum else None
+
+    def get_locale_options(self, obj: CensusGeography) -> Optional[float]:
+        return self.context.get('locale_options', {})
 
 
 class CountySerializer(CensusGeographySerializer):
@@ -79,10 +93,24 @@ class BlockGroupSerializer(CensusGeographySerializer):
         fields = CensusGeographySerializer.Meta.fields
 
 
+class NeighborhoodSerializer(CensusGeographySerializer):
+    class Meta:
+        model = Neighborhood
+        fields = CensusGeographySerializer.Meta.fields
+
+
+class ZipCodeTabulationAreaSerializer(CensusGeographySerializer):
+    class Meta:
+        model = ZipCodeTabulationArea
+        fields = CensusGeographySerializer.Meta.fields
+
+
 class CensusGeographyPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         County: CountySerializer,
         Tract: TractSerializer,
         CountySubdivision: CountySubdivisionSerializer,
-        BlockGroup: BlockGroupSerializer
+        BlockGroup: BlockGroupSerializer,
+        Neighborhood: NeighborhoodSerializer,
+        ZipCodeTabulationArea: ZipCodeTabulationAreaSerializer,
     }

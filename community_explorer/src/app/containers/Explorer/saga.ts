@@ -27,6 +27,23 @@ function* handleFetchTaxonomy(/* action */) {
   }
 }
 
+function* handleFetchGeoLayers(/* action */) {
+  try {
+    const response = yield call(Api.requestGeoLayers);
+    if (response.ok) {
+      const data = yield response.json();
+      yield put(actions.loadGeoLayers(data));
+      yield put(actions.selectGeoType(data[3]));
+    } else {
+      yield put(actions.failGeoLayersRequest(response.text));
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(err);
+    yield put(actions.failGeoLayersRequest(err.toString()));
+  }
+}
+
 function* handleFetchGeogDescription(action: PayloadAction<GeogIdentifier>) {
   const geogIdentifier = action.payload;
   try {
@@ -45,6 +62,7 @@ function* handleFetchGeogDescription(action: PayloadAction<GeogIdentifier>) {
 }
 
 function* checkGeogListCache(action: PayloadAction<GeogTypeDescriptor>) {
+  console.debug('checking cache');
   const geogType = action.payload.id;
   const geogsListRecord = yield select(selectGeogsListRecord);
   const loadingRecord = yield select(selectGeogsListsAreLoadingRecord);
@@ -73,6 +91,7 @@ function* handleFetchGeogsForLayer(action: PayloadAction<GeographyType>) {
 export function* explorerSaga() {
   yield all([
     takeLatest(actions.requestTaxonomy.type, handleFetchTaxonomy),
+    takeLatest(actions.requestGeoLayers.type, handleFetchGeoLayers),
     takeLatest(actions.requestGeogDetails.type, handleFetchGeogDescription),
     takeLatest(actions.selectGeoType.type, checkGeogListCache),
     takeLatest(actions.requestGeogsForLayer, handleFetchGeogsForLayer),

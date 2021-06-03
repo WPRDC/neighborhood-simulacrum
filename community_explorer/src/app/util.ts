@@ -6,9 +6,7 @@
  *
  */
 
-import { GeographyType } from './types';
-import { GEOG_TYPES } from './settings';
-import { GeogTypeDescriptor } from './containers/Explorer/types';
+import { RowRecord } from './types';
 
 export const addReactSelectKeys = (
   option: {} | {}[] = {},
@@ -29,9 +27,7 @@ export const addReactSelectKeys = (
   );
 };
 
-type DataRow = Record<string, string | number | boolean>;
-
-export function dumpCSV(data: DataRow[]): string {
+export function dumpCSV(data: RowRecord[]): string {
   return data.reduce((csv, row, i) => {
     if (i === 0) {
       return `${_csvHeader(row)}\n${_csvRow(row)}`;
@@ -40,28 +36,14 @@ export function dumpCSV(data: DataRow[]): string {
   }, '');
 }
 
-function _csvHeader(row: DataRow): string {
+function _csvHeader(row: RowRecord): string {
   return Object.keys(row)
     .map(k => `"${k}"`)
     .join(',');
 }
 
-function _csvRow(row: DataRow): string {
+function _csvRow(row: RowRecord): string {
   return Object.values(row)
     .map(v => (typeof v === 'string' ? `"${v}` : v))
     .join(',');
-}
-
-export function getDescriptorForGeogType(
-  targetGeogType: string,
-): GeogTypeDescriptor | undefined {
-  if ((Object as any).values(GeographyType).includes(targetGeogType)) {
-    const results = GEOG_TYPES.filter(
-      ({ id }) => id === (targetGeogType as GeographyType),
-    );
-    if (!!results) {
-      return results[0];
-    }
-  }
-  return undefined;
 }

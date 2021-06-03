@@ -10,7 +10,7 @@ import { VizWrapperProps } from '../../types';
 import { SourceList } from '../SourceList';
 import { LoadingMessage } from '../LoadingMessage';
 import { Breadcrumbs } from 'wprdc-components';
-import {MissingVizMessage} from "../MissingVizMessage";
+import { MissingVizMessage } from '../MissingVizMessage';
 
 interface Props extends VizWrapperProps {}
 
@@ -40,10 +40,7 @@ export function DataVizDetails(props: Props) {
       </Breadcrumbs>
       <View padding="size-200" paddingTop="size-50">
         <View>
-          <Text>
-            {description ||
-              'Glos fatalis apolloniates est. Danistas sunt lacteas de noster calceus.'}
-          </Text>
+          <Text>{description}</Text>
         </View>
       </View>
       <Measure
@@ -63,7 +60,7 @@ export function DataVizDetails(props: Props) {
             >
               {!!error && <MissingVizMessage error={error} />}
               {isLoading && <LoadingMessage />}
-              {!isLoading && !!CurrentViz && !!dataViz && (
+              {!isLoading && !!CurrentViz && !!dataViz && !!geogIdentifier && (
                 <CurrentViz
                   dataViz={dataViz}
                   geog={geogIdentifier}

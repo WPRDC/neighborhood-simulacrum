@@ -60,6 +60,9 @@ class CensusTablePointer(models.Model):
             moe = None
         return value, moe
 
+    def get_values_query(self, geog: 'CensusGeography'):
+        return CensusValue.objects.get('')
+
 
 class CensusTable(models.Model):
     dataset = models.CharField(
@@ -83,7 +86,7 @@ class CensusTable(models.Model):
 
 class CensusValue(models.Model):
     """
-    stores a single (geography, table, value) tuple
+    Stores a single (geography, table, value) tuple
     the the values stored here are a function of the Variable, the Series, and the Geography
     the census table is unique to a Variable-Series combination and is where they're effect comes in
     """

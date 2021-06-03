@@ -25,6 +25,21 @@ export const selectTaxonomyLoadError = createSelector(
   explorerState => explorerState.taxonomyLoadError,
 );
 
+export const selectGeoLayers = createSelector(
+  [selectExplorer],
+  explorerState => explorerState.geoLayers,
+);
+
+export const selectGeoLayersIsLoading = createSelector(
+  [selectExplorer],
+  explorerState => explorerState.geoLayersIsLoading,
+);
+
+export const selectGeoLayersLoadError = createSelector(
+  [selectExplorer],
+  explorerState => explorerState.geoLayersLoadError,
+);
+
 export const selectCurrentGeog = createSelector(
   [selectExplorer],
   explorerState => explorerState.currentGeog,

@@ -6,24 +6,24 @@
 import React from 'react';
 // import styled from 'styled-components/macro';
 import { Text, View } from '@adobe/react-spectrum';
-import { SentenceData, SentenceViz, VizProps } from '../../types';
+import { SentenceViz, TabularData, VizProps } from '../../types';
 
-interface Props extends VizProps<SentenceViz, SentenceData> {}
+interface Props extends VizProps<SentenceViz, TabularData> {}
 
 export const Sentence = (props: Props) => {
   const { dataViz } = props;
-  const cleanSentence = parseSentence(dataViz.data);
+  // const cleanSentence = parseSentence(dataViz.data);
   return (
     <View>
       <Text>
-        <span dangerouslySetInnerHTML={{ __html: cleanSentence }} />
+        <span>🚧</span> Coming back soon...
       </Text>
     </View>
   );
 };
 
-function parseSentence(sentence): string {
-  const doc = new DOMParser().parseFromString(sentence, 'text/html');
-  if (doc.documentElement.textContent) return doc.documentElement.textContent;
-  return '';
-}
+// function parseSentence(sentence): string {
+//   const doc = new DOMParser().parseFromString(sentence, 'text/html');
+//   if (doc.documentElement.textContent) return doc.documentElement.textContent;
+//   return '';
+// }

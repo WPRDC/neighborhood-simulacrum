@@ -10,5 +10,8 @@ const menuLayers: Record<GeographyType, MenuLayerItem> = {
   [GeographyType.CountySubdivision]: countySubdivision,
   [GeographyType.BlockGroup]: blockGroup,
   [GeographyType.Tract]: tract,
+  [GeographyType.SchoolDistrict]: tract,
+  [GeographyType.Neighborhood]: tract,
+  [GeographyType.ZCTA]: tract,
 };
 export default menuLayers;

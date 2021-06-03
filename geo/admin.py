@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.gis.admin import GeoModelAdmin
 from .models import Geography, CensusGeography, BlockGroup, Tract, \
     CountySubdivision, Place, Puma, SchoolDistrict, StateHouse, StateSenate, \
-    County
+    County, Neighborhood, ZipCodeTabulationArea
 
 
 @admin.register(Geography)
@@ -64,6 +64,37 @@ class TractAdmin(GeoModelAdmin):
         'tractce',
     )
     list_filter = ('statefp', 'countyfp')
+    search_fields = ('name',)
+
+
+@admin.register(ZipCodeTabulationArea)
+class ZipCodeTabulationAreaAdmin(GeoModelAdmin):
+    list_display = (
+        'id',
+        'name',
+        'description',
+        'geoid',
+        'affgeoid',
+        'lsad',
+        'aland',
+        'awater',
+        'zctace',
+    )
+    search_fields = ('name',)
+
+
+@admin.register(Neighborhood)
+class NeighborhoodAdmin(GeoModelAdmin):
+    list_display = (
+        'id',
+        'name',
+        'description',
+        'geoid',
+        'affgeoid',
+        'lsad',
+        'aland',
+        'awater',
+    )
     search_fields = ('name',)
 
 

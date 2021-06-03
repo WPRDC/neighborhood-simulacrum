@@ -12,7 +12,7 @@ import {
   Text,
 } from '@adobe/react-spectrum';
 import React from 'react';
-import { DataVizID } from '../../types';
+import { DataVizID } from '../../../../types';
 
 interface Props {
   onClose: () => void;

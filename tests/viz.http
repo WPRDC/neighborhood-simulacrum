@@ -25,6 +25,5 @@ GET http://localhost:8000/geo/region/?regionType=tract&geoid=42003070900
 Accept: application/json
 
 ###
-# Complicated Data Center Query
-POST https://data.wprdc.org/api/3/action/datastore_search_sql
+GET http://localhost:8000/data-viz/34/?geogType=tract&geogID=42003040400
 Accept: application/json

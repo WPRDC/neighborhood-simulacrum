@@ -12,132 +12,115 @@ import { LayerOptions, LegendProps, MapProps } from 'wprdc-components';
 import { ColorMode, GeogDescriptor, GeogIdentifier, SourceBase } from './index';
 import React, { PropsWithChildren } from 'react';
 
+import { Column } from 'react-table';
+
 export interface DataVizID extends Described {
-  viewHeight: number;
-  viewWidth: number;
-  resourcetype: DataVizResourceType;
+  vizType: DataVizType;
+  staticOptions: Record<string, any>;
 }
 
 export interface DataVizBase extends DataVizID {
   timeAxis: TimeAxis;
   variables: VizVariable[];
-  resourcetype: DataVizResourceType;
   sources: SourceBase[];
 }
 
 export type DataVisualization =
   | TableViz
-  | PieChartViz
-  | BarChartViz
-  | LineChartViz
   | MiniMapViz
   | SentenceViz
   | BigValueViz;
 
-export enum DataVizResourceType {
+export enum DataVizType {
   Table = 'Table',
-  PieChart = 'PieChart',
-  BarChart = 'BarChart',
-  LineChart = 'LineChart',
+  Chart = 'Chart',
   MiniMap = 'MiniMap',
   Sentence = 'Sentence',
   BigValue = 'BigValue',
 }
 
-type DataVizDataPointPart<T = string> = 'v' | 'm' | T; // v - value; m - margin o' error
-
-export type DataVizDataPoint = Record<DataVizDataPointPart, any>;
-
-export type ChartViz = LineChartViz | BarChartViz | PieChartViz;
-
-// Response data formats
-export type TableData = Record<string, DataVizDataPoint>[];
-
-export interface ChartRecord extends Record<string, string | number | boolean> {
+export interface RowRecord {
   variable: string;
-  timeSeries: string;
   geog: string;
+  time: string;
   value: number;
+  moe?: number;
+  percent?: number;
+  denom?: number;
 }
 
-export type ChartData = ChartRecord[];
+export type TabularData = RowRecord[];
 
-export type MiniMapData = {
+export interface TableDatum {
+  value: number | string;
+  moe?: number;
+  percent?: number;
+  denom?: number;
+}
+
+export type TableRecord = Record<string, TableDatum> & {
+  variable: string;
+};
+
+export type TableData = TableRecord[];
+
+export type MiniMapOptions = {
   sources: SourceProps[];
   layers: LayerOptions[];
   mapOptions: Partial<MapProps>;
   legends: LegendProps[];
+  localeOptions?: Partial<Intl.NumberFormatOptions>;
 };
-export type SentenceData = string;
 
-type BigValueDataKeys = 'v' | 'p' | 'd';
+export type DataVizData = TabularData | MiniMapOptions | TableData;
 
-interface BigValueDataPoint {
-  /** value */
-  v: number;
-  /** percent */
-  p?: number;
-  /** denominator */
-  d?: number;
-  /** for styling the values */
-  localeOptions: Record<BigValueDataKeys, Partial<BigIntToLocaleStringOptions>>;
-  note?: string;
-  _raw?: Record<BigValueDataKeys | string, any>;
+export interface ErrorRecord {
+  status: string;
+  level: number;
+  message?: string;
 }
 
-export type BigValueData = BigValueDataPoint;
-
-export type DataVizData =
-  | TableData
-  | ChartData
-  | MiniMapData
-  | SentenceData
-  | BigValueData;
-
 /** DataViz type T with `data` required */
-export type Downloaded<T extends DataVizBase, D = DataVizData> = T & {
+export type Downloaded<
+  T extends DataVizBase,
+  D = DataVizData,
+  O = Record<string, any>
+> = T & {
   data: D;
+  options: O;
+  error: ErrorRecord;
   geog: GeogDescriptor;
 };
 
 export interface TableViz extends DataVizBase {
   data?: TableData;
-  resourcetype: DataVizResourceType.Table;
+  vizType: DataVizType.Table;
 }
 
-export interface PieChartViz extends DataVizBase {
-  data?: ChartData;
-  resourcetype: DataVizResourceType.PieChart;
-}
-
-export interface BarChartViz extends DataVizBase {
-  data?: ChartData;
-  layout: 'bar' | 'column';
-  acrossGeogs: boolean;
-  resourcetype: DataVizResourceType.BarChart;
-}
-
-export interface LineChartViz extends DataVizBase {
-  data?: ChartData;
-  resourcetype: DataVizResourceType.LineChart;
+export interface ChartViz extends DataVizBase {
+  data?: TabularData;
+  vizType: DataVizType.Chart;
 }
 
 export interface MiniMapViz extends DataVizBase {
-  data?: MiniMapData;
-  resourcetype: DataVizResourceType.MiniMap;
+  options?: MiniMapOptions;
+  vizType: DataVizType.MiniMap;
 }
 
 export interface SentenceViz extends DataVizBase {
-  text: string;
-  sentence_parts: string[];
-  data?: SentenceData;
-  resourcetype: DataVizResourceType.Sentence;
+  data?: TabularData;
+  vizType: DataVizType.Sentence;
 }
 
 export interface BigValueViz extends DataVizBase {
-  note?: string;
-  data?: BigValueData;
-  resourcetype: DataVizResourceType.BigValue;
+  data?: TabularData;
+  vizType: DataVizType.BigValue;
+}
+
+export interface TableOptions {
+  transpose: boolean;
+  showPercent: boolean;
+  columns: Column[];
 }
 
 export type VizProps<
@@ -155,7 +138,7 @@ export type VizProps<
 export interface VizWrapperProps {
   isLoading: boolean;
   error?: string;
-  geogIdentifier: GeogIdentifier;
+  geogIdentifier?: GeogIdentifier;
   colorScheme: ColorMode;
   menu: JSX.Element;
   dataViz?: Downloaded<DataVizBase>;
@@ -170,4 +153,5 @@ export enum VizMenuItem {
   DownloadSVG = 'DownloadSvg',
   Report = 'Report',
   Share = 'Share',
+  API = 'API',
 }

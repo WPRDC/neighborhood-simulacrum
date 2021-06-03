@@ -1,18 +1,12 @@
 import { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from 'utils/@reduxjs/toolkit';
 import { ContainerState, GeogLoadPayload, GeogTypeDescriptor } from './types';
-import { DEFAULT_GEOG_TYPE } from '../../settings';
 import { Geog, GeogIdentifier, GeographyType, Taxonomy } from '../../types';
 
 const EMPTY_GEOG_STORE = Object.values(GeographyType).reduce(
   (acc, cur) => ({ ...acc, [cur]: null }),
   {},
 ) as Record<GeographyType, any>;
-
-const DEFAULT_SELECTED_GEOG: GeogIdentifier = {
-  geogType: GeographyType.County,
-  geogID: '42003',
-};
 
 // The initial state of the Explorer container
 export const initialState: ContainerState = {
@@ -25,8 +19,11 @@ export const initialState: ContainerState = {
   currentGeogLoadError: undefined,
 
   // menu state
-  selectedGeoLayer: DEFAULT_GEOG_TYPE,
-  selectedGeogIdentifier: DEFAULT_SELECTED_GEOG,
+  geoLayers: undefined,
+  geoLayersIsLoading: false,
+  geoLayersLoadError: undefined,
+  selectedGeoLayer: undefined,
+  selectedGeogIdentifier: undefined,
   geogsListsRecord: EMPTY_GEOG_STORE,
   geogsListsAreLoadingRecord: EMPTY_GEOG_STORE,
 };
@@ -63,6 +60,20 @@ const explorerSlice = createSlice({
     },
 
     // menu slices
+    requestGeoLayers(state) {
+      state.geoLayersIsLoading = true;
+    },
+    loadGeoLayers(state, action: PayloadAction<GeogTypeDescriptor[]>) {
+      state.geoLayersIsLoading = false;
+      state.geoLayers = action.payload;
+      state.selectedGeoLayer = action.payload.length
+        ? action.payload[0]
+        : undefined;
+    },
+    failGeoLayersRequest(state, action: PayloadAction<string>) {
+      state.geoLayersIsLoading = false;
+    },
+
     selectGeoType(state, action: PayloadAction<GeogTypeDescriptor>) {
       state.selectedGeoLayer = action.payload;
     },

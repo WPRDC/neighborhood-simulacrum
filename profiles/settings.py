@@ -31,7 +31,7 @@ ALLOWED_HOSTS = ['api.profiles.wprdc.org', '127.0.0.1', 'localhost']
 # Application definition
 
 INSTALLED_APPS = [
-    'grappelli',
+    # 'grappelli',
     'django.contrib.admin',
     'django.contrib.auth',
     'polymorphic',
@@ -48,14 +48,14 @@ INSTALLED_APPS = [
     'indicators',
     'geo',
     'census_data',
-    'debug_toolbar'
+    #  'debug_toolbar'
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -120,6 +120,10 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
         'LOCATION': '127.0.0.1:11211',
+    },
+    'long_term': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'long_term_cache',
     }
 }
 
@@ -180,3 +184,13 @@ AVAILABLE_COUNTIES_IDS = ('42073', '42003', '42007', '42125', '42059', '42051', 
 MAP_HOST = 'https://api.profiles.wprdc.org/map_layer'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+AVAILABLE_GEOG_TYPES = (
+    'blockGroup',
+    'tract',
+    'countySubdivision',
+    # 'schoolDistrict',
+    'county',
+    'neighborhood',
+    'zcta',
+)

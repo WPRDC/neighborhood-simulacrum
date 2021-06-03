@@ -18,14 +18,11 @@ from rest_framework.views import APIView
 
 from geo.models import Geography, CensusGeography, County, BlockGroup
 from geo.serializers import CensusGeographyDataMapSerializer
-from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis
-from indicators.serializers import (DomainSerializer, IndicatorSerializer, SubdomainSerializer,
-                                    TimeAxisPolymorphicSerializer)
-from indicators.serializers.variable import VariablePolymorphicSerializer
-from indicators.serializers.viz import DataVizWithDataPolymorphicSerializer, DataVizPolymorphicSerializer
-from indicators.utils import (is_geog_data_request, get_geog_from_request,
-                              ErrorResponse, ErrorLevel, extract_geo_params,
-                              get_geog_model)
+from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis, MiniMap
+from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
+    TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, DataVizSerializer
+from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorResponse, ErrorLevel, \
+    extract_geo_params, get_geog_model
 
 
 class GeoJSONRenderer(renderers.BaseRenderer):
@@ -89,8 +86,8 @@ class DataVizViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if is_geog_data_request(self.request):
-            return DataVizWithDataPolymorphicSerializer
-        return DataVizPolymorphicSerializer
+            return DataVizWithDataSerializer
+        return DataVizSerializer
 
     def get_serializer_context(self):
         context = super(DataVizViewSet, self).get_serializer_context()
@@ -105,7 +102,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
         return context
 
     # Cache requested url for each user for 2 minutes
-    # @method_decorator(cache_page(60 * 2))
+    @method_decorator(cache_page(60 * 2))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
@@ -114,15 +111,15 @@ class GeoJSONWithDataView(APIView):
     permission_classes = [AllowAny, ]
     content_negotiation_class = GeoJSONContentNegotiation
 
+    @method_decorator(cache_page(60 * 60 * 24))
     def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
         try:
             geog_type: Type[CensusGeography] = get_geog_model(geog_type_id)
-            data_viz: DataViz = DataViz.objects.get(pk=data_viz_id)
+            data_viz: MiniMap = DataViz.objects.get(pk=data_viz_id)
             variable: Variable = Variable.objects.get(pk=variable_id)
             time_part = data_viz.time_axis.time_parts[0]
         except KeyError as e:
-            # when the geog is wrong todo: make 400 malf
-            #  ormed with info on available geo types
+            # when the geog is wrong todo: make 400 malformed with info on available geo types
             raise NotFound
         except ObjectDoesNotExist as e:
             raise NotFound
@@ -131,14 +128,7 @@ class GeoJSONWithDataView(APIView):
             # todo: actually handle this error, then this case
             return Http404
 
-        serializer_context = {'data': variable.get_layer_data(data_viz, geog_type)}
-
-        domain = County.objects \
-            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
-            .aggregate(the_geom=Union('geom'))
-
-        geogs: QuerySet['CensusGeography'] = geog_type.objects.filter(geom__coveredby=domain['the_geom'])
-        geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
+        geojson = data_viz.get_map_data_geojson(geog_type, variable)
 
         if request.query_params.get('download', False):
             headers = {

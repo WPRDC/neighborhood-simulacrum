@@ -7,15 +7,39 @@ import React from 'react';
 import { Legend, Map, SimpleLabelPopupContent } from 'wprdc-components';
 import { MAPBOX_API_TOKEN } from '../../settings';
 import { View } from '@adobe/react-spectrum';
-import { ColorMode, MiniMapData, MiniMapViz, VizProps } from '../../types';
+import { ColorMode, MiniMapOptions, MiniMapViz, VizProps } from '../../types';
 
-interface Props extends VizProps<MiniMapViz, MiniMapData> {
+interface Props extends VizProps<MiniMapViz, MiniMapOptions> {
   colorScheme?: ColorMode;
 }
 
 export function MiniMap(props: Props) {
   const { dataViz, colorScheme, vizHeight, vizWidth } = props;
-  const { sources, layers, mapOptions, legends } = dataViz.data;
+  if (!dataViz.options) return <div />;
+  const {
+    sources,
+    layers,
+    mapOptions,
+    legends,
+    localeOptions,
+  } = dataViz.options;
+
+  function getLabel({ primaryFeatureProps }) {
+    if (primaryFeatureProps) {
+      const { title, mapValue } = primaryFeatureProps;
+      let displayValue = mapValue;
+
+      if (typeof mapValue === 'number') {
+        displayValue = mapValue.toLocaleString('en-US', localeOptions);
+      }
+
+      return (
+        <div>
+          {title}: <strong>{displayValue}</strong>
+        </div>
+      );
+    }
+  }
 
   return (
     <View maxHeight="size-6000">
@@ -26,8 +50,7 @@ export function MiniMap(props: Props) {
         defaultViewport={{ zoom: 8, longitude: -79.9925 }}
         hoverPopupContent={SimpleLabelPopupContent}
         hoverPopupContentProps={{
-          getLabel: ({ primaryFeatureProps }) =>
-            primaryFeatureProps && `${primaryFeatureProps.mapValue}`,
+          getLabel: getLabel,
         }}
         legends={legends.map(legendProps => (
           <Legend {...legendProps} mode="mini" />
