@@ -370,12 +370,12 @@ class County(CensusGeography):
 class ZipCodeTabulationArea(CensusGeography):
     TYPE = Geography.ZCTA
     TITLE = 'Zip Code'
-    carto_table = "census_zip_codes"
+    carto_table = "profiles_zip_codes"
     type_description = "The area covered by a postal Zip code."
 
     child_geog_models = []
     zctace = models.CharField(max_length=5)
-    geoid = models.CharField(max_length=5)
+    geoid = models.CharField(max_length=5, primary_key=True)
 
     @property
     def title(self):
