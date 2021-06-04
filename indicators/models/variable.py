@@ -104,6 +104,8 @@ class Variable(PolymorphicModel, Described):
         (MIN, 'Minimum'),
     )
 
+    _agg_methods: dict
+
     # todo: currently everything has been built with aggregation in mind.  selecting 'None' will mean that the variable
     #   will return a list and not a single value. Data Presentations may require certain return values or behave
     #   different depending on the variable return type
@@ -113,6 +115,7 @@ class Variable(PolymorphicModel, Described):
     short_name = models.CharField(max_length=26, null=True, blank=True)
 
     aggregation_method = models.CharField(
+        help_text='Select "None" if this value cannot be used in aggregate.',
         max_length=5,
         choices=AGGR_CHOICES,
         default=SUM,
@@ -175,12 +178,17 @@ class Variable(PolymorphicModel, Described):
         }.get(self.aggregation_method, models.Sum)
 
     @property
+    def source_agg_method(self):
+        """ Uses instances subclass's `_agg_methods` to determine what to return. """
+        return self._agg_methods[self.aggregation_method]
+
+    @property
     def primary_denominator(self) -> Optional['Variable']:
         denoms = self.denominators.all()
         return denoms[0] if len(denoms) else None
 
-    def get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True,
-                   agg_method=None, parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list['Datum']:
+    def get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis',
+                   use_denom=True, parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list['Datum']:
         """
         Collects data for this `Variable` instance across geographies in `geogs` and times in `time_axis`.
 
@@ -191,6 +199,11 @@ class Variable(PolymorphicModel, Described):
         :param {bool} use_denom: whether or not to also gather percent and denominator data
         :return:
         """
+        agg_method = self.source_agg_method
+        using_agg = type(geogs[0]) != parent_geog_lvl
+        if using_agg and agg_method is None:
+            raise AggregationError(f"Variable '{self.name}' can't be aggregated.")
+        print(agg_method)
         cache = caches['long_term']
         cache_key = self._generate_cache_key(geogs, time_axis, use_denom=use_denom, agg_method=agg_method,
                                              parent_geog_lvl=parent_geog_lvl)
@@ -273,6 +286,16 @@ class CensusVariable(Variable):
         related_name='census_variables',
         through='CensusVariableSource'
     )
+
+    _agg_methods = {
+        Variable.NONE: None,
+        Variable.COUNT: models.Count,
+        Variable.SUM: models.Sum,
+        Variable.MEAN: models.Avg,
+        Variable.MODE: None,
+        Variable.MAX: models.Max,
+        Variable.MIN: models.Min,
+    }
 
     def _get_values(self, geogs, time_axis, use_denom=True, agg_method=None, parent_geog_lvl=None) -> list[Datum]:
         if not agg_method:
@@ -438,6 +461,16 @@ class CKANVariable(Variable):
         max_length=100
     )
     sql_filter = models.TextField(help_text='SQL clause that will be used to filter data.', null=True, blank=True)
+
+    _agg_methods = {
+        Variable.NONE: None,
+        Variable.COUNT: 'COUNT',
+        Variable.SUM: 'SUM',
+        Variable.MEAN: 'AVG',
+        Variable.MODE: None,
+        Variable.MAX: 'MAX',
+        Variable.MIN: 'MIN',
+    }
 
     def _get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True, agg_method=None,
                     parent_geog_lvl=None) -> list[Datum]:
