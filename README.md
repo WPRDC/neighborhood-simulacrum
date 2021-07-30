@@ -1,4 +1,4 @@
-# Neighborhood Simulacra
+# Neighborhood Simulacrum
 **Open Data Community Indicators Platform**
 
 ## System Requirements
