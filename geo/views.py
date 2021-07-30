@@ -2,7 +2,7 @@ from typing import Type
 
 from django.conf import settings
 from django.contrib.gis.db.models import Union
-from rest_framework import viewsets, views, response, serializers
+from rest_framework import viewsets, views, response, serializers, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
@@ -35,6 +35,8 @@ class CensusGeographyViewSet(viewsets.ModelViewSet):
     brief_serializer_class: [serializers.Serializer] = CensusGeographyBriefSerializer
     detailed_serializer_class: [serializers.Serializer] = CensusGeographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'common_geoid']
 
     def get_queryset(self):
         return all_geogs_in_domain(self.model, DOMAIN)
@@ -43,6 +45,7 @@ class CensusGeographyViewSet(viewsets.ModelViewSet):
         if self.request.query_params.get('details', False):
             return self.detailed_serializer_class
         return self.brief_serializer_class
+
 
 
 class TractViewSet(CensusGeographyViewSet):

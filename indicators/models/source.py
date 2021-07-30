@@ -272,7 +272,7 @@ class CKANGeomSource(CKANSource):
                f'ON ST_Covers(ST_GeomFromWKB(decode({GEO_ALIAS}.geom, \'hex\')), "SRC".{self.geom_field})'
 
 
-class CKANRegionalSource(CKANSource):
+class CKANParcelSource(CKANSource):
     blockgroup_field = models.CharField(max_length=100, null=True, blank=True)
     blockgroup_field_is_sql = models.BooleanField(default=False)
 
@@ -337,3 +337,4 @@ class CKANRegionalSource(CKANSource):
         if self.standardization_query:
             return f'({self.standardization_query.replace("", "")})'
         return f'"{self.resource_id}"'
+

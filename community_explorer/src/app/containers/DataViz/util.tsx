@@ -12,6 +12,7 @@ import {
   TableViz,
   Variable,
   VizProps,
+  RowRecord,
 } from '../../types';
 import { saveAs } from 'file-saver';
 import { Table } from '../../data-vizes/Table';
@@ -108,13 +109,40 @@ export function formatCategory(variable: Variable): React.ReactNode {
 }
 
 /**
- * Copies the tabular data provided from the API and wraps it in the format `Vega` accepts.
- * @param {TabularData} data - the tabular data from the viz API
+ * Copies and adds human-friendly labels to the tabular data provided from
+ * the API and wraps it in the format Vega accepts.
+ *
+ * @param dataViz
  */
-export function prepDataForVega(data: TabularData): PlainObject {
-  return { table: data.map(datum => ({ ...datum })) };
+export function prepDataForVega(
+  dataViz: Downloaded<ChartViz, TabularData>,
+): PlainObject {
+  // todo: make lookup table for the labels and toss that into the vega spec!
+
+  const addLabels = makeLabeler(dataViz);
+  return { table: dataViz.data.map(addLabels) };
 }
 
+/**
+ * Returns a function that extracts human-readable labels from `dataViz`.
+ * @param {DataVizBase} dataViz - dataViz definition object
+ */
+const makeLabeler = (dataViz: DataVizBase) => (datum: RowRecord) => {
+  // todo: memoize these lookups
+  const variable = dataViz.variables.find(v => v.slug === datum.variable);
+  const time = dataViz.timeAxis.timeParts.find(t => t.slug === datum.time);
+
+  const variableLabel = variable ? variable.name : datum.variable;
+  const timeLabel = time ? time.name : datum.time;
+
+  return { ...datum, variableLabel, timeLabel };
+};
+
+/**
+ * Returns the DataViz component based on the supplied variant.
+ *
+ * @param {DataVizVariant} variant
+ */
 export function getVariantComponent(variant: DataVizVariant) {
   switch (variant) {
     case DataVizVariant.Blurb:

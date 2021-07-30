@@ -6,7 +6,7 @@ from django.contrib.gis.db import models
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
 from polymorphic.models import PolymorphicModel
 
-from geo.util import get_population, get_kid_population
+from geo.util import get_population, get_kid_population, get_black_population
 
 COUNTY_FPS = (
     '003',  # Allegheny county
@@ -151,6 +151,10 @@ class CensusGeography(PolymorphicModel, Geography):
     def kid_population(self):
         return int(get_kid_population(self))
 
+    @property
+    def black_population(self):
+        return int(get_black_population(self))
+
     # Abstract properties
     @property
     @abstractmethod
@@ -239,7 +243,7 @@ class BlockGroup(CensusGeography):
 class Tract(CensusGeography):
     TYPE = Geography.TRACT
     TITLE = 'Tract'
-    carto_table = "census_tracts"
+    carto_table = "census_tract"
     type_description = "Drawn to encompass ~2500-8000 people"
 
     child_geog_models = [BlockGroup]

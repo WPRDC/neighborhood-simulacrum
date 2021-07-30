@@ -49,6 +49,18 @@ export interface RowRecord {
   denom?: number;
 }
 
+export interface LabeledRowRecord {
+  variable: string;
+  variableLabel: string;
+  geog: string;
+  time: string;
+  timeLabel: string;
+  value: number;
+  moe?: number;
+  percent?: number;
+  denom?: number;
+}
+
 export type TabularData = RowRecord[];
 
 export interface TableDatum {

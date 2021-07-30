@@ -15,7 +15,11 @@ const bar: vega.Spec = {
       ],
     },
   ],
-  data: [{ name: 'table', values: [] }],
+  data: [
+    { name: 'table', values: [] },
+    { name: 'labels', values: [] },
+    { name: 'highlight', values: {} },
+  ],
   scales: [
     {
       name: 'yscale',
@@ -34,10 +38,16 @@ const bar: vega.Spec = {
     {
       name: 'color',
       type: 'ordinal',
-      domain: { data: 'table', field: 'timeSeries' },
+      domain: { data: 'table', field: 'timeLabel' },
       range: {
         scheme: ['#D0E9F2', '#96C6D9', '#3F89A6', '#204959', '#0B1F26'],
       },
+    },
+    {
+      name: 'labelMap',
+      type: 'ordinal',
+      domain: { data: 'labels', field: 'var' },
+      range: { data: 'labels', field: 'label' },
     },
   ],
 
@@ -61,6 +71,14 @@ const bar: vega.Spec = {
       labelFontSize: 12,
       ticks: false,
       labelPadding: 4,
+      encode: {
+        labels: {
+          interactive: true,
+          update: {
+            text: { scale: 'labelMap', field: 'value' },
+          },
+        },
+      },
     },
   ],
 
@@ -89,7 +107,7 @@ const bar: vega.Spec = {
           name: 'pos',
           type: 'band',
           range: 'height',
-          domain: { data: 'facet', field: 'timeSeries' },
+          domain: { data: 'facet', field: 'timeLabel' },
         },
       ],
 
@@ -101,13 +119,14 @@ const bar: vega.Spec = {
           encode: {
             enter: {
               tooltip: {
-                signal: "datum.variable + ': ' + format(datum.value, '1,')",
+                signal:
+                  "scale('labelMap', datum.variable) + ': ' + format(datum.value, '1,')",
               },
-              y: { scale: 'pos', field: 'timeSeries' },
+              y: { scale: 'pos', field: 'timeLabel' },
               height: { scale: 'pos', band: 1 },
               x: { scale: 'xscale', field: 'value' },
               x2: { scale: 'xscale', value: 0 },
-              fill: { scale: 'color', field: 'timeSeries' },
+              fill: { scale: 'color', field: 'timeLabel' },
               cornerRadiusBottomRight: { value: 2 },
               cornerRadiusTopRight: { value: 2 },
             },

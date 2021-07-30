@@ -34,6 +34,7 @@ class CensusGeographySerializer(serializers.ModelSerializer):
             'hierarchy',
             'population',
             'kid_population',
+            'black_population',
         )
 
 

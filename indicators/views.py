@@ -1,13 +1,11 @@
 import json
 from typing import Type
 
-from django.conf import settings
-from django.contrib.gis.db.models import QuerySet, Union
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from rest_framework import viewsets, renderers
+from rest_framework import viewsets, renderers, filters
 from rest_framework.exceptions import NotFound
 from rest_framework.negotiation import BaseContentNegotiation
 from rest_framework.permissions import AllowAny
@@ -16,11 +14,11 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from geo.models import Geography, CensusGeography, County, BlockGroup
-from geo.serializers import CensusGeographyDataMapSerializer
+from geo.models import Geography, CensusGeography, BlockGroup
 from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis, MiniMap
 from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
-    TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, DataVizSerializer
+    TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, \
+    DataVizSerializer, DataVizBriefSerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorResponse, ErrorLevel, \
     extract_geo_params, get_geog_model
 
@@ -55,36 +53,50 @@ class DomainViewSet(viewsets.ModelViewSet):
     queryset = Domain.objects.all()
     serializer_class = DomainSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
 
 
 class SubdomainViewSet(viewsets.ModelViewSet):
     queryset = Subdomain.objects.all()
     serializer_class = SubdomainSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
 
 
 class IndicatorViewSet(viewsets.ModelViewSet):
     queryset = Indicator.objects.all()
     serializer_class = IndicatorSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
 
 
 class VariableViewSet(viewsets.ModelViewSet):
     queryset = Variable.objects.all()
     serializer_class = VariablePolymorphicSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
 
 
 class TimeAxisViewSet(viewsets.ModelViewSet):
     queryset = TimeAxis.objects.all()
     serializer_class = TimeAxisPolymorphicSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
 
 
 class DataVizViewSet(viewsets.ModelViewSet):
     queryset = DataViz.objects.all()
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
 
     def get_serializer_class(self):
+        if self.action == 'list':
+            return DataVizBriefSerializer
         if is_geog_data_request(self.request):
             return DataVizWithDataSerializer
         return DataVizSerializer

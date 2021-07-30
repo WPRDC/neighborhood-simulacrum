@@ -12,6 +12,18 @@ from ..models.viz import DataViz
 from ..utils import DataResponse
 
 
+class DataVizBriefSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = DataViz
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'viz_type',
+            'description',
+        )
+
+
 class DataVizSerializer(serializers.HyperlinkedModelSerializer):
     variables = VizVariablePolymorphicSerializer(many=True)
     time_axis = TimeAxisPolymorphicSerializer()

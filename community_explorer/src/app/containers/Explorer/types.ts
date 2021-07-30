@@ -20,16 +20,22 @@ export interface ExplorerState {
   // Navigation todo: consider moving navigation to its own container
   /** List of basic geography level details for the available geography levels **/
   geoLayers?: GeogTypeDescriptor[];
+
   /** Is true when waiting on api response. **/
   geoLayersIsLoading: boolean;
+
   /** Message received from API in case of error. **/
   geoLayersLoadError?: string;
+
   /** The currently selected type of geography (e.g. neighborhood, tract) in the navigation menu */
   selectedGeoLayer?: GeogTypeDescriptor;
+
   /** The currently selected geography in the navigation menu */
   selectedGeogIdentifier?: GeogIdentifier;
+
   /** Caches of list of geographies by keyed type for use in menus */
   geogsListsRecord: Record<GeographyType, GeogDescriptor[]>;
+
   geogsListsAreLoadingRecord: Record<GeographyType, boolean>;
 }
 

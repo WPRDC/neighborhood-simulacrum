@@ -31,7 +31,7 @@ export function NavMenu(props: Props) {
     // geogsListsAreLoadingRecord,
   } = props;
 
-  console.debug(props);
+  // console.debug(props);
 
   function handleAreaSelect(selectedSlug: Key) {
     if (geoLayers) {
@@ -53,7 +53,7 @@ export function NavMenu(props: Props) {
   const geogs = selectedGeoLayerID ? geogsListsRecord[selectedGeoLayerID] : [];
   const selectedGeogKey = selectedGeog ? makeGeogKey(selectedGeog) : undefined;
 
-  console.debug({ geogs, selectedGeogKey });
+  // console.debug({ geogs, selectedGeogKey });
 
   return (
     <View paddingX="size-200">

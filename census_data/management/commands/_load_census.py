@@ -243,3 +243,8 @@ def run(start, end):
     # CensusValue.objects.all().delete()
     # CensusTable.objects.all().delete()
     asyncio.run(run_async(start, end))
+
+# TODO:
+#   1. settings for what years we want.
+#   2. download functions for acs and census data / geog lookups or whatever
+#   3. upload functions (already probably pretty good just need some organizing and documentation)

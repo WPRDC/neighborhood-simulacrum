@@ -4,7 +4,7 @@ from indicators.models import Domain, Subdomain, Indicator
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
 from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
-from .viz import DataVizSerializer, DataVizWithDataSerializer, DataVizIdentifiersSerializer
+from .viz import DataVizSerializer, DataVizWithDataSerializer, DataVizIdentifiersSerializer, DataVizBriefSerializer
 
 
 class DomainBriefSerializer(serializers.ModelSerializer):

@@ -148,7 +148,7 @@ export function DataViz(props: Props) {
 
   const breadcrumbs = getBreadCrumbs(taxonomyItems, dataVizID);
 
-  console.debug('dv', CurrentViz);
+  // console.debug('dv', CurrentViz);
   return (
     <>
       <WrapperComponent
