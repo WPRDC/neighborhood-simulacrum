@@ -8,6 +8,6 @@ urlpatterns = [
     path('_debug/', include(debug_toolbar.urls)),
     path('admin/', admin.site.urls),
     path('geo/', include('geo.urls')),
+    path('maps/', include('maps.urls')),
     path('', include('indicators.urls')),
-
 ]

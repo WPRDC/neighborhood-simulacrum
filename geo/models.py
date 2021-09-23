@@ -1,12 +1,18 @@
 import json
+import typing
 from abc import abstractmethod
 from typing import List, Type
 
+from django.conf import settings
 from django.contrib.gis.db import models
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
+from django.contrib.gis.db.models import Union as GeoUnion
+from django.contrib.gis.geos import GEOSGeometry
 from polymorphic.models import PolymorphicModel
 
 from geo.util import get_population, get_kid_population, get_black_population
+
+if typing.TYPE_CHECKING:
+    from rest_framework.serializers import Serializer
 
 COUNTY_FPS = (
     '003',  # Allegheny county
@@ -61,12 +67,14 @@ class Geography(models.Model):
     description = models.TextField(blank=True)
     geom = models.MultiPolygonField()
     mini_geom = models.MultiPolygonField(null=True)
+    geom_webmercator = models.MultiPolygonField(srid=3857, null=True)
     geo_level = models.CharField(
         max_length=30,
         choices=GEO_LEVELS,
         default='NONE',
         blank=True,
     )
+    in_extent = models.BooleanField(null=True, blank=True, editable=False)
 
     @property
     def bbox(self):
@@ -92,13 +100,9 @@ class Geography(models.Model):
         return self.geom.buffer(0.0005)
 
     def save(self, *args, **kwargs):
-        # in_extent =
-        if not self.mini_geom:
-            print(self.name)
-            if type(self._mini_geom) == Polygon:
-                self.mini_geom = MultiPolygon(self._mini_geom)
-            else:
-                self.mini_geom = self._mini_geom
+        if not self.geom_webmercator:
+            self.geom_webmercator = self.geom.transform(3857, clone=True)
+
         super(Geography, self).save(*args, **kwargs)
 
     def __str__(self):
@@ -185,14 +189,18 @@ class CensusGeography(PolymorphicModel, Geography):
     def _carto_filter(self):
         return f"""WHERE statefp = '42' AND countyfp IN ({','.join((f"'{cfp}'" for cfp in COUNTY_FPS))})"""
 
-    def get_menu_record(self) -> dict:
+    def get_menu_record(self, serializer: 'Serializer') -> dict:
         return {
             'id': self.TYPE,
             'name': self.TITLE,
             'table_name': self.carto_table,
             'carto_sql': self.carto_sql,
             'description': self.type_description,
+            'default_geog': serializer(self).data
         }
+
+    def save(self, *args, **kwargs):
+        super(CensusGeography, self).save(*args, **kwargs)
 
 
 class BlockGroup(CensusGeography):

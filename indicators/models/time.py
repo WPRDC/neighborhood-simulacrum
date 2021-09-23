@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
-from indicators.models.abstract import Described
+from profiles.abstract_models import Described
 from dataclasses import dataclass
 from dateutil.relativedelta import relativedelta
 

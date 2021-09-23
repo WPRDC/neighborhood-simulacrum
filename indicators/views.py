@@ -21,6 +21,8 @@ from indicators.serializers import DomainSerializer, IndicatorSerializer, Subdom
     DataVizSerializer, DataVizBriefSerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorResponse, ErrorLevel, \
     extract_geo_params, get_geog_model
+from maps.models import DataLayer
+from profiles.settings import VIEW_CACHE_TTL
 
 
 class GeoJSONRenderer(renderers.BaseRenderer):
@@ -71,7 +73,7 @@ class IndicatorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
-
+    lookup_field = 'slug'
 
 class VariableViewSet(viewsets.ModelViewSet):
     queryset = Variable.objects.all()
@@ -93,6 +95,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
     queryset = DataViz.objects.all()
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
+    lookup_field = 'slug'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -114,7 +117,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
         return context
 
     # Cache requested url for each user for 2 minutes
-    @method_decorator(cache_page(60 * 2))
+    @method_decorator(cache_page(VIEW_CACHE_TTL))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
@@ -123,13 +126,14 @@ class GeoJSONWithDataView(APIView):
     permission_classes = [AllowAny, ]
     content_negotiation_class = GeoJSONContentNegotiation
 
-    @method_decorator(cache_page(60 * 60 * 24))
+    @method_decorator(cache_page(VIEW_CACHE_TTL))
     def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
         try:
             geog_type: Type[CensusGeography] = get_geog_model(geog_type_id)
             data_viz: MiniMap = DataViz.objects.get(pk=data_viz_id)
             variable: Variable = Variable.objects.get(pk=variable_id)
-            time_part = data_viz.time_axis.time_parts[0]
+            data_layer: DataLayer = data_viz.layers.all()[0].get_data_layer()
+            geojson = data_layer.as_geojson()
         except KeyError as e:
             # when the geog is wrong todo: make 400 malformed with info on available geo types
             raise NotFound
@@ -139,8 +143,6 @@ class GeoJSONWithDataView(APIView):
         if geog_type == BlockGroup:
             # todo: actually handle this error, then this case
             return Http404
-
-        geojson = data_viz.get_map_data_geojson(geog_type, variable)
 
         if request.query_params.get('download', False):
             headers = {

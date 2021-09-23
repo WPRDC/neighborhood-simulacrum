@@ -9,7 +9,6 @@ django-polymorphic==3.0.0
 django-rest-polymorphic==0.1.9
 djangorestframework==3.12.4
 psycopg2-binary
-pygraphviz==1.7
 requests==2.26.0
 uncertainties==3.1.5
 django-grappelli==2.15.1
@@ -25,3 +24,4 @@ asgiref~=3.3.1
 mapbox-vector-tile
 jenkspy~=0.2.0
 djangorestframework-gis~=0.17
+colorama

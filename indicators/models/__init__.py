@@ -1,15 +1,18 @@
 from django.db import models
 
-from .time import TimeAxis, RelativeTimeAxis, StaticTimeAxis, StaticConsecutiveTimeAxis
+from profiles.abstract_models import Described
 from .source import Source, CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource
+from .time import TimeAxis, RelativeTimeAxis, StaticTimeAxis, StaticConsecutiveTimeAxis
 from .variable import Variable, CensusVariable, CKANVariable, CensusVariableSource
 from .viz import DataViz, Table, Chart, MiniMap, VizVariable
-
-from .abstract import Described
 
 
 class Domain(Described):
     """ Main categories for organizing indicators """
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
 
     def __str__(self):
         return self.name

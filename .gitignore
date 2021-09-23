@@ -24,3 +24,4 @@ api.bak
 bin/
 
 static/
+/pg_tileserv_latest_osx/

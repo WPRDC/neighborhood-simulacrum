@@ -12,7 +12,8 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 
 import os
 
-from .local_settings import LOCAL_SECRET_KEY, DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD, LOCAL_DEBUG
+from .local_settings import LOCAL_SECRET_KEY, DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD, LOCAL_DEBUG, \
+    DATASTORE_HOST, DATASTORE_NAME, DATASTORE_PASSWORD, DATASTORE_PORT, DATASTORE_USER
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -46,9 +47,13 @@ INSTALLED_APPS = [
     'rest_framework_gis',
     'django_filters',
     'nested_admin',
+
+    # local apps
     'indicators',
     'geo',
     'census_data',
+    'maps',
+    'public_housing',
     #  'debug_toolbar'
 ]
 
@@ -96,6 +101,14 @@ DATABASES = {
         'NAME': DB_NAME,
         'USER': DB_USER,
         'PASSWORD': DB_PASSWORD,
+    },
+    'datastore': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'HOST': DATASTORE_HOST,
+        'PORT': DATASTORE_PORT,
+        'NAME': DATASTORE_NAME,
+        'USER': DATASTORE_USER,
+        'PASSWORD': DATASTORE_PASSWORD,
     },
 }
 
@@ -170,7 +183,9 @@ REST_FRAMEWORK = {
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 100,
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',]
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend', ],
+
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning',
 }
 
 CORS_ORIGIN_ALLOW_ALL = True
@@ -183,7 +198,11 @@ INTERNAL_IPS = '127.0.0.1'
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
-AVAILABLE_COUNTIES_IDS = ('42073', '42003', '42007', '42125', '42059', '42051', '42129', '42063', '42005', '42019',)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Profiles customization settings
+# ```````````````````````````````
+AVAILABLE_COUNTIES_IDS = ('42073', '42003', '42007', '42125', '42059',
+                          '42051', '42129', '42063', '42005', '42019',)
 
 MAP_HOST = 'https://api.profiles.wprdc.org/map_layer'
 
@@ -198,3 +217,22 @@ AVAILABLE_GEOG_TYPES = (
     'neighborhood',
     'zcta',
 )
+
+# todo: make it so these values are the defaults and any entries in settings replace them
+SQ_ALIAS = 'dt'
+GEO_ALIAS = '"GEO"'
+
+GEOG_DKEY = '__geog__'
+TIME_DKEY = '__time__'
+VALUE_DKEY = '__value__'
+DENOM_DKEY = '__denom__'
+
+CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
+DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
+
+VIEW_CACHE_TTL = 60 * 60 # 60 mins
+
+LONG_TERM_CACHE_TTL = 60 * 60 * 24  # 24 hours
+
+USE_LONG_TERM_CACHE = False
+

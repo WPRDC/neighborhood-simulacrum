@@ -2,15 +2,17 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Type, Union, Optional, List, TYPE_CHECKING
 
+import psycopg2.extras
 from django.conf import settings
 from django.contrib.gis.db.models import Union as GeoUnion
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import connection
 from django.db.models import QuerySet
 from rest_framework.request import Request
 
 from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography, SchoolDistrict, Neighborhood, \
-    ZipCodeTabulationArea
+    ZipCodeTabulationArea, Geography
 
 if TYPE_CHECKING:
     from indicators.models import Variable, Variable, DataViz
@@ -75,12 +77,27 @@ class DataResponse:
 
 # Functions
 # =-=-=-=-=
-def limit_to_geo_extent(geog_type: Type['CensusGeography']) -> QuerySet['CensusGeography']:
+def limit_to_geo_extent(geog_type: Type['Geography']) -> QuerySet['Geography']:
     """ Returns a queryset representing the geogs for `geog_type` that fit within project extent. """
+    return geog_type.objects.filter(in_extent=True)
+
+
+# noinspection SqlResolve
+def save_extent():
     extent = County.objects \
         .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
         .aggregate(the_geom=GeoUnion('geom'))
-    return geog_type.objects.filter(geom__coveredby=extent['the_geom'])
+    extent_wkt = extent['the_geom'].wkt
+
+    cursor: 'psycopg2._psycopg.cursor'
+    with connection.cursor() as cursor:
+        cursor.execute("""DROP TABLE IF EXISTS "#extent";""")
+        cursor.execute("""CREATE TABLE "#extent" (id varchar(63));""")
+        cursor.execute("""SELECT AddGeometryColumn('#extent', 'geom', 4326, 'MultiPolygon', 2);""")
+        cursor.execute("""INSERT INTO "#extent" 
+                            VALUES ('default', ST_MPolyFromText(%s, 4326));""", (extent_wkt,))
+        cursor.execute("""CREATE INDEX "#extent_index" ON "#extent" USING gist (geom);""")
+
 
 def in_geo_extent(geog: 'CensusGeography') -> bool:
     return County.objects \

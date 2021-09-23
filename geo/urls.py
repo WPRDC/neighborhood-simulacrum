@@ -2,7 +2,7 @@ from django.urls import re_path
 from rest_framework import routers
 from . import views
 
-router = routers.SimpleRouter()
+router = routers.DefaultRouter()
 router.register(r'blockGroup', views.BlockGroupViewSet, basename='blockgroup')
 router.register(r'tract', views.TractViewSet, basename='tract')
 router.register(r'countySubdivision', views.CountySubdivisionViewSet, basename='countysubdivision')

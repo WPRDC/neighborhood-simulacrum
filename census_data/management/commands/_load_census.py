@@ -200,7 +200,7 @@ async def insert_seq_data(seq_no, geo_lookup):
     template_file = f'seq{seq_no}.xlsx'
     data_fname = f'{ACS_YEAR}5{ST}{int(seq_no):04}000.txt'
 
-    for dl_dir in (TRACT_BG_DL_DIR, OTHER_GEO_DL_DIR,):
+    for dl_dir in (TRACT_BG_DL_DIR, "OTHER_GEO_DL_DIR",):
         # estimates and margins of errors in are in separate files
         for mode in ('e', 'm',):
             data_file = os.path.join(dl_dir, f'{mode}{data_fname}')
@@ -218,11 +218,13 @@ async def insert_seq_data(seq_no, geo_lookup):
                 await bulk_create(census_values)
 
 
-async def run_async(start, end, redownload=False, skip_downloads=True, sequence_numbers=DEFAULT_SEQUENCE_NUMBERS):
+async def run_async(start, end, redownload=False, skip_downloads=False, sequence_numbers=DEFAULT_SEQUENCE_NUMBERS):
+    # make geo-level folders to dump data to
     for new_dir in (TRACT_BG_DL_DIR, OTHER_GEO_DL_DIR,):
         if not os.path.isdir(new_dir):
             os.makedirs(new_dir)
 
+    # generate or get a mini db geography lookup
     geo_lookup = await get_geo_lookup()
     sequence_numbers = (x for x in range(start, end))
 
@@ -231,7 +233,7 @@ async def run_async(start, end, redownload=False, skip_downloads=True, sequence_
         # connect to server
         ftp = FTP(FTP_HOST)
         ftp.login()
-        download_data(ftp, redownload)
+        await download_data(ftp, redownload)
 
     # join data to columns in templates
     await asyncio.gather(
@@ -240,8 +242,6 @@ async def run_async(start, end, redownload=False, skip_downloads=True, sequence_
 
 
 def run(start, end):
-    # CensusValue.objects.all().delete()
-    # CensusTable.objects.all().delete()
     asyncio.run(run_async(start, end))
 
 # TODO:

@@ -7,10 +7,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from geo.models import CensusGeography, Tract, County, CountySubdivision, BlockGroup, ZipCodeTabulationArea, \
-    Neighborhood
-from geo.serializers import CensusGeographyPolymorphicSerializer, CensusGeographyBriefSerializer, \
-    CensusGeographySerializer
+from geo.models import CensusGeography, Tract, County, CountySubdivision, \
+    BlockGroup, ZipCodeTabulationArea, Neighborhood
+from geo.serializers import CensusGeographyPolymorphicSerializer, \
+    CensusGeographyBriefSerializer, CensusGeographySerializer
 from geo.util import all_geogs_in_domain
 from indicators.utils import is_geog_data_request, get_geog_from_request, get_geog_model
 
@@ -47,7 +47,6 @@ class CensusGeographyViewSet(viewsets.ModelViewSet):
         return self.brief_serializer_class
 
 
-
 class TractViewSet(CensusGeographyViewSet):
     model = Tract
 
@@ -80,6 +79,6 @@ def geog_list(request):
     for type_str in settings.AVAILABLE_GEOG_TYPES:
         geog: Type[CensusGeography] = get_geog_model(type_str)
         # fixme: this seems like such a waste
-        geog_record = geog.objects.all()[0].get_menu_record()
+        geog_record = geog.objects.all()[0].get_menu_record(CensusGeographyBriefSerializer)
         records.append(geog_record)
     return Response(records)

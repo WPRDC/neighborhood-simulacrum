@@ -20,3 +20,4 @@ def load_sources():
             s.save()
         except IntegrityError as e:
             print('\x1b[1;31m', source['name'], 'already exists!', '\x1b[0m')
+

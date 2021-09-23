@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Optional
 
 from rest_framework import serializers
 
@@ -42,7 +41,6 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
             'sources',
             'time_axis',
             'variables',
-            'indicator',
         )
 
     def get_static_options(self, obj: DataViz):

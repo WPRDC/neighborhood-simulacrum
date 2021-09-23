@@ -23,5 +23,13 @@ DB_NAME = 'your_db_name'
 DB_USER = 'your_db_user'
 DB_PASSWORD = 'password_for_db_user'
 
+# CKAN datastore database settings
+DATASTORE_HOST = 'your_db_host'
+DATASTORE_PORT = 5328  # default for postgres
+DATASTORE_NAME = 'your_db_name'
+DATASTORE_USER = 'your_db_user'
+DATASTORE_PASSWORD = 'password_for_db_user'
+
+
 # You'll want to set this to false for your production version(s) of this file
 LOCAL_DEBUG = True

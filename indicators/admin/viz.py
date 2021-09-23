@@ -3,8 +3,7 @@ from django.contrib import admin
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin
 
 from indicators.models.viz import DataViz, MiniMap, Table, Chart, \
-    BigValue, Sentence, GeogChoroplethMapLayer, \
-    ObjectsLayer, TableRow, ChartPart, MapLayer, ParcelsLayer, SentenceVariable, BigValueVariable
+    BigValue, Sentence, TableRow, ChartPart, MapLayer, SentenceVariable, BigValueVariable
 
 
 @admin.register(DataViz)
@@ -23,25 +22,9 @@ class DataVizChildAdmin(nested_admin.NestedPolymorphicInlineSupportMixin, Polymo
 
 
 # inlines
-class MapLayerInline(nested_admin.NestedStackedPolymorphicInline):
-    class GeogChoroplethLayerInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = GeogChoroplethMapLayer
-        autocomplete_fields = ('sub_geog', 'variable')
-
-    class ObjectsLayerInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = ObjectsLayer
-        autocomplete_fields = ('variable',)
-
-    class ParcelsLayerInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = ParcelsLayer
-        autocomplete_fields = ('variable',)
-
+class MapLayerInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
     model = MapLayer
-    child_inlines = (
-        GeogChoroplethLayerInline,
-        ObjectsLayerInline,
-        ParcelsLayerInline,
-    )
 
 
 class TableRowInline(nested_admin.NestedTabularInline):
@@ -62,14 +45,6 @@ class BigValueVariableInline(nested_admin.NestedTabularInline):
 class SentenceVariableInline(nested_admin.NestedTabularInline):
     autocomplete_fields = ('variable',)
     model = SentenceVariable
-
-
-class MapLayerAdmin(PolymorphicParentModelAdmin):
-    list_display = ('name', 'id')
-    search_fields = ('name',)
-    base_model = MapLayer
-    child_models = (GeogChoroplethMapLayer, ObjectsLayer, ParcelsLayer,)
-    prepopulated_fields = {"slug": ("name",)}
 
 
 @admin.register(MiniMap)

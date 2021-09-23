@@ -1,89 +1,24 @@
-import dataclasses
-from dataclasses import dataclass
+import logging
 from datetime import MINYEAR, MAXYEAR
 from typing import Dict, Optional, Type, List
 
-import requests
-from django.db import models
 from django.core.cache import caches
+from django.db import models
 from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery, Value, Case, When
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
 from census_data.models import CensusValue, CensusTable, CensusTablePointer
 from geo.models import CensusGeography
+from indicators.data import Datum
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
-from indicators.models.abstract import Described
-from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource, DENOM_DKEY, \
-    VALUE_DKEY, TIME_DKEY, GEOG_DKEY
+from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource
 from indicators.models.time import TimeAxis
-from indicators.models.viz import DataViz
-from indicators.utils import ErrorLevel, limit_to_geo_extent
+from indicators.utils import ErrorLevel
+from profiles.abstract_models import Described
+from profiles.settings import LONG_TERM_CACHE_TTL, USE_LONG_TERM_CACHE
 
-# todo: move to settings
-CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
-DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
-
-LT_CACHE_TTL = 60 * 60 * 24  # 24 hours
-
-
-@dataclass
-class Datum:
-    variable: str
-    geog: str
-    time: str
-    value: Optional[float] = None
-    moe: Optional[float] = None
-    percent: Optional[float] = None
-    denom: Optional[float] = None
-
-    @staticmethod
-    def from_census_response_datum(variable: 'CensusVariable', census_datum) -> 'Datum':
-        return Datum(
-            variable=variable.slug,
-            geog=census_datum.get('geog'),
-            time=census_datum.get('time'),
-            value=census_datum.get('value'),
-            moe=census_datum.get('moe'),
-            denom=census_datum.get('denom'),
-            percent=census_datum.get('percent'), )
-
-    @staticmethod
-    def from_census_response_data(variable: 'CensusVariable', census_data: list[dict]) -> List['Datum']:
-        return [Datum.from_census_response_datum(variable, census_datum) for census_datum in census_data]
-
-    @staticmethod
-    def from_ckan_response_datum(variable: 'CKANVariable', ckan_datum) -> 'Datum':
-        denom, percent = None, None
-        if DENOM_DKEY in ckan_datum:
-            denom = ckan_datum[DENOM_DKEY]
-            percent = (ckan_datum[VALUE_DKEY] / ckan_datum[DENOM_DKEY])
-
-        return Datum(variable=variable.slug,
-                     geog=ckan_datum[GEOG_DKEY],
-                     time=ckan_datum[TIME_DKEY],
-                     value=ckan_datum[VALUE_DKEY],
-                     denom=denom,
-                     percent=percent)
-
-    @staticmethod
-    def from_ckan_response_data(variable: 'CKANVariable', ckan_data: list[dict]) -> List['Datum']:
-        return [Datum.from_ckan_response_datum(variable, ckan_datum) for ckan_datum in ckan_data]
-
-    def update(self, **kwargs):
-        """ Creates new Datum similar to the instance with new values from kwargs """
-        return Datum(**{**self.as_dict(), **kwargs})
-
-    def with_denom_val(self, denom_val: Optional[float]):
-        """ Merge the denom value and generate the percent """
-        return dataclasses.replace(self, denom=denom_val, percent=(self.value / denom_val))
-
-    def as_dict(self):
-        return {'variable': self.variable, 'geog': self.geog, 'time': self.time,
-                'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
-
-    def as_value_dict(self):
-        return {'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
+logger = logging.getLogger(__name__)
 
 
 class Variable(PolymorphicModel, Described):
@@ -122,7 +57,7 @@ class Variable(PolymorphicModel, Described):
     )
 
     units = models.CharField(
-        help_text='Special format for $.  Otherwise, often displayed after value.',
+        help_text='Special format for $.  Otherwise, displayed after value.',
         max_length=30,
         null=True,
         blank=True
@@ -200,24 +135,28 @@ class Variable(PolymorphicModel, Described):
         :return:
         """
         agg_method = self.source_agg_method
-        using_agg = type(geogs[0]) != parent_geog_lvl
+        using_agg = parent_geog_lvl is not None and type(geogs[0]) != parent_geog_lvl
         if using_agg and agg_method is None:
             raise AggregationError(f"Variable '{self.name}' can't be aggregated.")
-        print(agg_method)
-        cache = caches['long_term']
-        cache_key = self._generate_cache_key(geogs, time_axis, use_denom=use_denom, agg_method=agg_method,
-                                             parent_geog_lvl=parent_geog_lvl)
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            print('Using cached data', cache_key)
-            return cached_data
-        data: list[Datum] = self._get_values(geogs, time_axis, use_denom=use_denom, agg_method=agg_method,
-                                             parent_geog_lvl=parent_geog_lvl)
+
+        if USE_LONG_TERM_CACHE:
+            cache = caches['long_term']
+            cache_key = self._generate_cache_key(geogs, time_axis, use_denom=use_denom,
+                                                 agg_method=agg_method, parent_geog_lvl=parent_geog_lvl)
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                print('Using cached data', cache_key)
+                return cached_data
+
+        data: list[Datum] = self._get_values(geogs, time_axis, use_denom=use_denom,
+                                             agg_method=agg_method, parent_geog_lvl=parent_geog_lvl)
 
         self._check_values(data)
 
-        cache.set(cache_key, data, LT_CACHE_TTL)
-        print('Cached', cache_key)
+        if USE_LONG_TERM_CACHE:
+            cache.set(cache_key, data, LONG_TERM_CACHE_TTL)
+            print('Cached', cache_key)
+
         return data
 
     def get_primary_value(self, geog: 'CensusGeography', time_part: 'TimeAxis.TimePart') -> Optional[float]:
@@ -397,6 +336,7 @@ class CensusVariable(Variable):
             ).order_by().annotate(
                 percent=percent_sq
             ).values('geog', 'time', 'value', 'moe', 'denom', 'percent')
+            print(data.query)
             results += [Datum.from_census_response_datum(self, datum) for datum in data.all()]
 
         return results
@@ -483,8 +423,12 @@ class CKANVariable(Variable):
             # get the raw data for this geog and time_part from CKAN
             query = source.get_data_query(self, geogs, time_part, parent_geog_lvl=parent_geog_lvl,
                                           denom_select=denom_select)
-            # encode it in Datum objects asap
-            var_data: list[Datum] = self._query_datastore(query)
+
+            # get data from ckan and wrap it in our Datum class
+            raw_data: list[dict] = source.query_datastore(query)
+            var_data: list[Datum] = Datum.from_ckan_response_data(self, raw_data)
+            print(var_data)
+            # todo: build aggregation below into the query
 
             # for regional sources, we need to aggregate here for now todo: debug whats up with ckan's SQL API
             if parent_geog_lvl and type(source) == CKANRegionalSource:
@@ -501,20 +445,11 @@ class CKANVariable(Variable):
 
         return results
 
-    # Utils
-    def _query_datastore(self, query: str) -> list[Datum]:
-        url = CKAN_API_BASE_URL + DATASTORE_SEARCH_SQL_ENDPOINT
-        r = requests.post(
-            url,
-            json={'sql': query},
-            headers={
-                'Cache-Control': 'no-cache'
-            }
-        )
-        response = r.json()
-        data = response['result']['records']
-        return Datum.from_ckan_response_data(self, data)
+    @property
+    def agg_str(self):
+        return '' if self.aggregation_method == self.NONE else self.aggregation_method
 
+    # Utils
     @staticmethod
     def _join_data(var_data: List[Datum], denom_data: List[Datum]):
         """ Adds denom value to appropriate datum in response data """
@@ -563,7 +498,7 @@ class CKANVariable(Variable):
                 value = sum(values)
                 denom = sum(denoms) if len(denoms) and None not in denoms else None
                 percent = value / denom if denom else None
-                results.append(Datum(variable=self, geog=geog, time=time, value=value, denom=denom, percent=percent))
+                results.append(Datum(variable=self.slug, geog=geog, time=time, value=value, denom=denom, percent=percent))
         return results
 
     def _get_source_for_time_part(self, time_part: TimeAxis.TimePart) -> Optional[CKANSource]:
@@ -574,11 +509,11 @@ class CKANVariable(Variable):
             # go through the sources and get the first one whose range covers the point
             start = source.time_coverage_start if source.time_coverage_start else timezone.datetime(MINYEAR, 1, 1)
             end = source.time_coverage_end if source.time_coverage_end else timezone.datetime(MAXYEAR, 12, 31)
-            if start < time_part.time_point < end:
+            if start <= time_part.time_point < end:
                 return source
         raise MissingSourceError(f'No source found for `{self.slug}` for time period `{time_part.slug}`.')
 
-    def _get_denom_data(self, source: 'Source', geogs: QuerySet['CensusGeography'],
+    def _get_denom_data(self, source: 'CKANSource', geogs: QuerySet['CensusGeography'],
                         time_part: 'TimeAxis.TimePart') -> tuple[str, list[Datum]]:
         # check for denominator and handle
         denom_var: 'CKANVariable' = self.primary_denominator
@@ -587,11 +522,12 @@ class CKANVariable(Variable):
         if denom_var:
             if len(denom_var.sources.filter(pk=source.pk)):
                 # if denom uses the same source we can simply pass its field select
-                denom_select = self._get_value_select_sql(denom_var)
-            # if not, keep the denom select null , but fire off a call to collect
-            denom_source = denom_var._get_source_for_time_part(time_part)
-            denom_query = denom_source.get_data_query(denom_var, geogs, time_part)
-            denom_data = self._query_datastore(denom_query)
+                denom_select = f'{denom_var.agg_str}("{denom_var.field}")'
+            else:
+                # if not, keep the denom select null , but fire off a call to collect
+                denom_source = denom_var._get_source_for_time_part(time_part)
+                denom_query = denom_source.get_data_query(denom_var, geogs, time_part)
+                denom_data = Datum.from_ckan_response_data(denom_var, source.query_datastore(denom_query))
 
         return denom_select, denom_data
 

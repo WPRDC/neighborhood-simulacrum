@@ -1,27 +1,35 @@
-import datetime
-from dataclasses import dataclass
-from typing import Union, TYPE_CHECKING, Type, Optional
+# noinspection SqlResolve
 
+import datetime
+import logging
+from dataclasses import dataclass
+from typing import Union, Type, Optional, TYPE_CHECKING
+
+import psycopg2
 from django.contrib.gis.db.models import Union as GeoUnion
 from django.db import models
 from django.db.models import QuerySet
 from polymorphic.models import PolymorphicModel
+from psycopg2.extras import RealDictCursor, RealDictConnection
 
 from geo.models import CensusGeography, Tract, County, BlockGroup, CountySubdivision, SchoolDistrict
-from indicators.models.abstract import Described
 from indicators.models.time import TimeAxis
+from profiles.abstract_models import Described
+from profiles.local_settings import DATASTORE_NAME, DATASTORE_HOST, DATASTORE_USER, DATASTORE_PASSWORD, DATASTORE_PORT
+from profiles.settings import SQ_ALIAS, GEO_ALIAS, DENOM_DKEY
+
+logger = logging.getLogger(__name__)
+
+datastore_settings = {
+    'host': DATASTORE_HOST,
+    'port': DATASTORE_PORT,
+    'dbname': DATASTORE_NAME,
+    'user': DATASTORE_USER,
+    'password': DATASTORE_PASSWORD,
+}
 
 if TYPE_CHECKING:
-    from indicators.models import CKANVariable
-
-# todo moving to settings
-SQ_ALIAS = 'dt'
-GEO_ALIAS = '"GEO"'
-
-GEOG_DKEY = '__geog__'
-TIME_DKEY = '__time__'
-VALUE_DKEY = '__value__'
-DENOM_DKEY = '__denom__'
+    from indicators.models.variable import CKANVariable
 
 
 class Source(PolymorphicModel, Described):
@@ -120,36 +128,47 @@ class CKANSource(Source, PolymorphicModel):
     def get_data_query(self, variable: 'CKANVariable', geogs: QuerySet['CensusGeography'],
                        time_part: 'TimeAxis.TimePart', denom_select: str = None,
                        parent_geog_lvl: Optional[Type[CensusGeography]] = None) -> str:
+
         # get fields from source to select
         geog_select = self._get_geog_select(geogs, parent_geog_lvl)
         time_select = self._get_time_select_sql()
-        value_select = f'{SQ_ALIAS}."{variable.field}"::float'
-        agg_method = variable.aggregation_method
-        agg_str = agg_method or ''
-        # get space and time filters
+        value_select = f'{SQ_ALIAS}."{variable.field}"'  # there was a cast to float here for some reason
+        agg_str = variable.agg_str
+
+        # get space and time filteget_data_queryrs
         geog_filter = self._get_geog_filter_sql(geogs)
         time_filter = self._get_time_filter_sql(time_part, time_select)
 
         geog_type = geogs.all()[0].__class__
         from_subq = self._get_from_subquery(geog_type, parent_geog_lvl=parent_geog_lvl)
 
-        denom_select_and_alias = f', {denom_select} as __denom__' if denom_select else ''
+        denom_select_and_alias = f', {denom_select} as {DENOM_DKEY}' if denom_select else ''
 
-        return f"""
+        query = f"""
         SELECT 
             {geog_select}                   as __geog__, 
             '{time_part.slug}'              as __time__,
             {agg_str}({value_select})       as __value__
             {denom_select_and_alias}
         FROM {from_subq} AS {SQ_ALIAS}
-        WHERE {geog_filter} AND {time_filter}
-        GROUP BY __geog__
+        WHERE {geog_filter} AND {time_filter} 
         """
+        query += f"GROUP BY __geog__ " if agg_str else ''
+        print(query)
+        return query
 
     def clean(self):
         if not self.time_field:
             # todo: check that the unit covers the time coverage
             pass
+
+    @staticmethod
+    def query_datastore(query: str):
+        print(query)
+        conn: RealDictConnection = psycopg2.connect(**datastore_settings, cursor_factory=RealDictCursor)
+        cur: RealDictCursor = conn.cursor()
+        cur.execute(query)
+        return cur.fetchall()
 
     # SQL Generators
     def _get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
@@ -245,15 +264,15 @@ class CKANGeomSource(CKANSource):
 
     def _get_geog_select(self, geogs: QuerySet['CensusGeography'],
                          parent_lvl_geog: Optional[Type[CensusGeography]]) -> str:
-        if not parent_lvl_geog:
-            # return the geoid in the JOIN witht eh source sub query
-            return f'{GEO_ALIAS}.geoid'
-        parent_table = f'"{parent_lvl_geog.ckan_resource}"'
+        if parent_lvl_geog:
+            parent_table = f'"{parent_lvl_geog.ckan_resource}"'
 
-        # noinspection SqlResolve
-        return f"SELECT geoid " \
-               f"FROM {parent_table} pt " \
-               f"WHERE ST_Covers(ST_GeomFromWKB(decode(pt.geom, 'hex')), {GEO_ALIAS}.the_geom)"
+            return f"SELECT geoid " \
+                   f"FROM {parent_table} pt " \
+                   f"WHERE ST_Covers(ST_GeomFromWKB(decode(pt.geom, 'hex')), {GEO_ALIAS}.the_geom)"
+
+        # otherwise, return the geoid in the JOIN witht eh source sub query
+        return f'{GEO_ALIAS}.geoid'
 
     def _get_from_subquery(self, geog_type: Type[CensusGeography], parent_geog_lvl=None) -> str:
         """
@@ -272,7 +291,7 @@ class CKANGeomSource(CKANSource):
                f'ON ST_Covers(ST_GeomFromWKB(decode({GEO_ALIAS}.geom, \'hex\')), "SRC".{self.geom_field})'
 
 
-class CKANParcelSource(CKANSource):
+class CKANRegionalSource(CKANSource):
     blockgroup_field = models.CharField(max_length=100, null=True, blank=True)
     blockgroup_field_is_sql = models.BooleanField(default=False)
 
@@ -337,4 +356,3 @@ class CKANParcelSource(CKANSource):
         if self.standardization_query:
             return f'({self.standardization_query.replace("", "")})'
         return f'"{self.resource_id}"'
-

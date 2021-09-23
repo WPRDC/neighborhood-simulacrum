@@ -49,6 +49,9 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'data_vizes',
             'hierarchies',
         )
+        extra_kwargs = {
+            'url': {'lookup_field': 'slug'}
+        }
 
 
 class SubdomainSerializer(serializers.ModelSerializer):

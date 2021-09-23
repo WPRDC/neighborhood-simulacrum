@@ -1,12 +1,12 @@
-import itertools
+import logging
 import re
-import uuid
 from typing import TYPE_CHECKING, Type, Optional
 
-import jenkspy
+
+from maps.models import DataLayer
+
 import pystache
-from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry
+from colorama import Fore, Style
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import QuerySet, Manager, F
@@ -15,9 +15,8 @@ from django.dispatch import receiver
 from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
-from geo.serializers import CensusGeographyDataMapSerializer
 from indicators.errors import DataRetrievalError, EmptyResultsError
-from indicators.models.abstract import Described
+from profiles.abstract_models import Described
 from indicators.models.source import Source
 from indicators.utils import DataResponse, ErrorResponse, ErrorLevel, limit_to_geo_extent
 
@@ -27,7 +26,7 @@ if TYPE_CHECKING:
 
 CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
 
-CACHE_TTL = 60 * 60  # 60 mins
+logger = logging.getLogger(__name__)
 
 pattern = re.compile(r'(?<!^)(?=[A-Z])')
 
@@ -127,11 +126,9 @@ class DataViz(PolymorphicModel, Described):
         """
         Returns a `DataResponse` object with the viz's data at `geog`.
 
-        All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
-        harmonize should return an empty dataset and an error response explaining what went wrong (e.g. not available
-        for 'geog' because of privacy reasons)
+        This method is the primary interface to request data. Calls `_get_viz_data` which can be implemented
+        in subclassed models.
 
-        This method is the primary interface to request data.
         :param geog: the geography being examined
         :return: DataResponse with data and error information
         """
@@ -146,13 +143,33 @@ class DataViz(PolymorphicModel, Described):
             else:
                 error = ErrorResponse(level=ErrorLevel.EMPTY,
                                       message=f'This visualization is not available for {geog.name}.')
-        except DataRetrievalError as e:
-            error = e.error_response
-        finally:
             return DataResponse(data, options, error)
+
+        except DataRetrievalError as e:
+            logger.error(str(e))
+            error = e.error_response
+            return DataResponse(data, options, error)
+
+        except Exception as e:
+            logger.exception(str(e))
+            print(f'{Fore.RED}Uncaught Error:', e, Style.RESET_ALL)
+            error = ErrorResponse(ErrorLevel.ERROR, f'Uncaught Error: {e}')
+            raise e
+            # return DataResponse(data, options, error)
 
     def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
                       parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+        """
+        All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
+        harmonize should return an empty dataset and an error response explaining what went wrong (e.g. not available
+        for 'geog' because of privacy reasons)
+
+        Override when necessary.
+
+        :param geogs:
+        :param parent_geog_lvl:
+        :return:
+        """
         """
         Gets a representation of data for the viz.
 
@@ -196,24 +213,10 @@ class MiniMap(DataViz):
         },
     }
     vars = models.ManyToManyField('Variable', verbose_name='Layers', through='MapLayer')
-    use_percent = models.BooleanField(default=False)
 
     @property
     def layers(self):
         return self.vars.all()
-
-    def get_map_data_geojson(self, geog_type: Type['CensusGeography'], variable: 'Variable') -> dict:
-        """
-        returns geojson dict with data for `variable` and the geogs of type `geog_type`
-        """
-        geogs = limit_to_geo_extent(geog_type) # todo: also figure out parent geog
-        data = variable.get_values(geogs, self.time_axis, parent_geog_lvl=geog_type)
-
-        locale_options = {'style': 'percent'} if self.use_percent else variable.locale_options
-        serializer_context = {'data': data, 'percent': self.use_percent, 'locale_options': locale_options}
-
-        geojson = CensusGeographyDataMapSerializer(geogs, many=True, context=serializer_context).data
-        return geojson
 
     def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
                       parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
@@ -230,16 +233,13 @@ class MiniMap(DataViz):
         layers: [dict] = []
         interactive_layer_ids: [str] = []
         legend_options: [dict] = []
-        locale_options = {'style': 'percent'} if self.use_percent else self.variables[0].locale_options
 
         for var in self.vars.all():
             # for each variable/layer, get its data geojson, style and options
-            geojson = self.get_map_data_geojson(type(geog), var)
             layer: MapLayer = self.vars.through.objects.get(variable=var, viz=self)
-            source, tmp_layers, interactive_layer_ids, legend_option = layer.get_map_options(geog.geog_type, geojson)
+            data_layer: DataLayer = layer.get_data_layer(geog_type=type(geog))
+            source, tmp_layers, interactive_layer_ids, legend_option = data_layer.get_map_options()
             sources.append(source)
-            legend_option['title'] = var.name
-            legend_option['locale_options'] = locale_options
             legend_options.append(legend_option)
             layers += tmp_layers
 
@@ -267,8 +267,10 @@ class MiniMap(DataViz):
         sources.append(highlight_source)
         layers.append(highlight_layer)
 
-        return {'sources': sources, 'layers': layers, 'legends': legend_options,
-                'map_options': map_options, 'locale_options': locale_options}
+        return {'sources': sources,
+                'layers': layers,
+                'legends': legend_options,
+                'map_options': map_options}
 
     def __str__(self):
         return self.name
@@ -280,7 +282,8 @@ class MapLayer(PolymorphicModel, VizVariable):
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_mini_map')
 
     # options
-    visible = models.BooleanField()
+    visible = models.BooleanField(verbose_name='Visible by default', default=True)
+    use_percent = models.BooleanField()
 
     # mapbox style
     custom_paint = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',
@@ -288,92 +291,8 @@ class MapLayer(PolymorphicModel, VizVariable):
     custom_layout = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',
                                      blank=True, null=True)
 
-    def get_map_options(self, geog_type_str: str, data: dict):
-        raise NotImplementedError
-
-
-class GeogChoroplethMapLayer(MapLayer):
-    """
-    Map Layer where geographies of the same type are styled based on a variable.
-
-    - choropleths
-    - categorical maps for admin regions
-    """
-    COLORS = ['#FFF7FB', '#ECE7F2', '#D0D1E6', '#A6BDDB', '#74A9CF', '#3690C0', '#0570B0', '#045A8D', '#023858']
-
-    sub_geog = models.ForeignKey(
-        'geo.CensusGeography',
-        help_text='If provided, this geography will be styled within the target geography. '
-                  'Otherwise, the provided geography will be styled along with others of the same level.',
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True
-    )
-
-    def get_map_options(self, geog_type_str: str, data: dict):
-        _id = str(uuid.uuid4())
-        host = settings.MAP_HOST
-        # todo: make bucket count an option
-        values = [feat['properties']['map_value'] for feat in data['features'] if
-                  feat['properties']['map_value'] is not None]
-
-        breaks = jenkspy.jenks_breaks(values, nb_class=min(len(values), 6))[0:]
-
-        # zip breakpoints with colors
-        steps = list(itertools.chain.from_iterable(zip(breaks, self.COLORS[1:len(breaks)])))
-        fill_color = ["step", ["get", "mapValue"], self.COLORS[0]] + steps
-
-        source = {
-            'id': _id,
-            'type': 'geojson',
-            'data': f"{host}/{geog_type_str}:{self.viz.id}:{self.variable.id}.geojson"
-        }
-        layers = [{
-            "id": f'{_id}/boundary',
-            'type': 'line',
-            'source': _id,
-            'layout': {},
-            'paint': {
-                'line-opacity': 1,
-                'line-color': '#000',
-            },
-        }, {
-            "id": f'{_id}/fill',
-            'type': 'fill',
-            'source': _id,
-            'layout': {},
-            'paint': {
-                'fill-opacity': 0.8,
-                'fill-color': fill_color
-            },
-        }]
-
-        legend_type = 'choropleth'
-        legend_items = [{'label': breaks[i],
-                         'marker': self.COLORS[i]} for i in range(len(breaks))]
-
-        interactive_layer_ids = [f'{_id}/fill']
-        return source, layers, interactive_layer_ids, {'type': legend_type, 'items': legend_items}
-
-
-class ObjectsLayer(MapLayer):
-    # Make Map of things in a place
-    # for variable in variables
-    # place points returned from variable on map - use through relation to specify style
-    limit_to_target_geog = models.BooleanField(default=True)
-    pass
-
-
-class ParcelsLayer(MapLayer):
-    # Parcels within the place
-    # only one variable
-    # generate sql statement to send to carto with:
-    #   * get parcels within shape of the geography ST_Intersect
-    #   * join them with the data from variable
-    #   * SELECT cartodb_id, the_geom, the_geom_webmercator, {parcel_id_field},
-    #   {variable.carto_field} FROM {join_statement} WHERE {sql_filter}
-    limit_to_target_geog = models.BooleanField(default=True)
-    pass
+    def get_data_layer(self, geog_type: Type['CensusGeography']):
+        return DataLayer.get_or_create_updated_map(geog_type, self.viz.time_axis, self.variable, self.use_percent)
 
 
 # ==================
