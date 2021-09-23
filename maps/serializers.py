@@ -17,6 +17,9 @@ class DataLayerSerializer(serializers.ModelSerializer):
 
 class DataLayerDetailsSerializer(serializers.ModelSerializer):
     """ Includes the fields that require computation """
+    sources = serializers.JSONField()
+    layers = serializers.JSONField()
+
     class Meta:
         model = DataLayer
         fields = (
