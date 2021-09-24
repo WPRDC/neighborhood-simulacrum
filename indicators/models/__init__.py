@@ -45,6 +45,17 @@ class Subdomain(Described):
         return self.name
 
 
+class IndicatorDataViz(models.Model):
+    indicator = models.ForeignKey('Indicator', related_name='indicator_to_dataviz', on_delete=models.CASCADE)
+    data_viz = models.ForeignKey('DataViz', related_name='dataviz_to_indicator', on_delete=models.CASCADE)
+
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ('order',)
+        unique_together = ('indicator', 'data_viz',)
+
+
 class Indicator(Described):
     LAYOUT_CHOICES = (
         ('A', 'Style A'),
@@ -87,7 +98,11 @@ class Indicator(Described):
         null=True,
     )
 
-    layout = models.CharField(max_length=3, choices=LAYOUT_CHOICES, default='A')
+    vizes = models.ManyToManyField('DataViz', related_name='new_indicator', through='IndicatorDataViz')
+
+    @property
+    def data_vizes(self):
+        return self.vizes.order_by('dataviz_to_indicator')
 
     def __str__(self):
         return f'{self.name} ({self.id})'

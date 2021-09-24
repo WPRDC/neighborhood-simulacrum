@@ -44,7 +44,7 @@ class DataViz(PolymorphicModel, Described):
     """ Base class for all Data Presentations """
     vars: Manager['Variable']
     time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)
-    indicator = models.ForeignKey('Indicator', related_name='data_vizes', on_delete=models.CASCADE)
+    indicator = models.ForeignKey('Indicator', related_name='old_data_vizes', on_delete=models.CASCADE)
 
     @property
     def variables(self) -> QuerySet['Variable']:
