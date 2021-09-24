@@ -7,12 +7,23 @@ from .variable import Variable, CensusVariable, CKANVariable, CensusVariableSour
 from .viz import DataViz, Table, Chart, MiniMap, VizVariable
 
 
+class SubdomainIndicator(models.Model):
+    subdomain = models.ForeignKey('Subdomain', on_delete=models.CASCADE, related_name='subdomain_to_indicator')
+    indicator = models.ForeignKey('Indicator', on_delete=models.CASCADE, related_name='indicator_to_subdomain')
+
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ('subdomain', 'indicator',)
+        ordering = ('order',)
+
+
 class Domain(Described):
     """ Main categories for organizing indicators """
     order = models.IntegerField(default=0)
 
     class Meta:
-        ordering = ['order']
+        ordering = ('order',)
 
     def __str__(self):
         return self.name
@@ -20,7 +31,15 @@ class Domain(Described):
 
 class Subdomain(Described):
     domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.PROTECT)
-    indicators = models.ManyToManyField('Indicator', related_name='groups', blank=True)
+    order = models.IntegerField(default=0)
+    inds = models.ManyToManyField('Indicator', related_name='subdomains', through='SubdomainIndicator')
+
+    @property
+    def indicators(self):
+        return self.inds.order_by('indicator_to_subdomain')
+
+    class Meta:
+        ordering = ('order',)
 
     def __str__(self):
         return self.name
@@ -77,7 +96,8 @@ class Indicator(Described):
     def hierarchies(self):
         """ Collect possible hierarchies. """
         result = []
-        for subdomain in Subdomain.objects.filter(indicators=self):
+        for subdomainThrough in SubdomainIndicator.objects.filter(indicator=self):
+            subdomain = subdomainThrough.subdomain
             result.append({'domain': subdomain.domain, 'subdomain': subdomain})
         return result
 

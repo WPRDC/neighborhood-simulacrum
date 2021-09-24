@@ -75,6 +75,7 @@ class IndicatorViewSet(viewsets.ModelViewSet):
     search_fields = ['name', ]
     lookup_field = 'slug'
 
+
 class VariableViewSet(viewsets.ModelViewSet):
     queryset = Variable.objects.all()
     serializer_class = VariablePolymorphicSerializer

@@ -5,13 +5,13 @@ from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin,
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
 from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
 
-from ..models import Indicator, Subdomain, Domain, Value
+from ..models import Indicator, Subdomain, Domain, Value, SubdomainIndicator
 
 import nested_admin  # todo: think about removing this as a dependency once we develop our own backend interface
 
 
-class IndicatorInline(admin.StackedInline):
-    model = Indicator
+class SubdomainIndicatorInline(admin.StackedInline):
+    model = SubdomainIndicator
 
 
 @admin.register(Indicator)
@@ -30,6 +30,7 @@ class SubdomainAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
+    inlines = (SubdomainIndicatorInline,)
 
 
 class SubdomainInline(admin.TabularInline):

@@ -376,7 +376,8 @@ class Chart(DataViz):
     legend_type = models.CharField(max_length=10, choices=LEGEND_TYPE_CHOICES, default='circle')
 
     across_geogs = models.BooleanField(
-        help_text='Check if you want this chart to compare the statistic across geographies instead of across time',
+        help_text='Check if you want this chart to compare the statistic '
+                  'across geographies instead of across time',
         default=False)
 
     @property
