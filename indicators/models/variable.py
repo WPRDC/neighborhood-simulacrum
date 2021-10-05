@@ -1,5 +1,7 @@
 import logging
+import math
 from datetime import MINYEAR, MAXYEAR
+from functools import reduce
 from typing import Dict, Optional, Type, List
 
 from django.core.cache import caches
@@ -159,13 +161,6 @@ class Variable(PolymorphicModel, Described):
 
         return data
 
-    def get_primary_value(self, geog: 'CensusGeography', time_part: 'TimeAxis.TimePart') -> Optional[float]:
-        geogs, use_agg = self._get_geog_queryset(geog)
-        parent_geog_lvl = type(geog) if use_agg else None
-        time_axis = TimeAxis.from_time_parts([time_part])
-        values = self.get_values(geogs, time_axis, parent_geog_lvl=parent_geog_lvl)
-        return values[0].value if len(values) else None
-
     def _get_geog_queryset(self, geog: 'CensusGeography') -> tuple[Optional[QuerySet['CensusGeography']], bool]:
         # check how geog works for this viz
         # does it work directly for the goeg?
@@ -237,17 +232,12 @@ class CensusVariable(Variable):
     }
 
     def _get_values(self, geogs, time_axis, use_denom=True, agg_method=None, parent_geog_lvl=None) -> list[Datum]:
-        if not agg_method:
-            # todo: make unified agg method class to share between sources
-            agg_method = Sum
+        results: list[Datum] = []
+        for geog in geogs:
+            results += self._get_values_for_geog(geog, time_axis, use_denom)
+        return results
 
-        if not parent_geog_lvl:
-            if len(geogs) == 1:
-                parent_geog_lvl = geogs[0]
-            else:
-                parent_geog_lvl = type(geogs[0])
-
-        # gather all censustables (roll up variables and time)
+    def _get_values_for_geog(self, geog: CensusGeography, time_axis: TimeAxis, use_denom=True) -> list[Datum]:
         census_table_ptrs_by_year = self.get_census_table_ptrs_for_time_axis(time_axis)
         denom_census_table_ptrs_by_year = {}
 
@@ -258,99 +248,52 @@ class CensusVariable(Variable):
 
         results = []
         for time_part_slug, census_table_ptrs in census_table_ptrs_by_year.items():
-            value_ids, moe_ids = [], []
-
             # extract IDs
-            for ctp in census_table_ptrs:
-                value_ids.append(ctp.value_table.id)
-                if ctp.moe_table:
-                    moe_ids.append(ctp.moe_table.id)
+            value_ids, moe_ids = self._get_table_ids(census_table_ptrs)
 
-            # Sub queries to get data -
-            val_sq = Subquery(CensusValue.objects.filter(
-                geography__common_geoid=OuterRef('common_geoid'),
-                census_table__in=value_ids
-            ).values('geography__common_geoid').annotate(val=agg_method('value')).values('val'))
+            val = CensusValue.objects.filter(
+                geography__common_geoid=geog.common_geoid,
+                census_table_id__in=value_ids
+            ).values('geography__common_geoid').annotate(val=Sum('value')).values('val')[0]['val']
 
             if len(moe_ids) == 1:
-                # margins come pre-squared for aggregation
                 # https://www.census.gov/content/dam/Census/library/publications/2018/acs/acs_general_handbook_2018_ch08.pdf
-                pre_moe_sq = Subquery(CensusValue.objects.filter(
-                    geography__common_geoid=OuterRef('common_geoid'),
-                    census_table__in=moe_ids
-                ).annotate(val=(F('value') ** 2.0)).values('val'))
-                moe_sq = Sum('pre_moe') ** 0.5
+                moe_results = CensusValue.objects.filter(
+                    geography__common_geoid=geog.common_geoid,
+                    census_table_id__in=moe_ids
+                ).annotate(
+                    moe=(F('value') ** 2.0)
+                ).values('moe').values('moe')
+                moe: Optional[float] = math.sqrt(sum(result['moe'] for result in moe_results))
             else:
                 self._add_warning(
-                    {'message': 'Margins of Error for compoound variables cannot be accurately reported at this time.'})
-                pre_moe_sq = Value(None, output_field=models.FloatField(null=True))
-                moe_sq = Value(None, output_field=models.FloatField(null=True))
+                    {'message': 'Margins of Error for compound variables cannot be accurately reported at this time.'})
+                moe = None
 
-            denom_available = use_denom and time_part_slug in denom_census_table_ptrs_by_year
-            if denom_available:
-                pre_denom_sq = Subquery(CensusValue.objects.filter(
-                    geography__common_geoid=OuterRef('common_geoid'),
+            denom, percent = None, None
+
+            if use_denom and time_part_slug in denom_census_table_ptrs_by_year:
+                denom = CensusValue.objects.filter(
+                    geography__common_geoid=geog.common_geoid,
                     census_table__in=denom_census_table_ptrs_by_year[time_part_slug]
-                ).values('geography__common_geoid').annotate(val=agg_method('value')).values('val'))
+                ).values('geography__common_geoid').annotate(denom=Sum('value')).values('denom')[0]['denom']
+                if denom and denom > 0:
+                    percent = val / denom
 
-                denom_sq = Sum('pre_denom')
-                percent_sq = Case(
-                    When(denom=0, then=None),
-                    default=F('value') / F('denom')
-                )
-
-            else:
-                pre_denom_sq = Value(None, output_field=models.FloatField(null=True))
-                denom_sq = Value(None, output_field=models.FloatField(null=True))
-                percent_sq = Value(None, output_field=models.FloatField(null=True))
-
-            # subquery to add parent geog, or just the same geog if no aggregation happening
-            if isinstance(parent_geog_lvl, type):
-                parent_geog_lvl: Type[CensusGeography]
-                # find parent geog that covers the child geog
-                parent_geog_sq = Subquery(parent_geog_lvl.objects.filter(
-                    geom__covers=OuterRef('geom')).values('common_geoid'))
-            elif isinstance(parent_geog_lvl, CensusGeography):
-                parent_geog_lvl: CensusGeography
-                # if just for one parent geog, save time by just applying it as value
-                parent_geog_sq = Value(parent_geog_lvl.common_geoid)
-            else:
-                raise TypeError(f'`parent_geog_lvl` must be a `CensusGeography` instance or model. '
-                                f'Got {type(parent_geog_lvl)} instead.')
-
-            # annotate geogs with all the data and add to results
-            data = geogs.annotate(
-                geog=parent_geog_sq,
-                pre_val=val_sq,
-                pre_moe=pre_moe_sq,
-                pre_denom=pre_denom_sq,
-                time=Value(time_part_slug, output_field=models.CharField())
-            ).values(
-                'geog'  # rollup by geog
-            ).annotate(
-                # add aggregate values
-                time=F('time'),
-                value=Sum('pre_val'),
-                moe=moe_sq,  # sqrt of sum of squared MOEs
-                denom=denom_sq,
-            ).order_by().annotate(
-                percent=percent_sq
-            ).values('geog', 'time', 'value', 'moe', 'denom', 'percent')
-            print(data.query)
-            results += [Datum.from_census_response_datum(self, datum) for datum in data.all()]
-
+            results.append(Datum(variable=self.slug, time=time_part_slug, geog=geog.common_geoid,
+                                 value=val, moe=moe, denom=denom, percent=percent))
         return results
 
-    def _get_values_over_geog_type(self, geog_type, time_part):
-        geogs = geog_type.objects.all()
-        # queryset of relevant census tables
-        census_tables = self.get_census_tables_for_time_part(time_part)
-        # get values for all geogs at time, group by geog and sum values
-        qs = CensusValue.objects.filter(geography__common_geoid__in=geogs, census_table__in=census_tables).values(
-            "geography__common_geoid").annotate(value=Sum('value'))
-        return {g['geography__common_geoid']: g['value'] for g in qs.all()}
-
     # Utils
+    @staticmethod
+    def _get_table_ids(census_table_ptrs):
+        value_ids, moe_ids = [], []
+        for ctp in census_table_ptrs:
+            value_ids.append(ctp.value_table.id)
+            if ctp.moe_table:
+                moe_ids.append(ctp.moe_table.id)
+        return value_ids, moe_ids
+
     def _get_source_for_time_point(self, time_point: timezone.datetime) -> 'CensusSource':
         is_decade = not time_point.year % 10
         if is_decade:
@@ -498,7 +441,8 @@ class CKANVariable(Variable):
                 value = sum(values)
                 denom = sum(denoms) if len(denoms) and None not in denoms else None
                 percent = value / denom if denom else None
-                results.append(Datum(variable=self.slug, geog=geog, time=time, value=value, denom=denom, percent=percent))
+                results.append(
+                    Datum(variable=self.slug, geog=geog, time=time, value=value, denom=denom, percent=percent))
         return results
 
     def _get_source_for_time_part(self, time_part: TimeAxis.TimePart) -> Optional[CKANSource]:

@@ -230,9 +230,9 @@ DENOM_DKEY = '__denom__'
 CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
-VIEW_CACHE_TTL = 60 * 60 # 60 mins
+VIEW_CACHE_TTL = 0  # 60 * 60 # 60 mins
 
-LONG_TERM_CACHE_TTL = 60 * 60 * 24  # 24 hours
+LONG_TERM_CACHE_TTL = 0  # 60 * 60 * 24  # 24 hours
 
 USE_LONG_TERM_CACHE = False
 

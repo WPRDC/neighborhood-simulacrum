@@ -9,8 +9,6 @@ from django.contrib.gis.db.models import Union as GeoUnion
 from django.contrib.gis.geos import GEOSGeometry
 from polymorphic.models import PolymorphicModel
 
-from geo.util import get_population, get_kid_population, get_black_population
-
 if typing.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
 
@@ -146,18 +144,6 @@ class CensusGeography(PolymorphicModel, Geography):
         if self.geoid:
             return self.geoid
         raise NotImplementedError('Geographies without a `geoid` field must override `geog_id`')
-
-    @property
-    def population(self):
-        return int(get_population(self))
-
-    @property
-    def kid_population(self):
-        return int(get_kid_population(self))
-
-    @property
-    def black_population(self):
-        return int(get_black_population(self))
 
     # Abstract properties
     @property

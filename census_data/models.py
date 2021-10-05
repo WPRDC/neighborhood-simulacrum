@@ -87,7 +87,7 @@ class CensusTable(models.Model):
 class CensusValue(models.Model):
     """
     Stores a single (geography, table, value) tuple
-    the the values stored here are a function of the Variable, the Series, and the Geography
+    the values stored here are a function of the Variable, the Series, and the Geograp
     the census table is unique to a Variable-Series combination and is where they're effect comes in
     """
     geography = models.ForeignKey('geo.CensusGeography', on_delete=models.CASCADE, db_index=True)

@@ -132,7 +132,7 @@ class CKANSource(Source, PolymorphicModel):
         # get fields from source to select
         geog_select = self._get_geog_select(geogs, parent_geog_lvl)
         time_select = self._get_time_select_sql()
-        value_select = f'{SQ_ALIAS}."{variable.field}"'  # there was a cast to float here for some reason
+        value_select = f'{SQ_ALIAS}."{variable.field}"'
         agg_str = variable.agg_str
 
         # get space and time filteget_data_queryrs

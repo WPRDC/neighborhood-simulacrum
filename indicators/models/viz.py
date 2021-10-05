@@ -1,7 +1,6 @@
 import logging
 import re
-from typing import TYPE_CHECKING, Type, Optional
-
+from typing import TYPE_CHECKING, Type, Optional, Union
 
 from maps.models import DataLayer
 
@@ -134,7 +133,8 @@ class DataViz(PolymorphicModel, Described):
         """
         # get queryset representing geog though itself or child geogs
         geogs, use_agg = self.get_geog_queryset(geog)
-        parent_geog_lvl = type(geog) if use_agg else None
+        # parent geog is just a geog unlesse we're doing maps or cross-geog charts, then we need to use the class
+        parent_geog_lvl = geog if use_agg else None
         data, options, error = None, None, ErrorResponse(ErrorLevel.OK)
         try:
             if geogs:
@@ -158,7 +158,8 @@ class DataViz(PolymorphicModel, Described):
             # return DataResponse(data, options, error)
 
     def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
-                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+                      parent_geog_lvl: Optional[Union[Type['CensusGeography'], 'CensusGeography']] = None
+                      ) -> list[dict]:
         """
         All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
         harmonize should return an empty dataset and an error response explaining what went wrong (e.g. not available
