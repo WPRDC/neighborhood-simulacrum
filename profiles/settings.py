@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     'geo',
     'census_data',
     'maps',
-    'public_housing',
     #  'debug_toolbar'
 ]
 

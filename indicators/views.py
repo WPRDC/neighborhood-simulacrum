@@ -117,7 +117,8 @@ class DataVizViewSet(viewsets.ModelViewSet):
                                                  f'Can\'t find "{geo_type}" with ID "{geoid}".').as_dict()
         return context
 
-    # @method_decorator(cache_page(VIEW_CACHE_TTL))
+    # Cache requested url for each user for 2 minutes
+    @method_decorator(cache_page(VIEW_CACHE_TTL))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
