@@ -11,8 +11,8 @@ from django.db import connection
 from django.db.models import QuerySet
 from rest_framework.request import Request
 
-from geo.models import Tract, County, BlockGroup, CountySubdivision, CensusGeography, SchoolDistrict, Neighborhood, \
-    ZipCodeTabulationArea, Geography
+from geo.models import Tract, County, BlockGroup, CountySubdivision, AdminRegion, SchoolDistrict, Neighborhood, \
+    ZipCodeTabulationArea
 
 if TYPE_CHECKING:
     from indicators.models import Variable, Variable, DataViz
@@ -77,7 +77,7 @@ class DataResponse:
 
 # Functions
 # =-=-=-=-=
-def limit_to_geo_extent(geog_type: Type['Geography']) -> QuerySet['Geography']:
+def limit_to_geo_extent(geog_type: Type['AdminRegion']) -> QuerySet['AdminRegion']:
     """ Returns a queryset representing the geogs for `geog_type` that fit within project extent. """
     return geog_type.objects.filter(in_extent=True)
 
@@ -99,13 +99,13 @@ def save_extent():
         cursor.execute("""CREATE INDEX "#extent_index" ON "#extent" USING gist (geom);""")
 
 
-def in_geo_extent(geog: 'CensusGeography') -> bool:
+def in_geo_extent(geog: 'AdminRegion') -> bool:
     return County.objects \
         .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
         .aggregate(the_geom=GeoUnion('geom')).values('the_geom').contains(geog)
 
 
-def get_geog_model(geog_type: str) -> Type[CensusGeography]:
+def get_geog_model(geog_type: str) -> Type[AdminRegion]:
     if geog_type in GEOG_MODEL_MAPPING:
         return GEOG_MODEL_MAPPING[geog_type]
     raise KeyError
@@ -126,7 +126,7 @@ def extract_geo_params(request: Request) -> (str, str):
     return request.query_params[GEOG_TYPE_LABEL], request.query_params[GEOG_ID_LABEL]
 
 
-def get_geog_from_request(request: Request) -> CensusGeography:
+def get_geog_from_request(request: Request) -> AdminRegion:
     geog, geoid = extract_geo_params(request)
     geog_model = get_geog_model(geog)
     geog = geog_model.objects.get(geoid=geoid)

@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from geo.models import Geography, CensusGeography, BlockGroup
+from geo.models import AdminRegion, BlockGroup
 from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis, MiniMap
 from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, \
@@ -110,7 +110,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
         if is_geog_data_request(self.request):
             try:
                 context['geography'] = get_geog_from_request(self.request)
-            except Geography.DoesNotExist as e:
+            except AdminRegion.DoesNotExist as e:
                 print(e)  # todo: figure out how we should log stuff
                 geo_type, geoid = extract_geo_params(self.request)
                 context['error'] = ErrorResponse(ErrorLevel.ERROR,
@@ -130,7 +130,7 @@ class GeoJSONWithDataView(APIView):
     @method_decorator(cache_page(VIEW_CACHE_TTL))
     def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
         try:
-            geog_type: Type[CensusGeography] = get_geog_model(geog_type_id)
+            geog_type: Type[AdminRegion] = get_geog_model(geog_type_id)
             data_viz: MiniMap = DataViz.objects.get(pk=data_viz_id)
             variable: Variable = Variable.objects.get(pk=variable_id)
             data_layer: DataLayer = data_viz.layers.all()[0].get_data_layer()
@@ -147,7 +147,7 @@ class GeoJSONWithDataView(APIView):
 
         if request.query_params.get('download', False):
             headers = {
-                'Content-Disposition': f'attachment; filename="{data_viz.slug}:{variable.slug}:{geog_type.TYPE}.geojson"'
+                'Content-Disposition': f'attachment; filename="{data_viz.slug}:{variable.slug}:{geog_type.geog_type}.geojson"'
             }
             return Response(geojson, headers=headers, content_type='application/geo+json')
 

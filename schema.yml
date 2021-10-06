@@ -6,7 +6,7 @@ info:
 paths:
   https://api.profiles.wprdc.org/geo/blockGroup/:
     get:
-      operationId: listCensusGeographyBriefs
+      operationId: listAdminRegionBriefs
       description: ''
       parameters:
       - name: limit
@@ -50,13 +50,13 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CensusGeographyBrief'
+                      $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/blockGroup/{id}/:
     get:
-      operationId: retrieveCensusGeographyBrief
+      operationId: retrieveAdminRegionBrief
       description: ''
       parameters:
       - name: id
@@ -76,13 +76,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CensusGeographyBrief'
+                $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/tract/:
     get:
-      operationId: listCensusGeographyBriefs
+      operationId: listAdminRegionBriefs
       description: ''
       parameters:
       - name: limit
@@ -126,13 +126,13 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CensusGeographyBrief'
+                      $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/tract/{id}/:
     get:
-      operationId: retrieveCensusGeographyBrief
+      operationId: retrieveAdminRegionBrief
       description: ''
       parameters:
       - name: id
@@ -152,13 +152,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CensusGeographyBrief'
+                $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/countySubdivision/:
     get:
-      operationId: listCensusGeographyBriefs
+      operationId: listAdminRegionBriefs
       description: ''
       parameters:
       - name: limit
@@ -202,13 +202,13 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CensusGeographyBrief'
+                      $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/countySubdivision/{id}/:
     get:
-      operationId: retrieveCensusGeographyBrief
+      operationId: retrieveAdminRegionBrief
       description: ''
       parameters:
       - name: id
@@ -228,13 +228,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CensusGeographyBrief'
+                $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/county/:
     get:
-      operationId: listCensusGeographyBriefs
+      operationId: listAdminRegionBriefs
       description: ''
       parameters:
       - name: limit
@@ -278,13 +278,13 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CensusGeographyBrief'
+                      $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/county/{id}/:
     get:
-      operationId: retrieveCensusGeographyBrief
+      operationId: retrieveAdminRegionBrief
       description: ''
       parameters:
       - name: id
@@ -304,13 +304,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CensusGeographyBrief'
+                $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/neighborhood/:
     get:
-      operationId: listCensusGeographyBriefs
+      operationId: listAdminRegionBriefs
       description: ''
       parameters:
       - name: limit
@@ -354,13 +354,13 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CensusGeographyBrief'
+                      $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/neighborhood/{id}/:
     get:
-      operationId: retrieveCensusGeographyBrief
+      operationId: retrieveAdminRegionBrief
       description: ''
       parameters:
       - name: id
@@ -380,13 +380,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CensusGeographyBrief'
+                $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/zcta/:
     get:
-      operationId: listCensusGeographyBriefs
+      operationId: listAdminRegionBriefs
       description: ''
       parameters:
       - name: limit
@@ -430,13 +430,13 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CensusGeographyBrief'
+                      $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
   https://api.profiles.wprdc.org/geo/zcta/{id}/:
     get:
-      operationId: retrieveCensusGeographyBrief
+      operationId: retrieveAdminRegionBrief
       description: ''
       parameters:
       - name: id
@@ -456,7 +456,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CensusGeographyBrief'
+                $ref: '#/components/schemas/AdminRegionBrief'
           description: ''
       tags:
       - geo
@@ -1059,7 +1059,7 @@ paths:
       - map-layer
 components:
   schemas:
-    CensusGeographyBrief:
+    AdminRegionBrief:
       type: object
       properties:
         id:

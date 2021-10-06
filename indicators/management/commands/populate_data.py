@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from geo.models import County, CensusGeography, Tract
+from geo.models import County, AdminRegion, Tract
 from indicators.models import CensusValue, CensusVariable, CensusSource
 
 REGIONAL_COUNTIES = (
@@ -35,12 +35,12 @@ def save_data(data, geog):
         CensusValue.objects.create(geog=geog, census_table=table, value=value)
 
 
-def get_census_data(tables, geog: CensusGeography):
+def get_census_data(tables, geog: AdminRegion):
     source = CensusSource.objects.get(dataset='CEN')
     return source.get_data(tables, geog)
 
 
-def get_acs_data(tables, geog: CensusGeography):
+def get_acs_data(tables, geog: AdminRegion):
     source = CensusSource.objects.get(dataset='ACS5')
     return source.get_data(tables, geog)
 

@@ -1,48 +1,33 @@
 from django.contrib import admin
 from django.contrib.gis.admin import GeoModelAdmin
-from .models import Geography, CensusGeography, BlockGroup, Tract, \
-    CountySubdivision, Place, Puma, SchoolDistrict, StateHouse, StateSenate, \
-    County, Neighborhood, ZipCodeTabulationArea
+from .models import AdminRegion, BlockGroup, Tract, \
+    CountySubdivision, SchoolDistrict, County, Neighborhood, \
+    ZipCodeTabulationArea
 
 
-@admin.register(Geography)
-class GeographyAdmin(GeoModelAdmin):
-    list_display = ('id', 'name', 'description',)
-    search_fields = ('name',)
-
-    class Meta:
-        abstract = True
-
-
-@admin.register(CensusGeography)
-class CensusGeographyAdmin(GeoModelAdmin):
+@admin.register(AdminRegion)
+class AdminRegionAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'description',
-        'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
+        'common_geoid',
+        'geog_path',
     )
     search_fields = ('name',)
 
 
+# CENSUS GEOGRAPHIES
 @admin.register(BlockGroup)
 class BlockGroupAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'description',
+        'common_geoid',
         'geoid',
         'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
         'statefp',
         'countyfp',
         'tractce',
-        'blkgrpce',
     )
     list_filter = ('statefp', 'countyfp')
     search_fields = ('name',)
@@ -53,15 +38,11 @@ class TractAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'description',
+        'common_geoid',
         'geoid',
         'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
         'statefp',
         'countyfp',
-        'tractce',
     )
     list_filter = ('statefp', 'countyfp')
     search_fields = ('name',)
@@ -72,28 +53,9 @@ class ZipCodeTabulationAreaAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'description',
+        'common_geoid',
         'geoid',
         'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
-        'zctace',
-    )
-    search_fields = ('name',)
-
-
-@admin.register(Neighborhood)
-class NeighborhoodAdmin(GeoModelAdmin):
-    list_display = (
-        'id',
-        'name',
-        'description',
-        'geoid',
-        'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
     )
     search_fields = ('name',)
 
@@ -103,12 +65,9 @@ class CountySubdivisionAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'description',
+        'common_geoid',
         'geoid',
         'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
         'statefp',
         'countyfp',
         'cousubfp',
@@ -118,91 +77,17 @@ class CountySubdivisionAdmin(GeoModelAdmin):
     search_fields = ('name',)
 
 
-@admin.register(Place)
-class PlaceAdmin(GeoModelAdmin):
-    list_display = (
-        'id',
-        'name',
-        'description',
-        'geoid',
-        'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
-        'statefp',
-        'placefp',
-        'placens',
-    )
-    search_fields = ('name',)
-
-
-@admin.register(Puma)
-class PumaAdmin(GeoModelAdmin):
-    list_display = (
-        'id',
-        'name',
-        'description',
-        'geoid',
-        'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
-        'statefp',
-        'pumace',
-    )
-    search_fields = ('name',)
-
-
 @admin.register(SchoolDistrict)
 class SchoolDistrictAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'description',
-        'geom',
+        'common_geoid',
+        'geoid',
         'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
         'statefp',
         'unsdlea',
         'placens',
-    )
-    search_fields = ('name',)
-
-
-@admin.register(StateHouse)
-class StateHouseAdmin(GeoModelAdmin):
-    list_display = (
-        'id',
-        'name',
-        'description',
-        'geoid',
-        'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
-        'statefp',
-        'sldlst',
-        'lsy',
-    )
-    search_fields = ('name',)
-
-
-@admin.register(StateSenate)
-class StateSenateAdmin(GeoModelAdmin):
-    list_display = (
-        'id',
-        'name',
-        'description',
-        'geoid',
-        'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
-        'statefp',
-        'sldust',
-        'lsy',
     )
     search_fields = ('name',)
 
@@ -212,15 +97,22 @@ class CountyAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'description',
+        'common_geoid',
         'geoid',
         'affgeoid',
-        'lsad',
-        'aland',
-        'awater',
         'statefp',
-        'countyfp',
-        'countyns',
     )
     list_filter = ('statefp', 'countyfp')
+    search_fields = ('name',)
+
+
+# END CENSUS GEOGRAPHIES
+
+@admin.register(Neighborhood)
+class NeighborhoodAdmin(GeoModelAdmin):
+    list_display = (
+        'id',
+        'name',
+        'common_geoid'
+    )
     search_fields = ('name',)

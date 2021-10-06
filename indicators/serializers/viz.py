@@ -2,8 +2,8 @@ from functools import lru_cache
 
 from rest_framework import serializers
 
-from geo.models import CensusGeography
-from geo.serializers import CensusGeographyPolymorphicSerializer
+from geo.models import AdminRegion
+from geo.serializers import AdminRegionPolymorphicSerializer
 from . import TimeAxisPolymorphicSerializer
 from .source import SourceSerializer
 from .variable import VizVariablePolymorphicSerializer
@@ -60,7 +60,7 @@ class DataVizWithDataSerializer(DataVizSerializer):
         fields = DataVizSerializer.Meta.fields + ('data', 'options', 'error', 'geog')
 
     @lru_cache
-    def _get_data_response(self, viz: DataViz, geog: CensusGeography) -> DataResponse:
+    def _get_data_response(self, viz: DataViz, geog: AdminRegion) -> DataResponse:
         if self._cached_response:
             return self._cached_response
         return viz.get_viz_data(geog)
@@ -83,7 +83,7 @@ class DataVizWithDataSerializer(DataVizSerializer):
         return self._get_data_response(obj, self.context['geography']).error.as_dict()
 
     def get_geog(self, obj: DataViz):
-        return CensusGeographyPolymorphicSerializer(self.context['geography']).data
+        return AdminRegionPolymorphicSerializer(self.context['geography']).data
 
 
 class DataVizIdentifiersSerializer(serializers.HyperlinkedModelSerializer):

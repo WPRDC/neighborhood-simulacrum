@@ -20,7 +20,7 @@ from maps.serializers import DataLayerSerializer, DataLayerDetailsSerializer
 from profiles.settings import VIEW_CACHE_TTL
 
 if TYPE_CHECKING:
-    from geo.models import CensusGeography
+    from geo.models import AdminRegion
     from indicators.models.viz import MiniMap
 
 

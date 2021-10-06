@@ -1,14 +1,12 @@
-from typing import TYPE_CHECKING
-
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
-from .models import CensusGeography, CountySubdivision, Tract, BlockGroup, County, Neighborhood, ZipCodeTabulationArea
+from .models import AdminRegion, CountySubdivision, Tract, BlockGroup, County, Neighborhood, ZipCodeTabulationArea
 
 
-class CensusGeographyBriefSerializer(serializers.ModelSerializer):
+class AdminRegionBriefSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CensusGeography
+        model = AdminRegion
         fields = (
             'id',
             'name',
@@ -18,11 +16,11 @@ class CensusGeographyBriefSerializer(serializers.ModelSerializer):
         )
 
 
-class CensusGeographySerializer(serializers.ModelSerializer):
-    hierarchy = CensusGeographyBriefSerializer(many=True)
+class AdminRegionSerializer(serializers.ModelSerializer):
+    hierarchy = AdminRegionBriefSerializer(many=True)
 
     class Meta:
-        model = CensusGeography
+        model = AdminRegion
         fields = (
             'id',
             'name',
@@ -33,43 +31,43 @@ class CensusGeographySerializer(serializers.ModelSerializer):
         )
 
 
-class CountySerializer(CensusGeographySerializer):
+class CountySerializer(AdminRegionSerializer):
     class Meta:
         model = County
-        fields = CensusGeographySerializer.Meta.fields
+        fields = AdminRegionSerializer.Meta.fields
 
 
-class CountySubdivisionSerializer(CensusGeographySerializer):
+class CountySubdivisionSerializer(AdminRegionSerializer):
     class Meta:
         model = CountySubdivision
-        fields = CensusGeographySerializer.Meta.fields
+        fields = AdminRegionSerializer.Meta.fields
 
 
-class TractSerializer(CensusGeographySerializer):
+class TractSerializer(AdminRegionSerializer):
     class Meta:
         model = Tract
-        fields = CensusGeographySerializer.Meta.fields
+        fields = AdminRegionSerializer.Meta.fields
 
 
-class BlockGroupSerializer(CensusGeographySerializer):
+class BlockGroupSerializer(AdminRegionSerializer):
     class Meta:
         model = BlockGroup
-        fields = CensusGeographySerializer.Meta.fields
+        fields = AdminRegionSerializer.Meta.fields
 
 
-class NeighborhoodSerializer(CensusGeographySerializer):
+class NeighborhoodSerializer(AdminRegionSerializer):
     class Meta:
         model = Neighborhood
-        fields = CensusGeographySerializer.Meta.fields
+        fields = AdminRegionSerializer.Meta.fields
 
 
-class ZipCodeTabulationAreaSerializer(CensusGeographySerializer):
+class ZipCodeTabulationAreaSerializer(AdminRegionSerializer):
     class Meta:
         model = ZipCodeTabulationArea
-        fields = CensusGeographySerializer.Meta.fields
+        fields = AdminRegionSerializer.Meta.fields
 
 
-class CensusGeographyPolymorphicSerializer(PolymorphicSerializer):
+class AdminRegionPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         County: CountySerializer,
         Tract: TractSerializer,

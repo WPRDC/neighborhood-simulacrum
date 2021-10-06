@@ -2,26 +2,25 @@ import logging
 import re
 from typing import TYPE_CHECKING, Type, Optional, Union
 
-from maps.models import DataLayer
-
 import pystache
 from colorama import Fore, Style
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import QuerySet, Manager, F
+from django.db.models import QuerySet, Manager
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
 from indicators.errors import DataRetrievalError, EmptyResultsError
-from profiles.abstract_models import Described
 from indicators.models.source import Source
-from indicators.utils import DataResponse, ErrorResponse, ErrorLevel, limit_to_geo_extent
+from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
+from maps.models import DataLayer
+from profiles.abstract_models import Described
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
-    from geo.models import CensusGeography
+    from geo.models import AdminRegion
 
 CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
 
@@ -78,7 +77,7 @@ class DataViz(PolymorphicModel, Described):
                 source_ids.add(var_source_id)
         return Source.objects.filter(pk__in=list(source_ids))
 
-    def can_handle_geography(self, geog: 'CensusGeography') -> bool:
+    def can_handle_geography(self, geog: 'AdminRegion') -> bool:
         """
         Returns `True` if the variables in this visualization and, in turn, their sources, work
         with the supplied geography.
@@ -91,13 +90,13 @@ class DataViz(PolymorphicModel, Described):
                 return False
         return True
 
-    def can_handle_geographies(self, geogs: QuerySet['CensusGeography']) -> bool:
+    def can_handle_geographies(self, geogs: QuerySet['AdminRegion']) -> bool:
         for geog in geogs.all():
             if not self.can_handle_geography(geog):
                 return False
         return True
 
-    def get_geog_queryset(self, geog: 'CensusGeography') -> tuple[Optional[QuerySet['CensusGeography']], bool]:
+    def get_geog_queryset(self, geog: 'AdminRegion') -> tuple[Optional[QuerySet['AdminRegion']], bool]:
         """
         Returns a queryset representing the the minimum set of geographies to for which data can be
         aggregated to represent `geog` and a bool representing whether or not child geogs are used.
@@ -121,7 +120,7 @@ class DataViz(PolymorphicModel, Described):
 
         return None, False
 
-    def get_viz_data(self, geog: 'CensusGeography') -> DataResponse:
+    def get_viz_data(self, geog: 'AdminRegion') -> DataResponse:
         """
         Returns a `DataResponse` object with the viz's data at `geog`.
 
@@ -157,8 +156,8 @@ class DataViz(PolymorphicModel, Described):
             raise e
             # return DataResponse(data, options, error)
 
-    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
-                      parent_geog_lvl: Optional[Union[Type['CensusGeography'], 'CensusGeography']] = None
+    def _get_viz_data(self, geogs: QuerySet['AdminRegion'],
+                      parent_geog_lvl: Optional[Union[Type['AdminRegion'], 'AdminRegion']] = None
                       ) -> list[dict]:
         """
         All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
@@ -187,7 +186,7 @@ class DataViz(PolymorphicModel, Described):
 
         return data
 
-    def _get_viz_options(self, geog: 'CensusGeography') -> Optional[dict]:
+    def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
         return {}
 
     class Meta:
@@ -219,11 +218,11 @@ class MiniMap(DataViz):
     def layers(self):
         return self.vars.all()
 
-    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
-                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+    def _get_viz_data(self, geogs: QuerySet['AdminRegion'],
+                      parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list[dict]:
         return []  # map data is stored in geojson that is served elsewhere
 
-    def _get_viz_options(self, geog: 'CensusGeography', parent_geog_lvl=None) -> dict:
+    def _get_viz_options(self, geog: 'AdminRegion', parent_geog_lvl=None) -> dict:
         """
         Collects and returns the data for this presentation at the `geog` provided
 
@@ -292,7 +291,7 @@ class MapLayer(PolymorphicModel, VizVariable):
     custom_layout = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',
                                      blank=True, null=True)
 
-    def get_data_layer(self, geog_type: Type['CensusGeography']):
+    def get_data_layer(self, geog_type: Type['AdminRegion']):
         return DataLayer.get_or_create_updated_map(geog_type, self.viz.time_axis, self.variable, self.use_percent)
 
 
@@ -316,8 +315,8 @@ class Table(DataViz):
     def variables(self):
         return self.vars.order_by('variable_to_table')
 
-    def _get_viz_data(self, geogs: QuerySet['CensusGeography'],
-                      parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list[dict]:
+    def _get_viz_data(self, geogs: QuerySet['AdminRegion'],
+                      parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list[dict]:
         """ Gets data for each variable across time """
         data_check = []
         results = []
@@ -330,7 +329,7 @@ class Table(DataViz):
             raise EmptyResultsError('Data not available.')
         return results
 
-    def _get_viz_options(self, geog: 'CensusGeography') -> Optional[dict]:
+    def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
         columns = [{"Header": '', "accessor": 'variable'}, ] + \
                   [{"Header": tp.name, "accessor": tp.slug} for tp in self.time_axis.time_parts]
         return {'transpose': self.transpose, 'show_percent': self.show_percent, 'columns': columns}
@@ -385,7 +384,7 @@ class Chart(DataViz):
     def options(self) -> dict:
         return {'across_geogs': self.across_geogs}
 
-    def _get_viz_options(self, geog: 'CensusGeography') -> Optional[dict]:
+    def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
         return {'legend_type': self.legend_type, 'across_geogs': self.across_geogs}
 
 
@@ -448,7 +447,7 @@ class Sentence(Alphanumeric):
     text = models.TextField(
         help_text='To place a value in your sentence, use {order}. e.g. "There are {1} cats and {2} dogs in town."')
 
-    def get_text_data(self, geog: 'CensusGeography') -> DataResponse:
+    def get_text_data(self, geog: 'AdminRegion') -> DataResponse:
         data = ''
         error: ErrorResponse
         only_time_part = self.time_axis.time_parts[0]

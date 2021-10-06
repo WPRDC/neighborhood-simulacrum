@@ -38,34 +38,13 @@ $ pip install -r requirements.txt
 ```
 
 5. Modify [`profiles/local_settings.py.example`](profiles/local_settings.py.example) based on the instructions therein.
-```python
-# ./profiles/local_settings.py.example
-
-# you'll need a census api key to access census data in bulk
-# https://api.census.gov/data/key_signup.html
-CENSUS_API_KEY = 'YOUR_CENSUS_API_KEY'
-
-# django secret key. you can generate one here:
-# https://www.miniwebtool.com/django-secret-key-generator/
-LOCAL_SECRET_KEY = 'DJANGO_SECRET_KEY'
-
-# the postgres database settings
-DB_HOST = 'your_db_host'
-DB_PORT = 5328  # default for postgres
-DB_NAME = 'your_db_name'
-DB_USER = 'your_db_user'
-DB_PASSWORD = 'password_for_db_user'
-
-# You'll want to set this to false for your production version(s) of this file
-LOCAL_DEBUG = True
-```
 
 6. Configure the database using the projects migrations.
 ```shell
 $ ./manage.py migrate
 ```
 
-7. :construction: TODO: Load in census data
+7. Follow the [extra initialization instructions](init/README.md) in `init/` to set up the tile server and CKAN connection.
 
 8. Run your server! :rocket:
 ```shell

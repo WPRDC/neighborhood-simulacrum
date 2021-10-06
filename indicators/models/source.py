@@ -12,7 +12,7 @@ from django.db.models import QuerySet
 from polymorphic.models import PolymorphicModel
 from psycopg2.extras import RealDictCursor, RealDictConnection
 
-from geo.models import CensusGeography, Tract, County, BlockGroup, CountySubdivision, SchoolDistrict
+from geo.models import AdminRegion, Tract, County, BlockGroup, CountySubdivision, SchoolDistrict
 from indicators.models.time import TimeAxis
 from profiles.abstract_models import Described
 from profiles.local_settings import DATASTORE_NAME, DATASTORE_HOST, DATASTORE_USER, DATASTORE_PASSWORD, DATASTORE_PORT
@@ -56,7 +56,7 @@ class Source(PolymorphicModel, Described):
     def can_handle_time_part(self, time_part: 'TimeAxis.TimePart') -> bool:
         raise NotImplementedError
 
-    def can_handle_geography(self, geog: CensusGeography):
+    def can_handle_geography(self, geog: AdminRegion):
         raise NotImplementedError
 
 
@@ -81,7 +81,7 @@ class CensusSource(Source):
             return self.time_coverage_start < time_part.time_point < self.time_coverage_end
         return False
 
-    def can_handle_geography(self, geog: CensusGeography):
+    def can_handle_geography(self, geog: AdminRegion):
         if type(geog) in (Tract, County, BlockGroup, SchoolDistrict, CountySubdivision):
             return True
         return False
@@ -122,12 +122,12 @@ class CKANSource(Source, PolymorphicModel):
             return self.time_coverage_start <= time_part.time_point <= self.time_coverage_end
         return False
 
-    def can_handle_geography(self, geog: CensusGeography):
+    def can_handle_geography(self, geog: AdminRegion):
         raise NotImplementedError
 
-    def get_data_query(self, variable: 'CKANVariable', geogs: QuerySet['CensusGeography'],
+    def get_data_query(self, variable: 'CKANVariable', geogs: QuerySet['AdminRegion'],
                        time_part: 'TimeAxis.TimePart', denom_select: str = None,
-                       parent_geog_lvl: Optional[Type[CensusGeography]] = None) -> str:
+                       parent_geog_lvl: Optional[Type[AdminRegion]] = None) -> str:
 
         # get fields from source to select
         geog_select = self._get_geog_select(geogs, parent_geog_lvl)
@@ -171,7 +171,7 @@ class CKANSource(Source, PolymorphicModel):
         return cur.fetchall()
 
     # SQL Generators
-    def _get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
+    def _get_geog_filter_sql(self, geogs: QuerySet['AdminRegion']) -> str:
         """
         Returns chunk of SQL to go in the WHERE clause to filter the datasource to `geog`
         since the child models of CKANSource exist to handle different ways of representing geometry,
@@ -199,12 +199,12 @@ class CKANSource(Source, PolymorphicModel):
         """ Returns the source's time field, or a string representing the sole time unit covered by the source"""
         return f'{SQ_ALIAS}."{self.time_field}"' if self.time_field else f"'{self.static_date}'"
 
-    def _get_geog_select(self, geogs: QuerySet['CensusGeography'],
-                         parent_lvl_geog: Optional[Type[CensusGeography]]) -> str:
+    def _get_geog_select(self, geogs: QuerySet['AdminRegion'],
+                         parent_lvl_geog: Optional[Type[AdminRegion]]) -> str:
         raise NotImplementedError
 
-    def _get_from_subquery(self, geog_type: Type[CensusGeography],
-                           parent_geog_lvl: Optional[Type[CensusGeography]] = None) -> str:
+    def _get_from_subquery(self, geog_type: Type[AdminRegion],
+                           parent_geog_lvl: Optional[Type[AdminRegion]] = None) -> str:
         raise NotImplementedError
 
 
@@ -224,11 +224,11 @@ class CKANGeomSource(CKANSource):
         blank=True
     )
 
-    def can_handle_geography(self, geog: CensusGeography):
+    def can_handle_geography(self, geog: AdminRegion):
         # while there may be no data in a geog, geocoded datasets can work with any geog
         return True
 
-    def _get_ckan_geog_lookup(self, geog_type: Type['CensusGeography']) -> Optional[CKANLookupSource]:
+    def _get_ckan_geog_lookup(self, geog_type: Type['AdminRegion']) -> Optional[CKANLookupSource]:
         """
         Returns the resource ID for the appropriate lookup table in CKAN.
 
@@ -247,7 +247,7 @@ class CKANGeomSource(CKANSource):
         return lookup_mapping[geog_type] if geog_type in lookup_mapping else None
 
     # SQL Generators
-    def _get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
+    def _get_geog_filter_sql(self, geogs: QuerySet['AdminRegion']) -> str:
         """
         Returns a string of sql for use in `WHERE` clause to filter results to those within
         the boundary of the union of the geographies in `geogs`.
@@ -262,8 +262,8 @@ class CKANGeomSource(CKANSource):
             {self.geom_field}
         )"""
 
-    def _get_geog_select(self, geogs: QuerySet['CensusGeography'],
-                         parent_lvl_geog: Optional[Type[CensusGeography]]) -> str:
+    def _get_geog_select(self, geogs: QuerySet['AdminRegion'],
+                         parent_lvl_geog: Optional[Type[AdminRegion]]) -> str:
         if parent_lvl_geog:
             parent_table = f'"{parent_lvl_geog.ckan_resource}"'
 
@@ -274,7 +274,7 @@ class CKANGeomSource(CKANSource):
         # otherwise, return the geoid in the JOIN witht eh source sub query
         return f'{GEO_ALIAS}.geoid'
 
-    def _get_from_subquery(self, geog_type: Type[CensusGeography], parent_geog_lvl=None) -> str:
+    def _get_from_subquery(self, geog_type: Type[AdminRegion], parent_geog_lvl=None) -> str:
         """
         Returns source table joined with geography table to get geoids.
 
@@ -316,15 +316,15 @@ class CKANRegionalSource(CKANSource):
     neighborhood_field = models.CharField(max_length=100, null=True, blank=True)
     neighborhood_field_is_sql = models.BooleanField(default=False)
 
-    def can_handle_geography(self, geog: Union[CensusGeography, Type[CensusGeography]]):
+    def can_handle_geography(self, geog: Union[AdminRegion, Type[AdminRegion]]):
         return bool(self._get_source_geog_field(geog))
 
-    def _get_source_geog_field(self, geog: Union[CensusGeography, Type[CensusGeography]]) -> object:
+    def _get_source_geog_field(self, geog: Union[AdminRegion, Type[AdminRegion]]) -> object:
         field_for_geoid_field = f'{geog.geog_type}_field'.lower()
         return getattr(self, field_for_geoid_field)
 
     # SQL Generators
-    def _get_geog_filter_sql(self, geogs: QuerySet['CensusGeography']) -> str:
+    def _get_geog_filter_sql(self, geogs: QuerySet['AdminRegion']) -> str:
         """
         Creates a chunk of SQL to be used in the WHERE clause that
         filters a dataset described by `source` to data within the
@@ -339,8 +339,8 @@ class CKANRegionalSource(CKANSource):
 
         return f""" {source_geog_field} IN {geoids} """
 
-    def _get_geog_select(self, geogs: QuerySet['CensusGeography'],
-                         parent_lvl_geog: Optional[Type[CensusGeography]]) -> str:
+    def _get_geog_select(self, geogs: QuerySet['AdminRegion'],
+                         parent_lvl_geog: Optional[Type[AdminRegion]]) -> str:
         # regional sources need to be aggregated outside CKAN for now
         if parent_lvl_geog:
             print('parent_lvl_geog is ignored in CKANRegionalSources for now.')

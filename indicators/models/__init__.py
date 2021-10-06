@@ -118,7 +118,7 @@ class Indicator(Described):
 
 
 class Value(models.Model):
-    geog = models.ForeignKey('geo.Geography', on_delete=models.CASCADE, db_index=True)
+    geog = models.ForeignKey('geo.AdminRegion', on_delete=models.CASCADE, db_index=True)
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, db_index=True)
     value = models.FloatField(null=True, blank=True)
     margin = models.FloatField(null=True, blank=True)

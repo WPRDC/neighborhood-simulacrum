@@ -10,7 +10,7 @@ from indicators.utils import limit_to_geo_extent
 if TYPE_CHECKING:
     from django.db.models.sql import Query
     from indicators.models import TimeAxis, Variable
-    from geo.models import CensusGeography
+    from geo.models import AdminRegion
 
 
 def as_geometry_query(query: 'Query'):
@@ -24,7 +24,7 @@ def as_geometry_query(query: 'Query'):
 
 # noinspection SqlAmbiguousColumn ,SqlResolve
 def store_map_data(map_slug: str,
-                   geog_type: Type['CensusGeography'],
+                   geog_type: Type['AdminRegion'],
                    time_axis: 'TimeAxis',
                    variable: 'Variable',
                    use_percent: bool):
@@ -33,7 +33,7 @@ def store_map_data(map_slug: str,
 
     # todo: handle this properly, likely using generic types
     # noinspection PyTypeChecker
-    geogs: QuerySet['CensusGeography'] = limit_to_geo_extent(geog_type)
+    geogs: QuerySet['AdminRegion'] = limit_to_geo_extent(geog_type)
 
     data = variable.get_values(geogs, time_axis, parent_geog_lvl=geog_type)
     number_format_options = {'style': 'percent'} if use_percent else variable.locale_options

@@ -7,16 +7,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from geo.models import CensusGeography, Tract, County, CountySubdivision, \
+from geo.models import AdminRegion, Tract, County, CountySubdivision, \
     BlockGroup, ZipCodeTabulationArea, Neighborhood
-from geo.serializers import CensusGeographyPolymorphicSerializer, \
-    CensusGeographyBriefSerializer, CensusGeographySerializer
+from geo.serializers import AdminRegionPolymorphicSerializer, \
+    AdminRegionBriefSerializer, AdminRegionSerializer
 from geo.util import all_geogs_in_domain
 from indicators.utils import is_geog_data_request, get_geog_from_request, get_geog_model
-
-DOMAIN = County.objects \
-    .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
-    .aggregate(the_geom=Union('geom'))
 
 
 class GetGeog(views.APIView):
@@ -25,21 +21,25 @@ class GetGeog(views.APIView):
     def get(self, request):
         if is_geog_data_request(request):
             geog = get_geog_from_request(request)
-            data = CensusGeographyPolymorphicSerializer(geog).data
+            data = AdminRegionPolymorphicSerializer(geog).data
             return response.Response(data)
         return response.Response()
 
 
-class CensusGeographyViewSet(viewsets.ModelViewSet):
-    model: Type['CensusGeography']
-    brief_serializer_class: [serializers.Serializer] = CensusGeographyBriefSerializer
-    detailed_serializer_class: [serializers.Serializer] = CensusGeographySerializer
+class AdminRegionViewSet(viewsets.ModelViewSet):
+    model: Type['AdminRegion']
+    brief_serializer_class: [serializers.Serializer] = AdminRegionBriefSerializer
+    detailed_serializer_class: [serializers.Serializer] = AdminRegionSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'common_geoid']
 
     def get_queryset(self):
-        return all_geogs_in_domain(self.model, DOMAIN)
+        domain = County.objects \
+            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+            .aggregate(the_geom=Union('geom'))
+
+        return all_geogs_in_domain(self.model, domain)
 
     def get_serializer_class(self):
         if self.request.query_params.get('details', False):
@@ -47,27 +47,27 @@ class CensusGeographyViewSet(viewsets.ModelViewSet):
         return self.brief_serializer_class
 
 
-class TractViewSet(CensusGeographyViewSet):
+class TractViewSet(AdminRegionViewSet):
     model = Tract
 
 
-class BlockGroupViewSet(CensusGeographyViewSet):
+class BlockGroupViewSet(AdminRegionViewSet):
     model = BlockGroup
 
 
-class CountySubdivisionViewSet(CensusGeographyViewSet):
+class CountySubdivisionViewSet(AdminRegionViewSet):
     model = CountySubdivision
 
 
-class CountyViewSet(CensusGeographyViewSet):
+class CountyViewSet(AdminRegionViewSet):
     model = County
 
 
-class NeighborhoodViewSet(CensusGeographyViewSet):
+class NeighborhoodViewSet(AdminRegionViewSet):
     model = Neighborhood
 
 
-class ZipCodeViewSet(CensusGeographyViewSet):
+class ZipCodeViewSet(AdminRegionViewSet):
     model = ZipCodeTabulationArea
 
 
@@ -77,8 +77,8 @@ def geog_list(request):
     records = []
 
     for type_str in settings.AVAILABLE_GEOG_TYPES:
-        geog: Type[CensusGeography] = get_geog_model(type_str)
+        geog: Type[AdminRegion] = get_geog_model(type_str)
         # fixme: this seems like such a waste
-        geog_record = geog.objects.all()[0].get_menu_record(CensusGeographyBriefSerializer)
+        geog_record = geog.objects.all()[0].get_menu_record(AdminRegionBriefSerializer)
         records.append(geog_record)
     return Response(records)

@@ -17,7 +17,7 @@ from django.db import IntegrityError
 from openpyxl import load_workbook
 
 from census_data.models import CensusTable, CensusValue
-from geo.models import CensusGeography
+from geo.models import AdminRegion
 
 COUNTIES = ('42073', '42003', '42007', '42125', '42059', '42051', '42129', '42063', '42005', '42019',)
 
@@ -75,7 +75,7 @@ def get_geo(logrecno, geo_lookup):
         affgeoid = geo_lookup[int(logrecno)]
         parts = affgeoid.split('US')
         formatted_affgeoid = f'{int(parts[0]):05}00US{parts[1]}'
-        return CensusGeography.objects.get(affgeoid=formatted_affgeoid)
+        return AdminRegion.objects.get(affgeoid=formatted_affgeoid)
     except ObjectDoesNotExist:
         print(formatted_affgeoid)
         return None
@@ -159,8 +159,8 @@ async def census_values_from_row(row, census_tables, seq_no, mode, geo_lookup):
     if not geography or not geography.common_geoid:
         print('❌ not found')
         return []
-    if geography.TYPE in ['blockGroup', 'puma', 'stateSenate', 'stateHouse']:
-        print('⤵️', geography, geography.affgeoid, 'Skipping geography', geography.TYPE)
+    if geography.geog_type in ['blockGroup', 'puma', 'stateSenate', 'stateHouse']:
+        print('⤵️', geography, geography.affgeoid, 'Skipping geography', geography.geog_type)
         return []
     if geography.common_geoid[:5] not in COUNTIES:
         print('⤵️', geography, geography.affgeoid, 'out of range')
@@ -217,7 +217,7 @@ def get_geo_lookup():
     raw_lookup = csv.DictReader(open('logrec_to_geoid.csv'))
 
 
-    geos = {cg.affgeoid: cg for cg in CensusGeography.objects.all()}
+    geos = {cg.affgeoid: cg for cg in AdminRegion.objects.all()}
 
     for row in raw_lookup:
         logrecno = row['logrecno']

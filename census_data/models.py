@@ -13,7 +13,7 @@ DATASET_CHOICES = (
 )
 
 if TYPE_CHECKING:
-    from geo.models import CensusGeography
+    from geo.models import AdminRegion
 
 
 class CensusTablePointer(models.Model):
@@ -49,7 +49,7 @@ class CensusTablePointer(models.Model):
     def __str__(self):
         return f'{self.table_id} ({self.dataset})'
 
-    def get_values_at_geog(self, geog: 'CensusGeography') -> (float, Optional[float]):
+    def get_values_at_geog(self, geog: 'AdminRegion') -> (float, Optional[float]):
         try:
             value = CensusValue.objects.get(geography=geog, census_table=self.value_table).value
         except ObjectDoesNotExist:
@@ -60,7 +60,7 @@ class CensusTablePointer(models.Model):
             moe = None
         return value, moe
 
-    def get_values_query(self, geog: 'CensusGeography'):
+    def get_values_query(self, geog: 'AdminRegion'):
         return CensusValue.objects.get('')
 
 
@@ -90,7 +90,7 @@ class CensusValue(models.Model):
     the values stored here are a function of the Variable, the Series, and the Geograp
     the census table is unique to a Variable-Series combination and is where they're effect comes in
     """
-    geography = models.ForeignKey('geo.CensusGeography', on_delete=models.CASCADE, db_index=True)
+    geography = models.ForeignKey('geo.AdminRegion', on_delete=models.CASCADE, db_index=True)
     census_table = models.ForeignKey('CensusTable', on_delete=models.CASCADE, db_index=True)
     value = models.FloatField(null=True, blank=True)
     raw_value = models.CharField(max_length=20, null=True, blank=True)

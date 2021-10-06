@@ -7,7 +7,7 @@ from django.db import connection
 from django.db import models
 from jenkspy import jenks_breaks
 
-from geo.models import CensusGeography
+from geo.models import AdminRegion
 from indicators.models import Variable, TimeAxis
 from maps.util import store_map_data
 from profiles.abstract_models import Described, TimeStamped
@@ -156,7 +156,7 @@ class DataLayer(Described, TimeStamped):
             return cursor.fetchone()[0]
 
     @staticmethod
-    def get_or_create_updated_map(geog_type: Type['CensusGeography'],
+    def get_or_create_updated_map(geog_type: Type['AdminRegion'],
                                   time_axis: 'TimeAxis',
                                   variable: 'Variable',
                                   use_percent: bool) -> 'DataLayer':
@@ -177,7 +177,7 @@ class DataLayer(Described, TimeStamped):
             print('creatin')
         # if not, we need to get the data and register it with a new map record
         geog_type_name = geog_type.__name__
-        geog_type_title = geog_ctype.model_class().TITLE
+        geog_type_title = geog_ctype.model_class().geog_type_title
         slug = str(uuid.uuid4()).replace('-', '_')
 
         # create data table

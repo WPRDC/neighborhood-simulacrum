@@ -1,17 +1,16 @@
 import logging
 import math
 from datetime import MINYEAR, MAXYEAR
-from functools import reduce
 from typing import Dict, Optional, Type, List
 
 from django.core.cache import caches
 from django.db import models
-from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery, Value, Case, When
+from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
 from census_data.models import CensusValue, CensusTable, CensusTablePointer
-from geo.models import CensusGeography
+from geo.models import AdminRegion
 from indicators.data import Datum
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
 from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource
@@ -124,17 +123,10 @@ class Variable(PolymorphicModel, Described):
         denoms = self.denominators.all()
         return denoms[0] if len(denoms) else None
 
-    def get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis',
-                   use_denom=True, parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list['Datum']:
+    def get_values(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis',
+                   use_denom=True, parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list['Datum']:
         """
         Collects data for this `Variable` instance across geographies in `geogs` and times in `time_axis`.
-
-        :param parent_geog_lvl:
-        :param {QuerySet['CensusGeography']} geogs: a QuerySet for the geographies being explored.
-        :param {TimeAxis} time_axis: the points in times being explored
-        :param {Aggregate} agg_method: aggregate function to perform on data after filtering by geography and time
-        :param {bool} use_denom: whether or not to also gather percent and denominator data
-        :return:
         """
         agg_method = self.source_agg_method
         using_agg = parent_geog_lvl is not None and type(geogs[0]) != parent_geog_lvl
@@ -161,7 +153,7 @@ class Variable(PolymorphicModel, Described):
 
         return data
 
-    def _get_geog_queryset(self, geog: 'CensusGeography') -> tuple[Optional[QuerySet['CensusGeography']], bool]:
+    def _get_geog_queryset(self, geog: 'AdminRegion') -> tuple[Optional[QuerySet['AdminRegion']], bool]:
         # check how geog works for this viz
         # does it work directly for the goeg?
         if self.can_handle_geography(geog):
@@ -173,8 +165,8 @@ class Variable(PolymorphicModel, Described):
             if self.can_handle_geographies(child_geogs):
                 return child_geogs, True
 
-    def _get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True,
-                    agg_method=None, parent_geog_lvl: Optional[Type['CensusGeography']] = None) -> list['Datum']:
+    def _get_values(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
+                    agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list['Datum']:
         raise NotImplementedError
 
     @staticmethod
@@ -184,8 +176,8 @@ class Variable(PolymorphicModel, Described):
                 continue
             raise EmptyResultsError('No values returned.')
 
-    def _generate_cache_key(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True,
-                            agg_method=None, parent_geog_lvl: Optional[Type['CensusGeography']] = None):
+    def _generate_cache_key(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
+                            agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None):
         geog_key = tuple(sorted((geog.common_geoid for geog in geogs.all())))
         time_key = time_axis.slug
         denom_key = int(use_denom)
@@ -200,7 +192,7 @@ class Variable(PolymorphicModel, Described):
                 return True
         return False
 
-    def can_handle_geography(self, geog: CensusGeography) -> bool:
+    def can_handle_geography(self, geog: AdminRegion) -> bool:
         """ Returns `True` if any of a variable instance's sources can can handle `geog`. """
         for source in self.sources.all():
             if source.can_handle_geography(geog):
@@ -237,7 +229,7 @@ class CensusVariable(Variable):
             results += self._get_values_for_geog(geog, time_axis, use_denom)
         return results
 
-    def _get_values_for_geog(self, geog: CensusGeography, time_axis: TimeAxis, use_denom=True) -> list[Datum]:
+    def _get_values_for_geog(self, geog: AdminRegion, time_axis: TimeAxis, use_denom=True) -> list[Datum]:
         census_table_ptrs_by_year = self.get_census_table_ptrs_for_time_axis(time_axis)
         denom_census_table_ptrs_by_year = {}
 
@@ -355,7 +347,7 @@ class CKANVariable(Variable):
         Variable.MIN: 'MIN',
     }
 
-    def _get_values(self, geogs: QuerySet['CensusGeography'], time_axis: 'TimeAxis', use_denom=True, agg_method=None,
+    def _get_values(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True, agg_method=None,
                     parent_geog_lvl=None) -> list[Datum]:
         results: list[Datum] = []
 
@@ -399,13 +391,13 @@ class CKANVariable(Variable):
         denom_lookup: dict[str, Optional[float]] = {f'{d.geog}/{d.time}': d.value for d in denom_data}
         return [v.with_denom_val(denom_lookup[f'{v.geog}/{v.time}']) for v in var_data]
 
-    def _aggregate_data(self, data: list[Datum], base_geog_lvl: Type[CensusGeography],
-                        parent_geog_lvl: Type[CensusGeography], agg_method=None) -> list[Datum]:
+    def _aggregate_data(self, data: list[Datum], base_geog_lvl: Type[AdminRegion],
+                        parent_geog_lvl: Type[AdminRegion], agg_method=None) -> list[Datum]:
         """ Rolls up data to `parent_geog_lvl` using `self.aggregation_method` """
         # join parent join to base_geogs
         parent_sq = Subquery(parent_geog_lvl.objects.filter(geom__covers=OuterRef('geom')).values('common_geoid'))
         # filter to geoids found in data
-        lookup_geogs: QuerySet[CensusGeography] = base_geog_lvl.objects.filter(
+        lookup_geogs: QuerySet[AdminRegion] = base_geog_lvl.objects.filter(
             common_geoid__in=[d.geog for d in data]
         ).annotate(parent_geoid=parent_sq)
         # make lookup dict from queryset
@@ -432,12 +424,12 @@ class CKANVariable(Variable):
                 denoms = [d.denom for d in data]
                 if None in values:
                     raise AggregationError(f"Cannot aggregate data for '{geog}' since data is not available for all of "
-                                           f"its constituent '{base_geog_lvl.TYPE}'s.")
+                                           f"its constituent '{base_geog_lvl.geog_type}'s.")
                 if None in denoms:
                     self._add_warning({'level': ErrorLevel.WARNING,
                                        'message': f"Cannot aggregate denominator data for '{geog}' at '{time}' "
                                                   f"since data is not available for "
-                                                  f"all of its constituent '{base_geog_lvl.TYPE}'s"})
+                                                  f"all of its constituent '{base_geog_lvl.geog_type}'s"})
                 value = sum(values)
                 denom = sum(denoms) if len(denoms) and None not in denoms else None
                 percent = value / denom if denom else None
@@ -457,7 +449,7 @@ class CKANVariable(Variable):
                 return source
         raise MissingSourceError(f'No source found for `{self.slug}` for time period `{time_part.slug}`.')
 
-    def _get_denom_data(self, source: 'CKANSource', geogs: QuerySet['CensusGeography'],
+    def _get_denom_data(self, source: 'CKANSource', geogs: QuerySet['AdminRegion'],
                         time_part: 'TimeAxis.TimePart') -> tuple[str, list[Datum]]:
         # check for denominator and handle
         denom_var: 'CKANVariable' = self.primary_denominator
