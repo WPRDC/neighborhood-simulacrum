@@ -14,7 +14,6 @@ class Geography(models.Model):
     geom = models.MultiPolygonField()
     mini_geom = models.MultiPolygonField(null=True)
     geom_webmercator = models.MultiPolygonField(srid=3857, null=True)
-    in_extent = models.BooleanField(null=True, blank=True, editable=False)
 
     @property
     def bbox(self):
@@ -118,7 +117,7 @@ class BlockGroup(AdminRegion, CensusGeography):
 
     @property
     def title(self):
-        return f'Block Group {self.name}'
+        return f'Block Group {self.geoid}'
 
     @property
     def hierarchy(self):
@@ -153,7 +152,7 @@ class Tract(AdminRegion, CensusGeography):
 
     @property
     def title(self):
-        return f'Tract {self.name}'
+        return f'Tract {self.geoid}'
 
     @property
     def hierarchy(self):

@@ -234,4 +234,3 @@ VIEW_CACHE_TTL = 0  # 60 * 60 # 60 mins
 LONG_TERM_CACHE_TTL = 0  # 60 * 60 * 24  # 24 hours
 
 USE_LONG_TERM_CACHE = False
-

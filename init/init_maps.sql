@@ -1,9 +1,17 @@
+-- create new schema and user
 CREATE SCHEMA maps;
 CREATE USER profiles_maps_user;
 ALTER USER profiles_maps_user WITH PASSWORD '';
+
+-- grant permissions to maps user
 GRANT CONNECT ON DATABASE profiles_backend TO profiles_maps_user;
 GRANT USAGE ON SCHEMA maps TO profiles_maps_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA maps TO profiles_maps_user;
+
+-- grant permission to django user
+GRANT CONNECT ON DATABASE profiles_backend TO profiles_user;
+GRANT ALL ON SCHEMA maps TO profiles_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA maps TO profiles_user;
 
 GRANT profiles_user to postgres;
 
