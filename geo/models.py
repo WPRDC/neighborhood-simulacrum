@@ -29,49 +29,6 @@ class Geography(models.Model):
         super(Geography, self).save(*args, **kwargs)
 
 
-class AdminRegion(PolymorphicModel, Geography):
-    """
-    Base class for Administrative Regions or other areas of interest that can be described with available data.
-    """
-    # Class fields
-    geog_type: str
-    geog_type_title: str
-
-    type_description: str
-    ckan_resource: str
-    base_zoom: int
-
-    name = models.CharField(max_length=200)
-    # Better formatted name than what's in the data. (e.g. Allegheny County instead of just Allegheny)
-    display_name = models.CharField(max_length=200, null=True, blank=True)
-
-    # A unique geoid.  `geoid` for census geographies.
-    common_geoid = models.CharField(max_length=21, null=True, blank=True)
-
-    @property
-    def geog_path(self, separator='/') -> str:
-        return f'{self.geog_type}{separator}{self.common_geoid}'
-
-    @property
-    def title(self) -> str:
-        if self.display_name:
-            return self.display_name
-        return self.name
-
-    @property
-    def geogID(self) -> str:
-        """ Alias for geog_id. Workaround for camel case plugin to have ID instead of Id """
-        return self.common_geoid
-
-    @property
-    @abstractmethod
-    def hierarchy(self) -> List['AdminRegion']:
-        raise NotImplementedError
-
-    def save(self, *args, **kwargs):
-        super(AdminRegion, self).save(*args, **kwargs)
-
-
 class CensusGeography(models.Model):
     """ Abstract base class that provides common census/acs geography details. """
     BLOCK_GROUP = 'blockGroup'
@@ -100,6 +57,53 @@ class CensusGeography(models.Model):
 
     class Meta:
         abstract = True
+
+
+class AdminRegion(PolymorphicModel, Geography):
+    """
+    Base class for Administrative Regions or other areas of interest that can be described with available data.
+    """
+    # Class fields
+    geog_type: str
+    geog_type_title: str
+
+    type_description: str
+    ckan_resource: str
+    base_zoom: int
+
+    name = models.CharField(max_length=200)
+    # Better formatted name than what's in the data. (e.g. Allegheny County instead of just Allegheny)
+    display_name = models.CharField(max_length=200, null=True, blank=True)
+
+    # A unique geoid.  `geoid` for census geographies.
+    common_geoid = models.CharField(max_length=21, null=True, blank=True)
+
+    @property
+    def geog_path(self) -> str:
+        return f'{self.geog_type}/{self.common_geoid}'
+
+    @property
+    def uid(self):
+        return f'{self.geog_type}:{self.common_geoid}'
+
+    @property
+    def title(self) -> str:
+        if self.display_name:
+            return self.display_name
+        return self.name
+
+    @property
+    def geogID(self) -> str:
+        """ Alias for geog_id. Workaround for camel case plugin to have ID instead of Id """
+        return self.common_geoid
+
+    @property
+    @abstractmethod
+    def hierarchy(self) -> List['AdminRegion']:
+        raise NotImplementedError
+
+    def save(self, *args, **kwargs):
+        super(AdminRegion, self).save(*args, **kwargs)
 
 
 class BlockGroup(AdminRegion, CensusGeography):

@@ -1,19 +1,15 @@
 import asyncio
+import csv
+import os
+import zipfile
+from ftplib import FTP
 from functools import lru_cache
 
-from asgiref.sync import sync_to_async
-import os
-import sqlite3
-import zipfile
-import csv
-import requests
 import pandas as pd
-from ftplib import FTP
-
+import requests
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError
-
 from openpyxl import load_workbook
 
 from census_data.models import CensusTable, CensusValue
@@ -53,7 +49,6 @@ GEO_LOOKUP_DL_PATH = os.path.join(TEMPLATES_DL_DIR, GEO_LOOKUP_FILENAME)
 
 @sync_to_async
 def extract_variable_data(fname, mode='e'):
-    print("extract_variable_data")
     result = []
     wb = load_workbook(filename=fname)
 
@@ -69,7 +64,6 @@ def extract_variable_data(fname, mode='e'):
 
 @sync_to_async
 def get_geo(logrecno, geo_lookup):
-    print("get_geo")
     formatted_affgeoid = ''
     try:
         affgeoid = geo_lookup[int(logrecno)]
@@ -86,23 +80,21 @@ def get_geo(logrecno, geo_lookup):
 
 @sync_to_async
 def download_data(ftp, redownload, year):
-    print("download_data")
+    # the data for geographies is split across two files
     for (data_dir, dl_dir) in [(TRACT_BG_DATA_DIR, TRACT_BG_DL_DIR), (OTHER_GEO_DATA_DIR, OTHER_GEO_DL_DIR)]:
         ftp.cwd(data_dir)
-        print(f'Downloading data files from {data_dir}...')
+        print('⬇️', f'Downloading data files from {data_dir}...')
         data_files = ftp.nlst()
         for data_file in data_files:
             # skip the other file(s)
             if data_file[-3:] != 'zip':
                 continue
 
-            # check before downloading
-
-            #check year before downloading
+            # check year before downloading
             dl_path = os.path.join(dl_dir, data_file)
             if year is not None:
-                #
-                if year in dl_path or redownload or not (os.path.isfile(os.path.join(dl_dir, f'e{data_file[:-4]}.txt')) and os.path.isfile(os.path.join(dl_dir, f'm{data_file[:-4]}.txt'))):
+                if year in dl_path or redownload or not (
+                        os.path.isfile(os.path.join(dl_dir, f'e{data_file[:-4]}.txt')) and os.path.isfile(os.path.join(dl_dir, f'm{data_file[:-4]}.txt'))):
                     print('⬇️️', 'Downloading', dl_path)
                     with open(dl_path, 'wb') as f:
                         ftp.retrbinary(f'RETR {data_file}', f.write)
@@ -115,7 +107,8 @@ def download_data(ftp, redownload, year):
                     print('❎', 'Skipping', dl_path)
 
             elif year is None:
-                if redownload or not (os.path.isfile(os.path.join(dl_dir, f'e{data_file[:-4]}.txt')) and os.path.isfile(os.path.join(dl_dir, f'm{data_file[:-4]}.txt'))):
+                if redownload or not (os.path.isfile(os.path.join(dl_dir, f'e{data_file[:-4]}.txt')) and os.path.isfile(
+                        os.path.join(dl_dir, f'm{data_file[:-4]}.txt'))):
                     print('⬇️️', 'Downloading', dl_path)
                     with open(dl_path, 'wb') as f:
                         ftp.retrbinary(f'RETR {data_file}', f.write)
@@ -137,23 +130,18 @@ def download_data(ftp, redownload, year):
 
 @sync_to_async
 def get_or_create(model, data):
-    print("get_or_create")
     return model.objects.get_or_create(**data)
 
 
 @sync_to_async
 def get(model, data):
-    print("get")
     return model.objects.get(**data)
 
 
 async def census_values_from_row(row, census_tables, seq_no, mode, geo_lookup):
-    print("census_values_from_row")
     census_values = []
     logrecno = row[5]
-    print()
     geography = geo_lookup[str(int(logrecno))]
-
 
     # Only use certain geos
     if not geography or not geography.common_geoid:
@@ -188,16 +176,12 @@ async def census_values_from_row(row, census_tables, seq_no, mode, geo_lookup):
 
 @lru_cache
 def format_affgeoid(affgeoid):
-  #  print("format_affgeoid")
     parts = affgeoid.split('US')
     return f'{int(parts[0]):05}00US{parts[1]}'
 
 
-
-
 @sync_to_async
 def get_geo_lookup():
-
     r = requests.get(
         'https://www2.census.gov/programs-surveys/acs/summary_file/2019/documentation/geography/5yr_year_geo/pa.xlsx')
 
@@ -215,7 +199,6 @@ def get_geo_lookup():
     lookup = {}
 
     raw_lookup = csv.DictReader(open('logrec_to_geoid.csv'))
-
 
     geos = {cg.affgeoid: cg for cg in AdminRegion.objects.all()}
 
@@ -262,7 +245,8 @@ async def insert_seq_data(seq_no, geo_lookup):
                 await bulk_create(census_values)
 
 
-async def run_async(start, end, redownload=False, skip_downloads=False, year=None, sequence_numbers=DEFAULT_SEQUENCE_NUMBERS):
+async def run_async(start, end, redownload=False, skip_downloads=False, year=None,
+                    sequence_numbers=DEFAULT_SEQUENCE_NUMBERS):
     print("run_async")
 
     for new_dir in (TRACT_BG_DL_DIR, OTHER_GEO_DL_DIR,):
@@ -286,7 +270,7 @@ async def run_async(start, end, redownload=False, skip_downloads=False, year=Non
 
 
 def run(start, end, redownload, skip_downloads, delete, year):
-    #ADD YEAR
+    # ADD YEAR
     print("run")
     if delete:
         CensusValue.objects.all().delete()
