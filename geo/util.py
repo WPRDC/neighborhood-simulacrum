@@ -2,8 +2,6 @@ from typing import Type, TYPE_CHECKING
 
 from django.db.models import QuerySet
 
-import indicators.models as indicator_models
-
 if TYPE_CHECKING:
     from geo.models import AdminRegion
 
