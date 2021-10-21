@@ -27,7 +27,7 @@ class VariableChildAdmin(PolymorphicChildModelAdmin):
 
 class CensusVariableSourceInline(admin.TabularInline):
     model = CensusVariableSource
-    autocomplete_fields = ('census_table_pointers',)
+    autocomplete_fields = ('census_table_records',)
 
 
 @admin.register(CensusVariable)

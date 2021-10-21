@@ -1,8 +1,9 @@
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Tuple, List
 
 from django.core import validators
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.db.models import QuerySet
 from django.utils import timezone
 
 CURRENT_YEAR = timezone.now().year
@@ -16,52 +17,13 @@ if TYPE_CHECKING:
     from geo.models import AdminRegion
 
 
-class CensusTablePointer(models.Model):
-    table_id = models.CharField(max_length=15, blank=True, null=True)
-    value_table = models.ForeignKey(
-        'CensusTable',
-        on_delete=models.CASCADE,
-        related_name='value_to_pointer'
-    )
-    moe_table = models.ForeignKey(
-        'CensusTable',
-        on_delete=models.CASCADE,
-        related_name='moe_to_pointer',
-        null=True,
-        blank=True,
-    )
-    dataset = models.CharField(
-        max_length=4,
-        choices=DATASET_CHOICES,
-        default='CEN'
-    )
+class CensusTableRecord(models.Model):
+    """
+    Represents a specific data record table in the census bureau's data.
 
-    class Meta:
-        unique_together = ('value_table', 'dataset')
+    """
+    table_id = models.CharField(max_length=15)
 
-    def save(self, *args, **kwargs):
-        if not self.table_id:
-            self.table_id = self.value_table.table_id if self.dataset == 'CEN' else self.value_table.table_id[:-1]
-        if self.dataset == 'CEN' and self.moe_table:
-            raise ValidationError('Table pointers for decennial census tables don\'t include margins of error')
-        super(CensusTablePointer, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return f'{self.table_id} ({self.dataset})'
-
-    def get_values_at_geog(self, geog: 'AdminRegion') -> (float, Optional[float]):
-        try:
-            value = CensusValue.objects.get(geography=geog, census_table=self.value_table).value
-        except ObjectDoesNotExist:
-            value = None
-        try:
-            moe = CensusValue.objects.get(geography=geog, census_table=self.moe_table).value
-        except ObjectDoesNotExist:
-            moe = None
-        return value, moe
-
-
-class CensusTable(models.Model):
     dataset = models.CharField(
         max_length=4,
         choices=DATASET_CHOICES,
@@ -71,18 +33,55 @@ class CensusTable(models.Model):
         validators=[validators.MinValueValidator(2010),
                     validators.MaxValueValidator(CURRENT_YEAR)]
     )
-    table_id = models.CharField(max_length=15, db_index=True)
-    description = models.CharField(max_length=500, db_index=True)
+
+    description = models.CharField(max_length=500)
+
+    class Meta:
+        index_together = ('table_id', 'dataset', 'year')
+        unique_together = ('table_id', 'dataset', 'year')
+
+    @property
+    def value_table(self):
+        return f'{self.table_id}E'
+
+    @property
+    def moe_table(self):
+        return f'{self.table_id}M'
 
     @property
     def uid(self):
         return f'{self.dataset}:{self.year}:{self.table_id}'
 
-    class Meta:
-        unique_together = ['year', 'dataset', 'table_id']
+    @property
+    def value_table_uid(self):
+        return f'{self.dataset}:{self.year}:{self.value_table}'
+
+    @property
+    def moe_table_uid(self):
+        return f'{self.dataset}:{self.year}:{self.moe_table}'
 
     def __str__(self):
-        return f'({self.description}) {self.table_id} ({self.dataset}:{self.year}) '
+        return f'{self.table_id} ({self.dataset} {self.year})'
+
+    def get_values_at_geog(self, geog: 'AdminRegion') -> (float, Optional[float]):
+        try:
+            value = CensusValue.objects.get(geog_uid=geog.uid, census_table_uid=self.value_uid).value
+        except ObjectDoesNotExist:
+            value = None
+        try:
+            moe = CensusValue.objects.get(geog_uid=geog.uid, census_table_uid=self.moe_uid).value
+        except ObjectDoesNotExist:
+            moe = None
+        return value, moe
+
+    @staticmethod
+    def get_table_uids(records: QuerySet['CensusTableRecord']) -> Tuple[List[str], List[str]]:
+        value_ids, moe_ids = [], []
+        for record in records:
+            value_ids.append(record.value_table_uid)
+            if record.moe_table:
+                moe_ids.append(record.moe_table_uid)
+        return value_ids, moe_ids
 
 
 class CensusValue(models.Model):

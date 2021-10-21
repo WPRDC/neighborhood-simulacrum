@@ -1,16 +1,8 @@
 from django.contrib import admin
 
-# Register your models here.
-from census_data.models import CensusTable, CensusTablePointer
+from census_data.models import CensusTableRecord
 
-
-@admin.register(CensusTable)
-class CensusTableAdmin(admin.ModelAdmin):
-    list_display = ('table_id', 'description')
-    search_fields = ('description', 'table_id')
-
-
-@admin.register(CensusTablePointer)
-class CensusTablePointerAdmin(admin.ModelAdmin):
-    list_display = ('table_id', 'dataset')
+@admin.register(CensusTableRecord)
+class CensusTableRecordAdmin(admin.ModelAdmin):
+    list_display = ('table_id', 'dataset', 'year')
     search_fields = ('table_id', 'dataset')

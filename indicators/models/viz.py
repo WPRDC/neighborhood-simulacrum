@@ -152,7 +152,7 @@ class DataViz(PolymorphicModel, Described):
         except Exception as e:
             logger.exception(str(e))
             print(f'{Fore.RED}Uncaught Error:', e, Style.RESET_ALL)
-            error = ErrorResponse(ErrorLevel.ERROR, f'Uncaught Error: {e}')
+            # error = ErrorResponse(ErrorLevel.ERROR, f'Uncaught Error: {e}')
             raise e
             # return DataResponse(data, options, error)
 

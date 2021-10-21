@@ -20,7 +20,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from openpyxl import load_workbook
 
-from census_data.models import CensusTable, CensusValue
+from census_data.models import CensusValue, CensusTableRecord
 from geo.models import AdminRegion
 
 COUNTIES = ('42073', '42003', '42007', '42125', '42059',
@@ -325,15 +325,20 @@ def download_census_data(year, redownload=False):
         zf.extractall(dl_filename)
 
 
-def extract_table_details(seq_no, year, fname, mode='e') -> List['CensusTable']:
+def extract_table_details(seq_no, year, fname) -> List['CensusTableRecord']:
     tables = []
     wb = load_workbook(filename=fname)
 
     # col 6 is when the real data starts
-    for i in range(6, len(wb[mode][1])):
-        table_id = wb[mode][1][i].value + mode.upper()
-        desc = wb[mode][2][i].value
-        census_table = CensusTable(year=year, dataset='ACS5', table_id=table_id, description=desc)
+    for i in range(6, len(wb['e'][1])):
+        table_id = wb['e'][1][i].value
+        value_id = table_id + 'E'
+        moe_id = table_id + 'M'
+        desc = wb['e'][2][i].value
+        census_table = CensusTableRecord(
+            table_id=table_id, description=desc,
+            year=year, dataset='ACS5',
+        )
         tables.append(census_table)
 
     print(f'({seq_no})', f'{len(tables)} Tables found.')
@@ -383,22 +388,22 @@ def insert_seq_data(seq_no, year, geo_lookup):
     template_file = f'seq{seq_no}.xlsx'
     data_fname = f'{year}5{ST}{int(seq_no):04}000.txt'
     _, year_dir = get_template_dirs(year)
-    census_tables = []
-    census_values = []
-    for dl_dir in get_dl_dirs(year):
-        # estimates and margins of errors in are in separate filesc
-        # all census values pulled from the current data_files
 
+    # make sure CensusTable objects are created
+    census_tables = extract_table_details(
+        seq_no,
+        year,
+        os.path.join(year_dir, template_file),
+    )
+    print('🚚', f'({seq_no})', 'Uploading tables')
+    CensusTableRecord.objects.bulk_create(census_tables)
+    return
+    # extract data from all the data files
+    census_values = []
+    for dl_dir in get_dl_dirs(year):  # for ACS this ends up being two directories
+        # estimates and margins of errors in are in separate files
         for mode in ('e', 'm',):
             data_file = os.path.join(dl_dir, f'{mode}{data_fname}')
-            # make sure CensusTable objects are created
-            tables_for_mode = extract_table_details(
-                seq_no,
-                year,
-                os.path.join(year_dir, template_file),
-                mode=mode
-            )
-            census_tables += tables_for_mode
             # open data file and read rows
             with open(data_file) as f:
                 print('📄', f'Extracting data from "{mode}{data_fname}"')
@@ -409,39 +414,8 @@ def insert_seq_data(seq_no, year, geo_lookup):
 
     # fixme: this is the bottleneck on a fast machine and can be further optimized
     #   postgres and django probably each have some tips on what to do
-    print('🚚', f'({seq_no})', 'Uploading tables')
-    CensusTable.objects.bulk_create(census_tables, ignore_conflicts=True)
     print('🚛️', f'({seq_no})', 'Uploading values')
     CensusValue.objects.bulk_create(census_values, ignore_conflicts=True)
-
-
-# def insert_censu_seq_data(seq_no, year, geo_lookup):
-#     # todo: figure out how to process data files
-#
-#     for dl_dir in get_dl_dirs(year):
-#         data_file = os.path.join(dl_dir, f'{data_fname}')
-#         # make sure CensusTable objects are created
-#         tables_for_mode = extract_table_details(
-#             seq_no,
-#             year,
-#             os.path.join(year_dir, template_file),
-#             mode=mode
-#         )
-#         census_tables += tables_for_mode
-#         # open data file and read rows
-#         with open(data_file) as f:
-#             print('📄', f'Extracting data from "{mode}{data_fname}"')
-#             reader = csv.reader(f)
-#             for row in reader:
-#                 new_census_values = census_values_from_row(row, tables_for_mode, seq_no, mode, geo_lookup)
-#                 census_values += new_census_values
-#
-#     # fixme: this is the bottleneck on a fast machine and can be further optimized
-#     #   postgres and django probably each have some tips on what to do
-#     print('🚚', f'({seq_no})', 'Uploading tables')
-#     CensusTable.objects.bulk_create(census_tables, ignore_conflicts=True)
-#     print('🚛️', f'({seq_no})', 'Uploading values')
-#     CensusValue.objects.bulk_create(census_values, ignore_conflicts=True)
 
 
 def run_for_seq_no(seq_no, year, lookup, redownload):
@@ -457,16 +431,7 @@ def run(start, end, year=2019, redownload=False, delete=False):
         # CensusValue.objects.all().delete()
         # CensusTable.objects.all().delete()
 
-    # CENSUS
-    if not year % 10:
-        download_census_data(2010, redownload=redownload)
-        lookup = get_or_make_census_geo_lookup(2010)
-        for seq_no in range(start, end + 1):
-            insert_seq_data(seq_no, year, lookup)
+    lookup = get_or_make_geo_lookup(year)
 
-    # ACS
-    else:
-        lookup = get_or_make_geo_lookup(year)
-
-        for seq_no in range(start, end + 1):
-            run_for_seq_no(seq_no, year, lookup, redownload)
+    for seq_no in range(start, end + 1):
+        run_for_seq_no(seq_no, year, lookup, redownload)

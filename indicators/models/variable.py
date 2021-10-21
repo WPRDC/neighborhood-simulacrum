@@ -9,7 +9,7 @@ from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
-from census_data.models import CensusValue, CensusTable, CensusTablePointer
+from census_data.models import CensusValue, CensusTableRecord
 from geo.models import AdminRegion
 from indicators.data import Datum
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
@@ -128,6 +128,7 @@ class Variable(PolymorphicModel, Described):
         """
         Collects data for this `Variable` instance across geographies in `geogs` and times in `time_axis`.
         """
+        cache, cache_key = None, None
         agg_method = self.source_agg_method
         using_agg = parent_geog_lvl is not None and type(geogs[0]) != parent_geog_lvl
         if using_agg and agg_method is None:
@@ -147,23 +148,11 @@ class Variable(PolymorphicModel, Described):
 
         self._check_values(data)
 
-        if USE_LONG_TERM_CACHE:
+        if USE_LONG_TERM_CACHE and cache and cache_key:
             cache.set(cache_key, data, LONG_TERM_CACHE_TTL)
             print('Cached', cache_key)
 
         return data
-
-    def _get_geog_queryset(self, geog: 'AdminRegion') -> tuple[Optional[QuerySet['AdminRegion']], bool]:
-        # check how geog works for this viz
-        # does it work directly for the goeg?
-        if self.can_handle_geography(geog):
-            return type(geog).objects.filter(pk=geog.pk), False
-
-        # does it work as an aggregate over a smaller geog?
-        for child_geog_model in geog.child_geog_models:
-            child_geogs = child_geog_model.objects.filter(geom__coveredby=geog.geom)
-            if self.can_handle_geographies(child_geogs):
-                return child_geogs, True
 
     def _get_values(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
                     agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list['Datum']:
@@ -200,7 +189,7 @@ class Variable(PolymorphicModel, Described):
         return False
 
     def _add_warning(self, warning: dict):
-        self._warnings += [dict]
+        self._warnings += [warning]
 
     def __str__(self):
         return f'{self.name} ({self.slug})'
@@ -230,29 +219,30 @@ class CensusVariable(Variable):
         return results
 
     def _get_values_for_geog(self, geog: AdminRegion, time_axis: TimeAxis, use_denom=True) -> list[Datum]:
-        census_table_ptrs_by_year = self.get_census_table_ptrs_for_time_axis(time_axis)
-        denom_census_table_ptrs_by_year = {}
-
+        """ Retrieves data for the variable instance at the geography `geog` """
+        # get the census/acs tables for the points in time_axis
+        census_table_records_by_year = self.get_census_table_records_for_time_axis(time_axis)
+        denom_census_table_records_by_year: Dict[str, QuerySet[CensusTableRecord]] = {}
         if use_denom:
             denoms = self.denominators.all()
-            denom_census_table_ptrs_by_year = denoms[0].get_census_tables_for_time_axis(
+            denom_census_table_records_by_year = denoms[0].get_census_table_records_for_time_axis(
                 time_axis) if denoms else {}
 
+        # extract and compute the values at each point in time_axis
         results = []
-        for time_part_slug, census_table_ptrs in census_table_ptrs_by_year.items():
+        for time_part_slug, records in census_table_records_by_year.items():
             # extract IDs
-            value_ids, moe_ids = self._get_table_ids(census_table_ptrs)
-
+            value_ids, moe_ids = CensusTableRecord.get_table_uids(records)
             val = CensusValue.objects.filter(
-                geography__common_geoid=geog.common_geoid,
-                census_table_id__in=value_ids
-            ).values('geography__common_geoid').annotate(val=Sum('value')).values('val')[0]['val']
+                geog_uid=geog.uid,
+                census_table_uid__in=value_ids
+            ).values('geog_uid').annotate(val=Sum('value')).values('val')[0]['val']
 
             if len(moe_ids) == 1:
                 # https://www.census.gov/content/dam/Census/library/publications/2018/acs/acs_general_handbook_2018_ch08.pdf
                 moe_results = CensusValue.objects.filter(
-                    geography__common_geoid=geog.common_geoid,
-                    census_table_id__in=moe_ids
+                    geog_uid=geog.uid,
+                    census_table_uid__in=moe_ids
                 ).annotate(
                     moe=(F('value') ** 2.0)
                 ).values('moe').values('moe')
@@ -262,13 +252,15 @@ class CensusVariable(Variable):
                     {'message': 'Margins of Error for compound variables cannot be accurately reported at this time.'})
                 moe = None
 
+            # if denom is being used, look up the corresponding record and get its value
             denom, percent = None, None
-
-            if use_denom and time_part_slug in denom_census_table_ptrs_by_year:
+            if use_denom and time_part_slug in denom_census_table_records_by_year:
+                denom_record = denom_census_table_records_by_year[time_part_slug]
+                denom_ids, _ = CensusTableRecord.get_table_uids(denom_record)
                 denom = CensusValue.objects.filter(
-                    geography__common_geoid=geog.common_geoid,
-                    census_table__in=denom_census_table_ptrs_by_year[time_part_slug]
-                ).values('geography__common_geoid').annotate(denom=Sum('value')).values('denom')[0]['denom']
+                    geog_uid=geog.uid,
+                    census_table_uid__in=denom_ids
+                ).values('geog_uid').annotate(denom=Sum('value')).values('denom')[0]['denom']
                 if denom and denom > 0:
                     percent = val / denom
 
@@ -277,52 +269,30 @@ class CensusVariable(Variable):
         return results
 
     # Utils
-    @staticmethod
-    def _get_table_ids(census_table_ptrs):
-        value_ids, moe_ids = [], []
-        for ctp in census_table_ptrs:
-            value_ids.append(ctp.value_table.id)
-            if ctp.moe_table:
-                moe_ids.append(ctp.moe_table.id)
-        return value_ids, moe_ids
-
     def _get_source_for_time_point(self, time_point: timezone.datetime) -> 'CensusSource':
+        """ Find instance's source that covers time_point"""
         is_decade = not time_point.year % 10
-        if is_decade:
-            return self.sources.filter(dataset='CEN')[0]
-        return self.sources.filter(dataset='ACS5')[0]  # fixme to handle actual cases
+        dataset = 'CEN' if is_decade else 'ACS5'
+        return self.sources.filter(
+            dataset=dataset,
+            time_coverage_start__lte=time_point,
+            time_coverage_end__gte=time_point,
+        )[0]
 
-    def get_census_tables_for_time_part(self, time_part: 'TimeAxis.TimePart') -> QuerySet['CensusTable']:
+    def _get_census_table_record_for_time_part(self, time_part: 'TimeAxis.TimePart') -> QuerySet['CensusTableRecord']:
         """
-        Returns a queryset that represents all value `CensusTable`s related to `time_part`.
-
-        :param {TimeAxis.TimePart} time_part: the `time_part` by which the `CensusTable`s are filtered
-        :return:
-        """
-        census_table_ptrs = self._get_census_ptr_for_time_part(time_part)
-        return CensusTable.objects.filter(value_to_pointer__in=census_table_ptrs)
-
-    def get_census_tables_for_time_axis(self, time_axis: 'TimeAxis') -> Dict[str, QuerySet['CensusTable']]:
-        data = {}
-        for time_part in time_axis.time_parts:
-            data[time_part.slug] = self.get_census_tables_for_time_part(time_part)
-        return data
-
-    def _get_census_ptr_for_time_part(self, time_part: 'TimeAxis.TimePart') -> QuerySet['CensusTablePointer']:
-        """
-        Returns a queryset that represents all `CensusTablePointer`s (value and margin of error) related to `time_part`.
-
-        :param time_part:
-        :return:
+        Returns a queryset that represents all `CensusTableRecord`s (value and moe tables) related to `time_part`.
         """
         source = self._get_source_for_time_point(time_part.time_point)
-        return source.source_to_variable.get(variable=self).census_table_pointers.all()
+        return CensusVariableSource.objects.get(variable=self, source=source).census_table_records.all()
 
-    def get_census_table_ptrs_for_time_axis(self,
-                                            time_axis: 'TimeAxis') -> Dict[str, QuerySet['CensusTablePointer']]:
+    def get_census_table_records_for_time_axis(self, time_axis: 'TimeAxis') -> Dict[str, QuerySet['CensusTableRecord']]:
+        """
+        Return a dict mapping time_parts, by slug, to the queryset of CensusTableRecords associated with that time_part.
+        """
         data = {}
         for time_part in time_axis.time_parts:
-            data[time_part.slug] = self._get_census_ptr_for_time_part(time_part)
+            data[time_part.slug] = self._get_census_table_record_for_time_part(time_part)
         return data
 
 
@@ -367,9 +337,9 @@ class CKANVariable(Variable):
 
             # for regional sources, we need to aggregate here for now todo: debug whats up with ckan's SQL API
             if parent_geog_lvl and type(source) == CKANRegionalSource:
-                var_data = self._aggregate_data(var_data, type(geogs[0]), parent_geog_lvl, agg_method=None)
+                var_data = self._aggregate_data(var_data, type(geogs[0]), parent_geog_lvl)
                 if denom_data:
-                    denom_data = self._aggregate_data(denom_data, type(geogs[0]), parent_geog_lvl, agg_method=None)
+                    denom_data = self._aggregate_data(denom_data, type(geogs[0]), parent_geog_lvl)
 
             if denom_data:
                 # we need to link the data
@@ -392,7 +362,7 @@ class CKANVariable(Variable):
         return [v.with_denom_val(denom_lookup[f'{v.geog}/{v.time}']) for v in var_data]
 
     def _aggregate_data(self, data: list[Datum], base_geog_lvl: Type[AdminRegion],
-                        parent_geog_lvl: Type[AdminRegion], agg_method=None) -> list[Datum]:
+                        parent_geog_lvl: Type[AdminRegion]) -> list[Datum]:
         """ Rolls up data to `parent_geog_lvl` using `self.aggregation_method` """
         # join parent join to base_geogs
         parent_sq = Subquery(parent_geog_lvl.objects.filter(geom__covers=OuterRef('geom')).values('common_geoid'))
@@ -468,10 +438,12 @@ class CKANVariable(Variable):
         return denom_select, denom_data
 
 
-# Through models
-# =-=-=-=-=-=-=-
 class CensusVariableSource(models.Model):
     """ for linking Census variables to their sources while keeping track of the census formula format for that combo"""
     variable = models.ForeignKey('CensusVariable', on_delete=models.CASCADE, related_name='variable_to_source')
     source = models.ForeignKey('CensusSource', on_delete=models.CASCADE, related_name='source_to_variable')
-    census_table_pointers = models.ManyToManyField('census_data.CensusTablePointer')
+    census_table_records = models.ManyToManyField('census_data.CensusTableRecord')
+
+    class Meta:
+        index_together = ('variable', 'source',)
+        unique_together = ('variable', 'source',)
