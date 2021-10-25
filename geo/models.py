@@ -1,3 +1,4 @@
+import json
 from abc import abstractmethod
 from typing import List
 
@@ -52,7 +53,7 @@ class AdminRegion(PolymorphicModel, Geography):
     Base class for Administrative Regions or other areas of interest that can be described with available data.
     """
     # Class fields declarations, subclasses must override these values
-    geog_type: str
+    _geog_type: str
     geog_type_title: str
 
     type_description: str
@@ -95,9 +96,24 @@ class AdminRegion(PolymorphicModel, Geography):
         return self.name
 
     @property
+    def geog_type(self):
+        return self._geog_type
+
+    # noinspection PyPep8Naming
+    @property
     def geogID(self) -> str:
         """ Alias for geog_id. Workaround for camel case plugin to have ID instead of Id """
         return self.common_geoid
+
+    @property
+    def simple_geojson(self) -> dict:
+        return {
+            "type": "Feature",
+            "geometry": json.loads(self.geom.json),
+            "properties": {
+                "name": self.name
+            }
+        }
 
     @property
     @abstractmethod
@@ -129,7 +145,7 @@ class AdminRegion(PolymorphicModel, Geography):
 
 
 class BlockGroup(AdminRegion, CensusGeography):
-    geog_type = AdminRegion.BLOCK_GROUP
+    _geog_type = AdminRegion.BLOCK_GROUP
     geog_type_title = "Block Group"
 
     type_description = 'Smallest geographical unit w/ ACS sample data.'
@@ -165,7 +181,7 @@ class BlockGroup(AdminRegion, CensusGeography):
 
 
 class Tract(AdminRegion, CensusGeography):
-    geog_type = AdminRegion.TRACT
+    _geog_type = AdminRegion.TRACT
     geog_type_title = 'Tract'
 
     type_description = "Drawn to encompass ~2500-8000 people"
@@ -197,7 +213,7 @@ class Tract(AdminRegion, CensusGeography):
 
 
 class CountySubdivision(AdminRegion, CensusGeography):
-    geog_type = AdminRegion.COUNTY_SUBDIVISION
+    _geog_type = AdminRegion.COUNTY_SUBDIVISION
     geog_type_title = 'County Subdivision'
 
     type_description = "Townships, municipalities, boroughs and cities."
@@ -230,7 +246,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
 
 class County(AdminRegion, CensusGeography):
-    geog_type = AdminRegion.COUNTY
+    _geog_type = AdminRegion.COUNTY
     geog_type_title = "County"
 
     type_description = "Largest subdivision of a state."
@@ -263,7 +279,7 @@ class County(AdminRegion, CensusGeography):
 
 
 class ZipCodeTabulationArea(AdminRegion, CensusGeography):
-    geog_type = AdminRegion.ZCTA
+    _geog_type = AdminRegion.ZCTA
     geog_type_title = 'Zip Code'
 
     type_description = "The area covered by a postal Zip code."
@@ -289,7 +305,7 @@ class ZipCodeTabulationArea(AdminRegion, CensusGeography):
 
 
 class SchoolDistrict(AdminRegion, CensusGeography):
-    geog_type = AdminRegion.SCHOOL_DISTRICT
+    _geog_type = AdminRegion.SCHOOL_DISTRICT
     geog_type_title = "School District"
 
     type_description = 'Area served by a School District.'
@@ -320,7 +336,7 @@ class SchoolDistrict(AdminRegion, CensusGeography):
 
 
 class Neighborhood(AdminRegion):
-    geog_type = AdminRegion.NEIGHBORHOOD
+    _geog_type = AdminRegion.NEIGHBORHOOD
     geog_type_title = 'Neighborhood'
 
     type_description = 'Official City of Pittsburgh neighborhood boundaries'
