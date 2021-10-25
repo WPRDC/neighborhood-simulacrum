@@ -31,18 +31,6 @@ class Geography(models.Model):
 
 class CensusGeography(models.Model):
     """ Abstract base class that provides common census/acs geography details. """
-    BLOCK_GROUP = 'blockGroup'
-    TRACT = 'tract'
-    COUNTY_SUBDIVISION = 'countySubdivision'
-    PLACE = 'place'
-    PUMA = 'puma'
-    SCHOOL_DISTRICT = 'schoolDistrict'
-    STATE_HOUSE = 'stateHouse'
-    STATE_SENATE = 'stateSenate'
-    COUNTY = 'county'
-    ZCTA = 'zcta'
-    NEIGHBORHOOD = 'neighborhood'
-
     geoid = models.CharField(max_length=20)
     affgeoid = models.CharField(max_length=21, unique=True)
 
@@ -63,7 +51,7 @@ class AdminRegion(PolymorphicModel, Geography):
     """
     Base class for Administrative Regions or other areas of interest that can be described with available data.
     """
-    # Class fields
+    # Class fields declarations, subclasses must override these values
     geog_type: str
     geog_type_title: str
 
@@ -71,6 +59,20 @@ class AdminRegion(PolymorphicModel, Geography):
     ckan_resource: str
     base_zoom: int
 
+    # Constants
+    BLOCK_GROUP = 'blockGroup'
+    TRACT = 'tract'
+    COUNTY_SUBDIVISION = 'countySubdivision'
+    PLACE = 'place'
+    PUMA = 'puma'
+    SCHOOL_DISTRICT = 'schoolDistrict'
+    STATE_HOUSE = 'stateHouse'
+    STATE_SENATE = 'stateSenate'
+    COUNTY = 'county'
+    ZCTA = 'zcta'
+    NEIGHBORHOOD = 'neighborhood'
+
+    # Model fields
     name = models.CharField(max_length=200)
     # Better formatted name than what's in the data. (e.g. Allegheny County instead of just Allegheny)
     display_name = models.CharField(max_length=200, null=True, blank=True)
@@ -102,12 +104,32 @@ class AdminRegion(PolymorphicModel, Geography):
     def hierarchy(self) -> List['AdminRegion']:
         raise NotImplementedError
 
+    @staticmethod
+    def from_uid(uid: str):
+        try:
+            parts = uid.split(':')
+            geog_type_str = parts[0]
+            geog_id = parts[1]
+            geog_type = AdminRegion.find_subclass(geog_type_str)
+            if geog_type:
+                return geog_type.objects.get(common_geoid=geog_id)
+        except IndexError:
+            print('Malformed uid.')
+            return None
+
+    @staticmethod
+    def find_subclass(name: str):
+        for sc in AdminRegion.__subclasses__():
+            if sc.geog_type == name:
+                return sc
+        return None
+
     def save(self, *args, **kwargs):
         super(AdminRegion, self).save(*args, **kwargs)
 
 
 class BlockGroup(AdminRegion, CensusGeography):
-    geog_type = CensusGeography.BLOCK_GROUP
+    geog_type = AdminRegion.BLOCK_GROUP
     geog_type_title = "Block Group"
 
     type_description = 'Smallest geographical unit w/ ACS sample data.'
@@ -143,7 +165,7 @@ class BlockGroup(AdminRegion, CensusGeography):
 
 
 class Tract(AdminRegion, CensusGeography):
-    geog_type = CensusGeography.TRACT
+    geog_type = AdminRegion.TRACT
     geog_type_title = 'Tract'
 
     type_description = "Drawn to encompass ~2500-8000 people"
@@ -175,7 +197,7 @@ class Tract(AdminRegion, CensusGeography):
 
 
 class CountySubdivision(AdminRegion, CensusGeography):
-    geog_type = CensusGeography.COUNTY_SUBDIVISION
+    geog_type = AdminRegion.COUNTY_SUBDIVISION
     geog_type_title = 'County Subdivision'
 
     type_description = "Townships, municipalities, boroughs and cities."
@@ -208,7 +230,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
 
 class County(AdminRegion, CensusGeography):
-    geog_type = CensusGeography.COUNTY
+    geog_type = AdminRegion.COUNTY
     geog_type_title = "County"
 
     type_description = "Largest subdivision of a state."
@@ -241,7 +263,7 @@ class County(AdminRegion, CensusGeography):
 
 
 class ZipCodeTabulationArea(AdminRegion, CensusGeography):
-    geog_type = CensusGeography.ZCTA
+    geog_type = AdminRegion.ZCTA
     geog_type_title = 'Zip Code'
 
     type_description = "The area covered by a postal Zip code."
@@ -267,7 +289,7 @@ class ZipCodeTabulationArea(AdminRegion, CensusGeography):
 
 
 class SchoolDistrict(AdminRegion, CensusGeography):
-    geog_type = "schoolDistrict"
+    geog_type = AdminRegion.SCHOOL_DISTRICT
     geog_type_title = "School District"
 
     type_description = 'Area served by a School District.'
@@ -298,7 +320,7 @@ class SchoolDistrict(AdminRegion, CensusGeography):
 
 
 class Neighborhood(AdminRegion):
-    geog_type = CensusGeography.NEIGHBORHOOD
+    geog_type = AdminRegion.NEIGHBORHOOD
     geog_type_title = 'Neighborhood'
 
     type_description = 'Official City of Pittsburgh neighborhood boundaries'

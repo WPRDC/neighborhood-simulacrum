@@ -283,7 +283,7 @@ class MapLayer(PolymorphicModel, VizVariable):
 
     # options
     visible = models.BooleanField(verbose_name='Visible by default', default=True)
-    use_percent = models.BooleanField()
+    use_percent = models.BooleanField(default=False)
 
     # mapbox style
     custom_paint = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',

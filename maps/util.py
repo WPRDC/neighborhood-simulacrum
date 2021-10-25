@@ -1,6 +1,7 @@
 import json
 import urllib.request
 from typing import TYPE_CHECKING, Type
+from urllib.error import URLError
 
 from django.db import connection
 from django.db.models import QuerySet
@@ -17,7 +18,7 @@ def refresh_tile_index():
     """ Signal tile server to register new view """
     try:
         urllib.request.urlopen("http://127.0.0.1:3000/index.json")
-    finally:
+    except URLError:
         pass
 
 

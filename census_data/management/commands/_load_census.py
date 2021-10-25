@@ -396,7 +396,7 @@ def insert_seq_data(seq_no, year, geo_lookup):
         os.path.join(year_dir, template_file),
     )
     print('🚚', f'({seq_no})', 'Uploading tables')
-    CensusTableRecord.objects.bulk_create(census_tables)
+    CensusTableRecord.objects.bulk_create(census_tables, ignore_conflicts=True)
     return
     # extract data from all the data files
     census_values = []

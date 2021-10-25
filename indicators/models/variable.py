@@ -1,7 +1,7 @@
 import logging
 import math
 from datetime import MINYEAR, MAXYEAR
-from typing import Dict, Optional, Type, List
+from typing import Dict, Optional, Type, List, Union
 
 from django.core.cache import caches
 from django.db import models
@@ -10,7 +10,7 @@ from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
 from census_data.models import CensusValue, CensusTableRecord
-from geo.models import AdminRegion
+from geo.models import AdminRegion, CensusGeography
 from indicators.data import Datum
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
 from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource
@@ -212,13 +212,20 @@ class CensusVariable(Variable):
         Variable.MIN: models.Min,
     }
 
-    def _get_values(self, geogs, time_axis, use_denom=True, agg_method=None, parent_geog_lvl=None) -> list[Datum]:
+    def _get_values(self,
+                    geogs: QuerySet[Union[AdminRegion, CensusGeography]],
+                    time_axis: TimeAxis,
+                    use_denom=True,
+                    agg_method=None,
+                    parent_geog_lvl=None) -> list[Datum]:
         results: list[Datum] = []
         for geog in geogs:
             results += self._get_values_for_geog(geog, time_axis, use_denom)
         return results
 
-    def _get_values_for_geog(self, geog: AdminRegion, time_axis: TimeAxis, use_denom=True) -> list[Datum]:
+    def _get_values_for_geog(self,
+                             geog: Union[AdminRegion, CensusGeography],
+                             time_axis: TimeAxis, use_denom=True) -> list[Datum]:
         """ Retrieves data for the variable instance at the geography `geog` """
         # get the census/acs tables for the points in time_axis
         census_table_records_by_year = self.get_census_table_records_for_time_axis(time_axis)
@@ -234,14 +241,14 @@ class CensusVariable(Variable):
             # extract IDs
             value_ids, moe_ids = CensusTableRecord.get_table_uids(records)
             val = CensusValue.objects.filter(
-                geog_uid=geog.uid,
+                geog_uid=geog.affgeoid,
                 census_table_uid__in=value_ids
             ).values('geog_uid').annotate(val=Sum('value')).values('val')[0]['val']
 
             if len(moe_ids) == 1:
                 # https://www.census.gov/content/dam/Census/library/publications/2018/acs/acs_general_handbook_2018_ch08.pdf
                 moe_results = CensusValue.objects.filter(
-                    geog_uid=geog.uid,
+                    geog_uid=geog.affgeoid,
                     census_table_uid__in=moe_ids
                 ).annotate(
                     moe=(F('value') ** 2.0)
@@ -258,7 +265,7 @@ class CensusVariable(Variable):
                 denom_record = denom_census_table_records_by_year[time_part_slug]
                 denom_ids, _ = CensusTableRecord.get_table_uids(denom_record)
                 denom = CensusValue.objects.filter(
-                    geog_uid=geog.uid,
+                    geog_uid=geog.affgeoid,
                     census_table_uid__in=denom_ids
                 ).values('geog_uid').annotate(denom=Sum('value')).values('denom')[0]['denom']
                 if denom and denom > 0:
