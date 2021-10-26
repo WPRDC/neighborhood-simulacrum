@@ -16,6 +16,8 @@ class Geography(models.Model):
     mini_geom = models.MultiPolygonField(null=True)
     geom_webmercator = models.MultiPolygonField(srid=3857, null=True)
 
+    in_extent = models.BooleanField(null=True)
+
     @property
     def bbox(self):
         extent = self.geom.extent  # (xmin, ymin, xmax, ymax)
