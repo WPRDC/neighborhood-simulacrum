@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import TYPE_CHECKING, Type, Optional, Union
+from typing import TYPE_CHECKING, Type, Optional
 
 import pystache
 from colorama import Fore, Style
@@ -12,15 +12,17 @@ from django.dispatch import receiver
 from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
+from geo.models import AdminRegion
+from indicators.data import GeogRecord, GeogCollection, Datum
 from indicators.errors import DataRetrievalError, EmptyResultsError
 from indicators.models.source import Source
 from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
 from maps.models import DataLayer
+from maps.util import menu_view_name
 from profiles.abstract_models import Described
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
-    from geo.models import AdminRegion
 
 CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
 
@@ -96,29 +98,36 @@ class DataViz(PolymorphicModel, Described):
                 return False
         return True
 
-    def get_geog_queryset(self, geog: 'AdminRegion') -> tuple[Optional[QuerySet['AdminRegion']], bool]:
+    def get_subgeogs(self, geog: 'AdminRegion') -> Optional[QuerySet['AdminRegion']]:
         """
-        Returns a queryset representing the the minimum set of geographies to for which data can be
-        aggregated to represent `geog` and a bool representing whether or not child geogs are used.
+        Returns a queryset representing the minimum set of geographies to for which data can be
+        aggregated to represent `geog` and a bool representing whether child geogs are used.
 
         `None` is returned if no such non-empty set exists.
 
         :param geog: teh geography being examined
         :return: Queryset of geographies to for which data can be aggregated to represent `geog`; None if an emtpy set.
         """
-        # check how geog works for this viz
         # does it work directly for the goeg?
         if self.can_handle_geography(geog):
-            return type(geog).objects.filter(pk=geog.pk), False
+            return type(geog).objects.filter(common_geoid=geog.common_geoid)
 
         # does it work as an aggregate over a smaller geog?
-        for child_geog_model in geog.child_geog_models:
-            child_geogs = child_geog_model.objects.filter(mini_geom__coveredby=geog.big_geom)
+        for subgeog_type_id in AdminRegion.SUBGEOG_TYPE_ORDER:
+            if subgeog_type_id in geog.subregions:
+                subgeog_model = AdminRegion.find_subclass(subgeog_type_id)
+                subgeog_common_geoids = geog.subregions[subgeog_type_id]
+                sub_geogs: QuerySet['AdminRegion'] = subgeog_model.objects.filter(
+                    common_geoid__in=subgeog_common_geoids)
 
-            if self.can_handle_geographies(child_geogs):
-                return child_geogs, True
+                if self.can_handle_geographies(sub_geogs):
+                    return sub_geogs
 
-        return None, False
+        return None
+
+    def get_neighbor_geogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
+        """ Generates queryset of all neighbor geographies to be compared with `geog` also includes geog."""
+        return geog.__class__.objects.filter(common_geoid=geog.common_geoid)
 
     def get_viz_data(self, geog: 'AdminRegion') -> DataResponse:
         """
@@ -127,18 +136,47 @@ class DataViz(PolymorphicModel, Described):
         This method is the primary interface to request data. Calls `_get_viz_data` which can be implemented
         in subclassed models.
 
+        Generalized solution
+            1. Get full set of geogs necessary for viz
+              a. get set of neighbor geogs including the primary geog if necessary for teh viz
+                  (e.g. a map of neighborhoods, table across counties)
+              b. for each geog in the set, find the set of subgeogs necessary for the source.
+                  if not necessary, the subgeog set will just be [geog]
+            2. For each variable in the data viz,
+              a. get values for full set of subgeogs
+              b. aggregate those values up to the set of neighbor geogs
+            3. Use data on set of neighbor geogs to populate response
+
         :param geog: the geography being examined
         :return: DataResponse with data and error information
         """
-        # get queryset representing geog though itself or child geogs
-        geogs, use_agg = self.get_geog_queryset(geog)
-        # parent geog is just a geog unlesse we're doing maps or cross-geog charts, then we need to use the class
-        parent_geog_lvl = geog if use_agg else None
-        data, options, error = None, None, ErrorResponse(ErrorLevel.OK)
+
+        # 1. Get full set of geogs necessary for viz
+        #   a. get set of neighbor geogs including the primary geog if necessary for teh viz
+        neighbor_geogs = self.get_neighbor_geogs(geog)
+
+        #   b. for each geog in the set, find the set of subgeogs that work for the source.
+        #         if no subgeogs are necessary, the subgeog set will just be [geog]
+        geog_collection = GeogCollection(geog_type=type(geog), primary_geog=geog)
+        for neighbor_geog in neighbor_geogs:
+            geog_collection.records[neighbor_geog.common_geoid] = GeogRecord(
+                geog=neighbor_geog,
+                subgeogs=self.get_subgeogs(neighbor_geog),
+            )
+
+        # 2. For each variable in the data viz,
+        #   a. get values for full set of subgeogs
+        #   b. aggregate those values up to the set of neighbor geogs
+        # this is done in the private method which may be overridden to
+        # handle difference cases for difference visualizations
+
+        # todo: add information about geographic aggregation if it occured
+        #   - list of subgeogs so we can link to them on Apps and sites
+        data, options, error = None, None, ErrorResponse(level=ErrorLevel.OK, message='')
         try:
-            if geogs:
-                data = self._get_viz_data(geogs, parent_geog_lvl=parent_geog_lvl)
-                options = self._get_viz_options(geog)
+            if neighbor_geogs:
+                data = self._get_viz_data(geog_collection)
+                options = self._get_viz_options(geog_collection)
             else:
                 error = ErrorResponse(level=ErrorLevel.EMPTY,
                                       message=f'This visualization is not available for {geog.name}.')
@@ -156,37 +194,31 @@ class DataViz(PolymorphicModel, Described):
             raise e
             # return DataResponse(data, options, error)
 
-    def _get_viz_data(self, geogs: QuerySet['AdminRegion'],
-                      parent_geog_lvl: Optional[Union[Type['AdminRegion'], 'AdminRegion']] = None
-                      ) -> list[dict]:
+    def _get_viz_data(self, geog_collection: GeogCollection) -> list['Datum']:
         """
+        Gets a representation of data for the viz.
+
         All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
         harmonize should return an empty dataset and an error response explaining what went wrong (e.g. not available
         for 'geog' because of privacy reasons)
 
         Override when necessary.
 
-        :param geogs:
-        :param parent_geog_lvl:
-        :return:
-        """
-        """
-        Gets a representation of data for the viz.
-
         If representing the data as a list of records doesn't make sense for the visualization (e.g. maps),
         this method can be overridden.
-
-        :param geogs:
-        :return:
         """
-        data: list[dict] = []
+
+        # 2. For each variable in the data viz,
+        #   a. get values for full set of subgeogs
+        #   b. aggregate those values up to the set of neighbor geogs
+        data: list['Datum'] = []
         for variable in self.variables:
             data += [datum.as_dict() for datum in
-                     variable.get_values(geogs, self.time_axis, parent_geog_lvl=parent_geog_lvl)]
+                     variable.get_values(geog_collection, self.time_axis)]
 
         return data
 
-    def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
+    def _get_viz_options(self, geog_collection: GeogCollection) -> Optional[dict]:
         return {}
 
     class Meta:
@@ -201,13 +233,13 @@ class MiniMap(DataViz):
     BORDER_LAYER_BASE = {
         "type": "line",
         "paint": {
-            "line-color": "#333",
+            "line-color": "#000",
             "line-width": [
                 "interpolate",
                 ["exponential", 1.51],
                 ["zoom"],
                 0, 1,
-                8, 1,
+                8, 4,
                 16, 14
             ]
         },
@@ -218,11 +250,17 @@ class MiniMap(DataViz):
     def layers(self):
         return self.vars.all()
 
+    def get_neighbor_geogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
+        geog_type = geog.__class__
+        # get all geogs of type for now
+        # todo: provide options to allow for different neighbor selection
+        return geog_type.objects.filter(in_extent=True)
+
     def _get_viz_data(self, geogs: QuerySet['AdminRegion'],
                       parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list[dict]:
         return []  # map data is stored in geojson that is served elsewhere
 
-    def _get_viz_options(self, geog: 'AdminRegion', parent_geog_lvl=None) -> dict:
+    def _get_viz_options(self, geog_collection: GeogCollection) -> dict:
         """
         Collects and returns the data for this presentation at the `geog` provided
 
@@ -236,32 +274,36 @@ class MiniMap(DataViz):
 
         for var in self.vars.all():
             # for each variable/layer, get its data geojson, style and options
+            # MapLayer object keeps track of settings from editor
             layer: MapLayer = self.vars.through.objects.get(variable=var, viz=self)
-            data_layer: DataLayer = layer.get_data_layer(geog_type=type(geog))
+            data_layer: DataLayer = layer.get_data_layer(geog_collection)
             source, tmp_layers, interactive_layer_ids, legend_option = data_layer.get_map_options()
             sources.append(source)
             legend_options.append(legend_option)
             layers += tmp_layers
 
+        primary_geog = geog_collection.primary_geog
+
         map_options: dict = {
             'interactive_layer_ids': interactive_layer_ids,
             'default_viewport': {
-                'longitude': geog.geom.centroid.x,
-                'latitude': geog.geom.centroid.y,
-                'zoom': geog.base_zoom - 3
+                'longitude': primary_geog.geom.centroid.x,
+                'latitude': primary_geog.geom.centroid.y,
+                'zoom': primary_geog.base_zoom - 3
             }
         }
 
         # for highlighting current geog
-        highlight_id = slugify(geog.name)
+        highlight_id = slugify(primary_geog.name)
         highlight_source = {
             'id': f'{highlight_id}',
-            'type': 'geojson',
-            'data': geog.simple_geojson,
+            'type': 'vector',
+            'url': f"https://api.profiles.wprdc.org/tiles/{menu_view_name(geog_collection.geog_type)}.json",
         }
         highlight_layer = {
             'id': f'{highlight_id}/highlight',
             'source': f'{highlight_id}',
+            'source-layer': f'{highlight_id}',
             **self.BORDER_LAYER_BASE
         }
         sources.append(highlight_source)
@@ -291,8 +333,8 @@ class MapLayer(PolymorphicModel, VizVariable):
     custom_layout = models.JSONField(help_text='https://docs.mapbox.com/help/glossary/layout-paint-property/',
                                      blank=True, null=True)
 
-    def get_data_layer(self, geog_type: Type['AdminRegion']):
-        return DataLayer.get_or_create_updated_map(geog_type, self.viz.time_axis, self.variable, self.use_percent)
+    def get_data_layer(self, geog_collection: 'GeogCollection'):
+        return DataLayer.get_or_create_updated_map(geog_collection, self.viz.time_axis, self.variable, self.use_percent)
 
 
 # ==================
@@ -315,13 +357,12 @@ class Table(DataViz):
     def variables(self):
         return self.vars.order_by('variable_to_table')
 
-    def _get_viz_data(self, geogs: QuerySet['AdminRegion'],
-                      parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list[dict]:
+    def _get_viz_data(self, geog_collection: GeogCollection) -> list[dict]:
         """ Gets data for each variable across time """
         data_check = []
         results = []
         for variable in self.variables:
-            var_data = variable.get_values(geogs, self.time_axis, parent_geog_lvl=parent_geog_lvl)
+            var_data = variable.get_values(geog_collection, self.time_axis)
             data_check += var_data
             time_data = {datum.time: datum.as_value_dict() for datum in var_data}
             results.append({'variable': variable.slug, **time_data})
@@ -383,6 +424,12 @@ class Chart(DataViz):
     @property
     def options(self) -> dict:
         return {'across_geogs': self.across_geogs}
+
+    def get_neighbor_geogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
+        if self.across_geogs:
+            return geog.__class__().objects.filter(in_extent=True)
+        # default behavior for DataViz subclasses
+        return super(Chart, self).get_neighbor_geogs(geog)
 
     def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
         return {'legend_type': self.legend_type, 'across_geogs': self.across_geogs}

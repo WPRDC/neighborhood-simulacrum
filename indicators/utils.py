@@ -64,7 +64,7 @@ class ErrorResponse:
 @dataclass
 class DataResponse:
     data: Optional[Union[List[dict], dict]]
-    options: dict = field(default_factory={})
+    options: dict = field(default_factory=dict)
     error: ErrorResponse = ErrorResponse(ErrorLevel.OK)
 
     def as_dict(self):
@@ -89,6 +89,7 @@ def save_extent():
         .aggregate(the_geom=GeoUnion('geom'))
     extent_wkt = extent['the_geom'].wkt
 
+    # noinspection PyUnresolvedReferences,PyProtectedMember
     cursor: 'psycopg2._psycopg.cursor'
     with connection.cursor() as cursor:
         cursor.execute("""DROP TABLE IF EXISTS "#extent";""")
@@ -129,7 +130,7 @@ def extract_geo_params(request: Request) -> (str, str):
 def get_geog_from_request(request: Request) -> AdminRegion:
     geog, geoid = extract_geo_params(request)
     geog_model = get_geog_model(geog)
-    geog = geog_model.objects.get(geoid=geoid)
+    geog = geog_model.objects.get(common_geoid=geoid)
     return geog
 
 

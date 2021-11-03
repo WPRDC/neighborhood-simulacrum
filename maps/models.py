@@ -1,6 +1,6 @@
 import itertools
 import uuid
-from typing import Type, List
+from typing import List
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
@@ -8,6 +8,7 @@ from django.db import models
 from jenkspy import jenks_breaks
 
 from geo.models import AdminRegion
+from indicators.data import GeogCollection
 from indicators.models import Variable, TimeAxis
 from maps.util import store_map_data
 from profiles.abstract_models import Described, TimeStamped
@@ -23,7 +24,7 @@ class DataLayer(Described, TimeStamped):
     When it's made, it is given the name of the table with its data.
     """
     label = models.CharField(max_length=200)
-    geog_type = models.CharField(max_length=100)  # name of the type (geog_type.__name___)
+    geog_type_id = models.CharField(max_length=100)  # geog_type_id
     geog_content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     variable = models.ForeignKey(Variable, on_delete=models.CASCADE)
     time_axis = models.ForeignKey(TimeAxis, on_delete=models.CASCADE)
@@ -156,7 +157,7 @@ class DataLayer(Described, TimeStamped):
             return cursor.fetchone()[0]
 
     @staticmethod
-    def get_or_create_updated_map(geog_type: Type['AdminRegion'],
+    def get_or_create_updated_map(geog_collection: 'GeogCollection',
                                   time_axis: 'TimeAxis',
                                   variable: 'Variable',
                                   use_percent: bool) -> 'DataLayer':
@@ -168,7 +169,7 @@ class DataLayer(Described, TimeStamped):
         Otherwise the existing map is returned.
         """
         print('gettin or creatin')
-        geog_ctype: ContentType = ContentType.objects.get_for_model(geog_type)
+        geog_ctype: ContentType = ContentType.objects.get_for_model(geog_collection.geog_type)
         try:
             # check if we already have map data
             return DataLayer.objects.get(geog_content_type=geog_ctype, variable=variable, time_axis=time_axis)
@@ -176,22 +177,24 @@ class DataLayer(Described, TimeStamped):
         except DataLayer.DoesNotExist:
             print('creatin')
         # if not, we need to get the data and register it with a new map record
-        geog_type_name = geog_type.__name__
-        geog_type_title = geog_ctype.model_class().geog_type_title
+        geog_type_id = geog_collection.geog_type.geog_type_id
+        geog_type_title = geog_collection.geog_type.geog_type_title
         slug = str(uuid.uuid4()).replace('-', '_')
 
         # create data table
-        store_map_data(slug, geog_type, time_axis, variable, use_percent)
+        store_map_data(slug, geog_collection, time_axis, variable, use_percent)
 
-        return DataLayer.objects.create(name=f"{variable.name} across {geog_type_title}",
-                                        label=f"{variable.name}",
-                                        slug=slug,
-                                        geog_type=geog_type_name,
-                                        time_axis=time_axis,
-                                        geog_content_type=geog_ctype,
-                                        variable=variable,
-                                        use_percent=use_percent,
-                                        number_format_options=variable.locale_options)
+        return DataLayer.objects.create(
+            name=f"{variable.name} across {geog_type_title}",
+            label=f"{variable.name}",
+            slug=slug,
+            geog_type_id=geog_type_id,
+            time_axis=time_axis,
+            geog_content_type=geog_ctype,
+            variable=variable,
+            use_percent=use_percent,
+            number_format_options=variable.locale_options
+        )
 
     def get_map_options(self):
         return self.source, self.layers, self.interactive_layer_ids, self.legend

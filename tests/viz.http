@@ -1,29 +1,13 @@
-# Mismatched regionType and geoid
-GET http://localhost:8000/data-viz/57/?regionType=tract&geoid=42003
+# Shadyside total population
+# Single geography that requires geographic aggregation
+GET http://localhost:8000/data-viz/total-population-bv/?geogType=neighborhood&geogID=pgh-hood-56
 Accept: application/json
 
 ###
-# Tile Request
-GET http://localhost:8000/map_layer/tract/40/207
-Accept: application/json
 
-
-###
-# Working Dataviz data Request
-GET http://localhost:8000/data-viz/57/?regionType=tract&geoid=42003070900
+# Percent population under 18 across counties
+# Multiple geographies with direct data each
+GET http://localhost:8000/data-viz/pop-under18-map/?geogType=county&geogID=42003
 Accept: application/json
 
 ###
-# Working region request
-GET http://localhost:8000/geo/region/?regionType=tract&geoid=42003070900
-Accept: application/json
-
-
-###
-# Working region request
-GET http://localhost:8000/geo/region/?regionType=tract&geoid=42003070900
-Accept: application/json
-
-###
-GET http://localhost:8000/data-viz/34/?geogType=tract&geogID=42003040400
-Accept: application/json

@@ -1,45 +1,26 @@
 import logging
 import math
 from datetime import MINYEAR, MAXYEAR
-from typing import Dict, Optional, Type, List, Union
+from typing import Dict, Optional, Type, List
 
-from django.core.cache import caches
 from django.db import models
 from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
 from census_data.models import CensusValue, CensusTableRecord
-from geo.models import AdminRegion, CensusGeography
-from indicators.data import Datum
+from geo.models import AdminRegion
+from indicators.data import Datum, GeogRecord, GeogCollection, AggregationMethod
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
 from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource
 from indicators.models.time import TimeAxis
 from indicators.utils import ErrorLevel
 from profiles.abstract_models import Described
-from profiles.settings import LONG_TERM_CACHE_TTL, USE_LONG_TERM_CACHE
 
 logger = logging.getLogger(__name__)
 
 
 class Variable(PolymorphicModel, Described):
-    NONE = 'NONE'
-    COUNT = 'COUNT'
-    SUM = 'SUM'
-    MEAN = 'AVG'
-    MODE = 'MODE'
-    MAX = 'MAX'
-    MIN = 'MIN'
-    AGGR_CHOICES = (
-        (NONE, 'None'),
-        (COUNT, 'Count'),
-        (SUM, 'Sum'),
-        (MEAN, 'Mean'),
-        (MODE, 'Mode'),
-        (MAX, 'Maximum'),
-        (MIN, 'Minimum'),
-    )
-
     _agg_methods: dict
 
     # todo: currently everything has been built with aggregation in mind.  selecting 'None' will mean that the variable
@@ -50,11 +31,12 @@ class Variable(PolymorphicModel, Described):
     sources: Manager['Source']
     short_name = models.CharField(max_length=26, null=True, blank=True)
 
-    aggregation_method = models.CharField(
-        help_text='Select "None" if this value cannot be used in aggregate.',
+    aggregation_method: AggregationMethod = models.CharField(
+        help_text='Used when having to describe a geography by combining values from smaller geographies. '
+                  'Select "None" if this value cannot be used in aggregate functions.',
         max_length=5,
-        choices=AGGR_CHOICES,
-        default=SUM,
+        choices=AggregationMethod.choices,
+        default=AggregationMethod.SUM,
     )
 
     units = models.CharField(
@@ -123,39 +105,46 @@ class Variable(PolymorphicModel, Described):
         denoms = self.denominators.all()
         return denoms[0] if len(denoms) else None
 
-    def get_values(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis',
-                   use_denom=True, parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list['Datum']:
+    def get_values(
+            self,
+            geog_collection: GeogCollection,
+            time_axis: 'TimeAxis',
+            use_denom=True
+    ) -> list['Datum']:
         """
         Collects data for this `Variable` instance across geographies in `geogs` and times in `time_axis`.
+
+        :returns: a flat list of Datums of length len(time_axis) * len(geog_collection)
         """
-        cache, cache_key = None, None
+        using_denom: bool = use_denom
+        if use_denom and not len(self.denominators.all()):
+            print("!! `use_denom` set but there are no denominators !!")
+            using_denom = False
+
+        # get subclass-specific aggregation method
         agg_method = self.source_agg_method
-        using_agg = parent_geog_lvl is not None and type(geogs[0]) != parent_geog_lvl
-        if using_agg and agg_method is None:
-            raise AggregationError(f"Variable '{self.name}' can't be aggregated.")
-
-        if USE_LONG_TERM_CACHE:
-            cache = caches['long_term']
-            cache_key = self._generate_cache_key(geogs, time_axis, use_denom=use_denom,
-                                                 agg_method=agg_method, parent_geog_lvl=parent_geog_lvl)
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                print('Using cached data', cache_key)
-                return cached_data
-
-        data: list[Datum] = self._get_values(geogs, time_axis, use_denom=use_denom,
-                                             agg_method=agg_method, parent_geog_lvl=parent_geog_lvl)
-
+        data: list[Datum] = self._get_values(
+            geog_collection,
+            time_axis,
+            use_denom=using_denom,
+            agg_method=agg_method,
+        )
         self._check_values(data)
-
-        if USE_LONG_TERM_CACHE and cache and cache_key:
-            cache.set(cache_key, data, LONG_TERM_CACHE_TTL)
-            print('Cached', cache_key)
 
         return data
 
-    def _get_values(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
-                    agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list['Datum']:
+    def _get_values(
+            self,
+            geog_collection: GeogCollection,
+            time_axis: 'TimeAxis',
+            use_denom=True,
+            agg_method=None,
+    ) -> list['Datum']:
+        """
+        Implemented by source-specific subclasses
+
+        :returns a flat list of Datums of length len(time_axis) * len(geog_collection)
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -203,40 +192,61 @@ class CensusVariable(Variable):
     )
 
     _agg_methods = {
-        Variable.NONE: None,
-        Variable.COUNT: models.Count,
-        Variable.SUM: models.Sum,
-        Variable.MEAN: models.Avg,
-        Variable.MODE: None,
-        Variable.MAX: models.Max,
-        Variable.MIN: models.Min,
+        AggregationMethod.NONE: None,
+        AggregationMethod.COUNT: models.Count,
+        AggregationMethod.SUM: models.Sum,
+        AggregationMethod.MEAN: models.Avg,
+        AggregationMethod.MODE: None,
+        AggregationMethod.MAX: models.Max,
+        AggregationMethod.MIN: models.Min,
     }
 
     def _get_values(self,
-                    geogs: QuerySet[Union[AdminRegion, CensusGeography]],
+                    geog_collection: GeogCollection,
                     time_axis: TimeAxis,
                     use_denom=True,
-                    agg_method=None,
-                    parent_geog_lvl=None) -> list[Datum]:
+                    agg_method=None) -> list[Datum]:
+        """
+        Goes across each geography in the collection and finds its subgeographies and then returns
+        values, an aggregate of their subgeogs' values if necessary, for each geog in GeogCollection geogs
+
+        :returns a flat list of Datums of length len(time_axis) * len(geog_collection)
+        """
+        # 2a. get values for full set of subgeogs
         results: list[Datum] = []
-        for geog in geogs:
-            results += self._get_values_for_geog(geog, time_axis, use_denom)
+        geog_record: GeogRecord
+        for geog_record in geog_collection.records.values():
+            geog_record.data = []
+            for subgeog in geog_record.subgeogs:
+                geog_record.add_time_part_records(
+                    subgeog,
+                    self._get_values_for_geog(subgeog, time_axis, use_denom)
+                )
+            # 2b. aggregate those values up to the set of neighbor geogs
+            # and add the Datums to the final flat list of results
+            results += list(geog_record.get_aggregate_data(self, use_denom).values())
+
         return results
 
     def _get_values_for_geog(self,
-                             geog: Union[AdminRegion, CensusGeography],
-                             time_axis: TimeAxis, use_denom=True) -> list[Datum]:
-        """ Retrieves data for the variable instance at the geography `geog` """
+                             geog: AdminRegion,
+                             time_axis: TimeAxis,
+                             use_denom=True) -> dict[str, Datum]:
+        """
+        Retrieves data for the variable instance at the geography `geog_record.geog`
+        :returns dict that maps time_part slugs to the data at that time
+        """
         # get the census/acs tables for the points in time_axis
         census_table_records_by_year = self.get_census_table_records_for_time_axis(time_axis)
         denom_census_table_records_by_year: Dict[str, QuerySet[CensusTableRecord]] = {}
+
         if use_denom:
             denoms = self.denominators.all()
             denom_census_table_records_by_year = denoms[0].get_census_table_records_for_time_axis(
                 time_axis) if denoms else {}
 
         # extract and compute the values at each point in time_axis
-        results = []
+        results: dict[str, Datum] = {}
         for time_part_slug, records in census_table_records_by_year.items():
             # extract IDs
             value_ids, moe_ids = CensusTableRecord.get_table_uids(records)
@@ -271,8 +281,10 @@ class CensusVariable(Variable):
                 if denom and denom > 0:
                     percent = val / denom
 
-            results.append(Datum(variable=self.slug, time=time_part_slug, geog=geog.common_geoid,
-                                 value=val, moe=moe, denom=denom, percent=percent))
+            results[time_part_slug] = Datum(variable=self.slug, time=time_part_slug, geog=geog.common_geoid,
+                                            value=val, moe=moe, denom=denom, percent=percent)
+
+        # return dict that maps time_part slugs to the data at that time
         return results
 
     # Utils
@@ -315,33 +327,46 @@ class CKANVariable(Variable):
     sql_filter = models.TextField(help_text='SQL clause that will be used to filter data.', null=True, blank=True)
 
     _agg_methods = {
-        Variable.NONE: None,
-        Variable.COUNT: 'COUNT',
-        Variable.SUM: 'SUM',
-        Variable.MEAN: 'AVG',
-        Variable.MODE: None,
-        Variable.MAX: 'MAX',
-        Variable.MIN: 'MIN',
+        AggregationMethod.NONE: None,
+        AggregationMethod.COUNT: 'COUNT',
+        AggregationMethod.SUM: 'SUM',
+        AggregationMethod.MEAN: 'AVG',
+        AggregationMethod.MODE: None,
+        AggregationMethod.MAX: 'MAX',
+        AggregationMethod.MIN: 'MIN',
     }
 
-    def _get_values(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True, agg_method=None,
-                    parent_geog_lvl=None) -> list[Datum]:
+    def _get_values(self,
+                    geog_collection: GeogCollection,
+                    time_axis: TimeAxis,
+                    use_denom=True,
+                    agg_method=None) -> list[Datum]:
+        """
+        Goes across each geography in the collection and finds its subgeographies and then returns
+        values, an aggregate of their subgeogs' values if necessary, for each geog in GeogCollection geogs
+
+        :returns a flat list of Datums of length len(time_axis) * len(geog_collection)
+        """
         results: list[Datum] = []
 
+        parent_geog_lvl = geog_collection.geog_type
+        geogs = geog_collection.all_subgeogs
         for time_part in time_axis.time_parts:
             source: CKANSource = self._get_source_for_time_part(time_part)
             denom_select, denom_data = self._get_denom_data(source, geogs, time_part) if use_denom else (None, None)
 
             # get the raw data for this geog and time_part from CKAN
-            query = source.get_data_query(self, geogs, time_part, parent_geog_lvl=parent_geog_lvl,
-                                          denom_select=denom_select)
+            query = source.get_data_query(
+                self,
+                geogs,
+                time_part,
+                parent_geog_lvl=parent_geog_lvl,
+                denom_select=denom_select
+            )
 
             # get data from ckan and wrap it in our Datum class
             raw_data: list[dict] = source.query_datastore(query)
             var_data: list[Datum] = Datum.from_ckan_response_data(self, raw_data)
-            print(var_data)
-            # todo: build aggregation below into the query
-
             # for regional sources, we need to aggregate here for now todo: debug whats up with ckan's SQL API
             if parent_geog_lvl and type(source) == CKANRegionalSource:
                 var_data = self._aggregate_data(var_data, type(geogs[0]), parent_geog_lvl)
@@ -380,7 +405,6 @@ class CKANVariable(Variable):
         # make lookup dict from queryset
         lookup = {geog.common_geoid: geog.parent_geoid for geog in lookup_geogs}
         # using lookup, replace each datum's geog with the parent one
-        # todo roll up data to parent geog
         joined_data = [datum.update(geog=lookup[datum.geog]) for datum in data]
 
         # split data by parent_geog

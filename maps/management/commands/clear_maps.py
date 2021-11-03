@@ -28,7 +28,7 @@ class Command(BaseCommand):
             cursor: _cursor
             cursor.execute("""
                 DROP SCHEMA IF EXISTS maps CASCADE;
-                CREATE SCHEMA maps;
+                CREATE SCHEMA maps AUTHORIZATION profiles_user;
                 GRANT USAGE ON SCHEMA maps TO profiles_maps_user;
                 GRANT SELECT ON ALL TABLES IN SCHEMA maps TO profiles_maps_user;
                 -- when profiles generates new map tables and views, give SELECT to the maps user by default

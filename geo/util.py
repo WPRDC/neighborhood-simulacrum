@@ -6,5 +6,5 @@ if TYPE_CHECKING:
     from geo.models import AdminRegion
 
 
-def all_geogs_in_domain(geog_type: Type['AdminRegion'], domain: {}) -> QuerySet['AdminRegion']:
-    return geog_type.objects.filter(geom__coveredby=domain['the_geom'])
+def all_geogs_in_extent(geog_type: Type['AdminRegion']) -> QuerySet['AdminRegion']:
+    return geog_type.objects.filter(in_extent=True)

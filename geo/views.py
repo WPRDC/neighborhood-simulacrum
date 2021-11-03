@@ -1,7 +1,6 @@
 from typing import Type
 
 from django.conf import settings
-from django.contrib.gis.db.models import Union
 from rest_framework import viewsets, views, response, serializers, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -11,7 +10,7 @@ from geo.models import AdminRegion, Tract, County, CountySubdivision, \
     BlockGroup, ZipCodeTabulationArea, Neighborhood
 from geo.serializers import AdminRegionPolymorphicSerializer, \
     AdminRegionBriefSerializer, AdminRegionSerializer
-from geo.util import all_geogs_in_domain
+from geo.util import all_geogs_in_extent
 from indicators.utils import is_geog_data_request, get_geog_from_request, get_geog_model
 
 
@@ -33,13 +32,10 @@ class AdminRegionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'common_geoid']
+    lookup_field = 'common_geoid'
 
     def get_queryset(self):
-        domain = County.objects \
-            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
-            .aggregate(the_geom=Union('geom'))
-
-        return all_geogs_in_domain(self.model, domain)
+        return all_geogs_in_extent(self.model)
 
     def get_serializer_class(self):
         if self.request.query_params.get('details', False):

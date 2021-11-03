@@ -88,11 +88,21 @@ class TimeAxis(PolymorphicModel, Described):
     def time_parts(self):
         if self._time_parts:
             return self._time_parts
-        self._time_parts = [TimeAxis.TimePart(slug=self._get_slug_for_time_point(time_point),
-                                              name=self._get_name_for_time_point(time_point),
-                                              time_point=time_point,
-                                              time_unit=self.unit) for time_point in self.time_points]
+        self._time_parts = [
+            TimeAxis.TimePart(
+                slug=self._get_slug_for_time_point(time_point),
+                name=self._get_name_for_time_point(time_point),
+                time_point=time_point,
+                time_unit=self.unit)
+            for time_point in self.time_points
+        ]
         return self._time_parts
+
+    def get_part(self, time_part_slug: str) -> Optional['TimeAxis.TimePart']:
+        for time_part in self.time_parts:
+            if time_part.slug == time_part_slug:
+                return time_part
+        return None
 
     @staticmethod
     def from_time_parts(time_parts: list[TimePart]) -> 'TimeAxis':

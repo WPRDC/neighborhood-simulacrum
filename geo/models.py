@@ -1,7 +1,8 @@
 import json
 from abc import abstractmethod
-from typing import List
+from typing import List, Type, Optional
 
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from polymorphic.models import PolymorphicModel
 
@@ -54,13 +55,13 @@ class AdminRegion(PolymorphicModel, Geography):
     """
     Base class for Administrative Regions or other areas of interest that can be described with available data.
     """
-    # Class fields declarations, subclasses must override these values
-    _geog_type: str
+    # Class field declarations, subclasses must override these values
+    geog_type_id: str
     geog_type_title: str
 
     type_description: str
     ckan_resource: str
-    base_zoom: int
+    base_zoom: int = 8
 
     # Constants
     BLOCK_GROUP = 'blockGroup'
@@ -75,13 +76,35 @@ class AdminRegion(PolymorphicModel, Geography):
     ZCTA = 'zcta'
     NEIGHBORHOOD = 'neighborhood'
 
+    GEOG_TYPE_CHOICES = (
+        (BLOCK_GROUP, 'Block group'),
+        (TRACT, 'Tract'),
+        (COUNTY_SUBDIVISION, 'County subdivision'),
+        (PLACE, 'Place'),
+        (PUMA, 'Puma'),
+        (SCHOOL_DISTRICT, 'School district'),
+        (STATE_HOUSE, 'State house'),
+        (STATE_SENATE, 'State senate'),
+        (COUNTY, 'County'),
+        (ZCTA, 'Zip Code Tab. Area (Zip Code)'),
+        (NEIGHBORHOOD, 'Pgh Neighborhood'),
+    )
+
+    SUBGEOG_TYPE_ORDER = [
+        COUNTY_SUBDIVISION,
+        TRACT,
+        BLOCK_GROUP,
+    ]
+
     # Model fields
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, db_index=True)
     # Better formatted name than what's in the data. (e.g. Allegheny County instead of just Allegheny)
     display_name = models.CharField(max_length=200, null=True, blank=True)
 
     # A unique geoid.  `geoid` for census geographies.
-    common_geoid = models.CharField(max_length=21, null=True, blank=True)
+    common_geoid = models.CharField(max_length=21, null=True, blank=True, db_index=True)
+
+    subregions = models.JSONField(default=dict)
 
     @property
     def geog_path(self) -> str:
@@ -98,8 +121,12 @@ class AdminRegion(PolymorphicModel, Geography):
         return self.name
 
     @property
-    def geog_type(self):
-        return self._geog_type
+    def geog_type(self) -> str:
+        return self.geog_type_id
+
+    @property
+    def geog_id(self):
+        return self.common_geoid
 
     # noinspection PyPep8Naming
     @property
@@ -136,18 +163,26 @@ class AdminRegion(PolymorphicModel, Geography):
             return None
 
     @staticmethod
-    def find_subclass(name: str):
+    def find_subclass(name: str) -> Optional[Type['AdminRegion']]:
+        # case sensitive
         for sc in AdminRegion.__subclasses__():
-            if sc.geog_type == name:
+            if sc.geog_type_id == name:
+                return sc
+        # case-insensitive backup check
+        for sc in AdminRegion.__subclasses__():
+            if sc.geog_type_id.lower() == name.lower():
                 return sc
         return None
+
+    def __str__(self):
+        return self.name
 
     def save(self, *args, **kwargs):
         super(AdminRegion, self).save(*args, **kwargs)
 
 
 class BlockGroup(AdminRegion, CensusGeography):
-    _geog_type = AdminRegion.BLOCK_GROUP
+    geog_type_id = AdminRegion.BLOCK_GROUP
     geog_type_title = "Block Group"
 
     type_description = 'Smallest geographical unit w/ ACS sample data.'
@@ -183,7 +218,7 @@ class BlockGroup(AdminRegion, CensusGeography):
 
 
 class Tract(AdminRegion, CensusGeography):
-    _geog_type = AdminRegion.TRACT
+    geog_type_id = AdminRegion.TRACT
     geog_type_title = 'Tract'
 
     type_description = "Drawn to encompass ~2500-8000 people"
@@ -215,7 +250,7 @@ class Tract(AdminRegion, CensusGeography):
 
 
 class CountySubdivision(AdminRegion, CensusGeography):
-    _geog_type = AdminRegion.COUNTY_SUBDIVISION
+    geog_type_id = AdminRegion.COUNTY_SUBDIVISION
     geog_type_title = 'County Subdivision'
 
     type_description = "Townships, municipalities, boroughs and cities."
@@ -248,7 +283,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
 
 class County(AdminRegion, CensusGeography):
-    _geog_type = AdminRegion.COUNTY
+    geog_type_id = AdminRegion.COUNTY
     geog_type_title = "County"
 
     type_description = "Largest subdivision of a state."
@@ -281,7 +316,7 @@ class County(AdminRegion, CensusGeography):
 
 
 class ZipCodeTabulationArea(AdminRegion, CensusGeography):
-    _geog_type = AdminRegion.ZCTA
+    geog_type_id = AdminRegion.ZCTA
     geog_type_title = 'Zip Code'
 
     type_description = "The area covered by a postal Zip code."
@@ -307,7 +342,7 @@ class ZipCodeTabulationArea(AdminRegion, CensusGeography):
 
 
 class SchoolDistrict(AdminRegion, CensusGeography):
-    _geog_type = AdminRegion.SCHOOL_DISTRICT
+    geog_type_id = AdminRegion.SCHOOL_DISTRICT
     geog_type_title = "School District"
 
     type_description = 'Area served by a School District.'
@@ -338,7 +373,7 @@ class SchoolDistrict(AdminRegion, CensusGeography):
 
 
 class Neighborhood(AdminRegion):
-    _geog_type = AdminRegion.NEIGHBORHOOD
+    geog_type_id = AdminRegion.NEIGHBORHOOD
     geog_type_title = 'Neighborhood'
 
     type_description = 'Official City of Pittsburgh neighborhood boundaries'

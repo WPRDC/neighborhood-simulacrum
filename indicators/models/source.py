@@ -154,7 +154,6 @@ class CKANSource(Source, PolymorphicModel):
         WHERE {geog_filter} AND {time_filter} 
         """
         query += f"GROUP BY __geog__ " if agg_str else ''
-        print(query)
         return query
 
     def clean(self):
@@ -164,7 +163,6 @@ class CKANSource(Source, PolymorphicModel):
 
     @staticmethod
     def query_datastore(query: str):
-        print(query)
         conn: RealDictConnection = psycopg2.connect(**datastore_settings, cursor_factory=RealDictCursor)
         cur: RealDictCursor = conn.cursor()
         cur.execute(query)
@@ -320,7 +318,7 @@ class CKANRegionalSource(CKANSource):
         return bool(self._get_source_geog_field(geog))
 
     def _get_source_geog_field(self, geog: Union[AdminRegion, Type[AdminRegion]]) -> object:
-        field_for_geoid_field = f'{geog.geog_type}_field'.lower()
+        field_for_geoid_field = f'{geog.geog_type_id}_field'.lower()
         return getattr(self, field_for_geoid_field)
 
     # SQL Generators
