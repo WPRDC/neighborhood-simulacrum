@@ -16,7 +16,7 @@ class Command(BaseCommand):
         for feature in layer:
             geoid = feature.get('geoid10')
             print(geoid)
-            geog = models.Neighborhood.objects.get(common_geoid=geoid)
+            geog = models.Neighborhood.objects.get(global_geoid=geoid)
             print(geog)
             geom = feature.geom
             new_geom = GEOSGeometry(geom.wkt)

@@ -8,8 +8,8 @@ from indicators.models.viz import DataViz, MiniMap, Table, Chart, \
 
 @admin.register(DataViz)
 class DataVizAdmin(PolymorphicParentModelAdmin):
-    list_display = ('id', 'name',)
-    search_fields = ('name',)
+    list_display = ('slug', 'name',)
+    search_fields = ('name', 'slug')
     base_model = DataViz
     child_models = (MiniMap, Table, Chart, MiniMap, BigValue, Sentence)
     prepopulated_fields = {"slug": ("name",)}

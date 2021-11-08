@@ -21,6 +21,9 @@ class Identified(models.Model):
 class Described(Identified):
     description = models.TextField(null=True, blank=True)
 
+    def __str__(self):
+        return self.name
+
     class Meta:
         abstract = True
 

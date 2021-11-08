@@ -85,7 +85,7 @@ def limit_to_geo_extent(geog_type: Type['AdminRegion']) -> QuerySet['AdminRegion
 # noinspection SqlResolve
 def save_extent():
     extent = County.objects \
-        .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+        .filter(global_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
         .aggregate(the_geom=GeoUnion('geom'))
     extent_wkt = extent['the_geom'].wkt
 
@@ -102,7 +102,7 @@ def save_extent():
 
 def in_geo_extent(geog: 'AdminRegion') -> bool:
     return County.objects \
-        .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+        .filter(global_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
         .aggregate(the_geom=GeoUnion('geom')).values('the_geom').contains(geog)
 
 
@@ -130,7 +130,7 @@ def extract_geo_params(request: Request) -> (str, str):
 def get_geog_from_request(request: Request) -> AdminRegion:
     geog, geoid = extract_geo_params(request)
     geog_model = get_geog_model(geog)
-    geog = geog_model.objects.get(common_geoid=geoid)
+    geog = geog_model.objects.get(global_geoid=geoid)
     return geog
 
 

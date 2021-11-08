@@ -10,7 +10,7 @@ class AdminRegionAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid',
+        'global_geoid',
         'geog_path',
     )
     search_fields = ('name',)
@@ -22,7 +22,7 @@ class BlockGroupAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid',
+        'global_geoid',
         'geoid',
         'affgeoid',
         'statefp',
@@ -38,7 +38,7 @@ class TractAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid',
+        'global_geoid',
         'geoid',
         'affgeoid',
         'statefp',
@@ -53,7 +53,7 @@ class ZipCodeTabulationAreaAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid',
+        'global_geoid',
         'geoid',
         'affgeoid',
     )
@@ -65,7 +65,7 @@ class CountySubdivisionAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid',
+        'global_geoid',
         'geoid',
         'affgeoid',
         'statefp',
@@ -82,7 +82,7 @@ class SchoolDistrictAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid',
+        'global_geoid',
         'geoid',
         'affgeoid',
         'statefp',
@@ -97,7 +97,7 @@ class CountyAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid',
+        'global_geoid',
         'geoid',
         'affgeoid',
         'statefp',
@@ -113,6 +113,6 @@ class NeighborhoodAdmin(GeoModelAdmin):
     list_display = (
         'id',
         'name',
-        'common_geoid'
+        'global_geoid'
     )
     search_fields = ('name',)

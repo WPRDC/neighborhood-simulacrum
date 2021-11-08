@@ -14,7 +14,7 @@ from polymorphic.models import PolymorphicModel
 
 from geo.models import AdminRegion
 from indicators.data import GeogRecord, GeogCollection, Datum
-from indicators.errors import DataRetrievalError, EmptyResultsError
+from indicators.errors import DataRetrievalError, EmptyResultsError, AggregationError
 from indicators.models.source import Source
 from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
 from maps.models import DataLayer
@@ -98,36 +98,38 @@ class DataViz(PolymorphicModel, Described):
                 return False
         return True
 
-    def get_subgeogs(self, geog: 'AdminRegion') -> Optional[QuerySet['AdminRegion']]:
+    def get_subgeogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
         """
         Returns a queryset representing the minimum set of geographies to for which data can be
         aggregated to represent `geog` and a bool representing whether child geogs are used.
 
         `None` is returned if no such non-empty set exists.
 
-        :param geog: teh geography being examined
+        :param geog: the geography being examined
+        :raises AggregationError: if aggregation isn't possible
         :return: Queryset of geographies to for which data can be aggregated to represent `geog`; None if an emtpy set.
         """
         # does it work directly for the goeg?
         if self.can_handle_geography(geog):
-            return type(geog).objects.filter(common_geoid=geog.common_geoid)
+            return type(geog).objects.filter(global_geoid=geog.global_geoid)
 
         # does it work as an aggregate over a smaller geog?
         for subgeog_type_id in AdminRegion.SUBGEOG_TYPE_ORDER:
             if subgeog_type_id in geog.subregions:
                 subgeog_model = AdminRegion.find_subclass(subgeog_type_id)
-                subgeog_common_geoids = geog.subregions[subgeog_type_id]
+                subgeog_global_geoids = geog.subregions[subgeog_type_id]
                 sub_geogs: QuerySet['AdminRegion'] = subgeog_model.objects.filter(
-                    common_geoid__in=subgeog_common_geoids)
+                    global_geoid__in=subgeog_global_geoids)
 
                 if self.can_handle_geographies(sub_geogs):
                     return sub_geogs
 
-        return None
+        # if it required aggregation but no suitable subgeogs were found
+        raise AggregationError(f'{self.title} not available for {geog.title}.')
 
     def get_neighbor_geogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
         """ Generates queryset of all neighbor geographies to be compared with `geog` also includes geog."""
-        return geog.__class__.objects.filter(common_geoid=geog.common_geoid)
+        return geog.__class__.objects.filter(global_geoid=geog.global_geoid)
 
     def get_viz_data(self, geog: 'AdminRegion') -> DataResponse:
         """
@@ -150,30 +152,31 @@ class DataViz(PolymorphicModel, Described):
         :param geog: the geography being examined
         :return: DataResponse with data and error information
         """
-
-        # 1. Get full set of geogs necessary for viz
-        #   a. get set of neighbor geogs including the primary geog if necessary for teh viz
-        neighbor_geogs = self.get_neighbor_geogs(geog)
-
-        #   b. for each geog in the set, find the set of subgeogs that work for the source.
-        #         if no subgeogs are necessary, the subgeog set will just be [geog]
-        geog_collection = GeogCollection(geog_type=type(geog), primary_geog=geog)
-        for neighbor_geog in neighbor_geogs:
-            geog_collection.records[neighbor_geog.common_geoid] = GeogRecord(
-                geog=neighbor_geog,
-                subgeogs=self.get_subgeogs(neighbor_geog),
-            )
-
-        # 2. For each variable in the data viz,
-        #   a. get values for full set of subgeogs
-        #   b. aggregate those values up to the set of neighbor geogs
-        # this is done in the private method which may be overridden to
-        # handle difference cases for difference visualizations
-
-        # todo: add information about geographic aggregation if it occured
-        #   - list of subgeogs so we can link to them on Apps and sites
         data, options, error = None, None, ErrorResponse(level=ErrorLevel.OK, message='')
+
         try:
+            # 1. Get full set of geogs necessary for viz
+            #   a. get set of neighbor geogs including the primary geog if necessary for teh viz
+            neighbor_geogs = self.get_neighbor_geogs(geog)
+
+            #   b. for each geog in the set, find the set of subgeogs that work for the source.
+            #         if no subgeogs are necessary, the subgeog set will just be [geog]
+            geog_collection = GeogCollection(geog_type=type(geog), primary_geog=geog)
+            for neighbor_geog in neighbor_geogs:
+                geog_collection.records[neighbor_geog.global_geoid] = GeogRecord(
+                    geog=neighbor_geog,
+                    subgeogs=self.get_subgeogs(neighbor_geog),
+                )
+
+            # 2. For each variable in the data viz,
+            #   a. get values for full set of subgeogs
+            #   b. aggregate those values up to the set of neighbor geogs
+            # this is done in the private method which may be overridden to
+            # handle difference cases for difference visualizations
+
+            # todo: add information about geographic aggregation if it occured
+            #   - list of subgeogs so we can link to them on Apps and sites
+
             if neighbor_geogs:
                 data = self._get_viz_data(geog_collection)
                 options = self._get_viz_options(geog_collection)

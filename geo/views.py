@@ -31,8 +31,8 @@ class AdminRegionViewSet(viewsets.ModelViewSet):
     detailed_serializer_class: [serializers.Serializer] = AdminRegionSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'common_geoid']
-    lookup_field = 'common_geoid'
+    search_fields = ['name', 'global_geoid']
+    lookup_field = 'global_geoid'
 
     def get_queryset(self):
         return all_geogs_in_extent(self.model)

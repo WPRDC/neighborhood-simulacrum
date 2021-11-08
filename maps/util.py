@@ -73,7 +73,7 @@ def store_map_data(
                         dat.value::float as value, 
                         %(number_format_options)s as number_format_options
                     FROM {table_name} dat
-                    JOIN ({base_geography_subquery}) geo ON dat.geoid = geo.geoid""",
+                    JOIN ({base_geography_subquery}) geo ON dat.geoid = geo.global_geoid""",
             {'title': variable.name, 'number_format_options': json.dumps(number_format_options)}
         )
 

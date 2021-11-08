@@ -14,6 +14,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         extent = County.objects \
-            .filter(common_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
+            .filter(global_geoid__in=settings.AVAILABLE_COUNTIES_IDS) \
             .aggregate(the_geom=GeoUnion('geom'))
         AdminRegion.objects.filter(geom__coveredby=extent['the_geom']).update(in_extent=True)

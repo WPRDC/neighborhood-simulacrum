@@ -333,7 +333,7 @@ class CKANRegionalSource(CKANSource):
         source_geog_field = f'"{source_geog_field}"'  # add double quotes to ensure case sensitivity
 
         # get filter by geoid
-        geoids = f"""({', '.join([f"'{geog.common_geoid}'" for geog in geogs.all()])})"""
+        geoids = f"""({', '.join([f"'{geog.global_geoid}'" for geog in geogs.all()])})"""
 
         return f""" {source_geog_field} IN {geoids} """
 

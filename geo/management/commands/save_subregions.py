@@ -30,7 +30,7 @@ class Command(BaseCommand):
         #         print('-', child_type)
         #         for geog in region_type.objects.all():
         #             child_geogs = child_type.objects.filter(geom__coveredby=geog.geom)
-        #             child_geog_ids = [cg.common_geoid for cg in child_geogs]
+        #             child_geog_ids = [cg.global_geoid for cg in child_geogs]
         #             geog.sub_regions = {**geog.sub_regions, child_type.geog_type_id: child_geog_ids}
         #             geog.save()
         #             print('--', geog, 'saved')

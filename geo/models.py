@@ -102,17 +102,17 @@ class AdminRegion(PolymorphicModel, Geography):
     display_name = models.CharField(max_length=200, null=True, blank=True)
 
     # A unique geoid.  `geoid` for census geographies.
-    common_geoid = models.CharField(max_length=21, null=True, blank=True, db_index=True)
+    global_geoid = models.CharField(max_length=21, null=True, blank=True, db_index=True)
 
     subregions = models.JSONField(default=dict)
 
     @property
     def geog_path(self) -> str:
-        return f'{self.geog_type}/{self.common_geoid}'
+        return f'{self.geog_type}/{self.global_geoid}'
 
     @property
     def uid(self):
-        return f'{self.geog_type}:{self.common_geoid}'
+        return f'{self.geog_type}:{self.global_geoid}'
 
     @property
     def title(self) -> str:
@@ -126,13 +126,13 @@ class AdminRegion(PolymorphicModel, Geography):
 
     @property
     def geog_id(self):
-        return self.common_geoid
+        return self.global_geoid
 
     # noinspection PyPep8Naming
     @property
     def geogID(self) -> str:
         """ Alias for geog_id. Workaround for camel case plugin to have ID instead of Id """
-        return self.common_geoid
+        return self.global_geoid
 
     @property
     def simple_geojson(self) -> dict:
@@ -157,7 +157,7 @@ class AdminRegion(PolymorphicModel, Geography):
             geog_id = parts[1]
             geog_type = AdminRegion.find_subclass(geog_type_str)
             if geog_type:
-                return geog_type.objects.get(common_geoid=geog_id)
+                return geog_type.objects.get(global_geoid=geog_id)
         except IndexError:
             print('Malformed uid.')
             return None

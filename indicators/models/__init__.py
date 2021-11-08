@@ -51,6 +51,9 @@ class IndicatorDataViz(models.Model):
 
     order = models.IntegerField(default=0)
 
+    def __str__(self):
+        return f'{self.indicator.slug} - {self.data_viz.slug}'
+
     class Meta:
         ordering = ('order',)
         unique_together = ('indicator', 'data_viz',)

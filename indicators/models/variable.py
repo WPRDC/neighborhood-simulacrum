@@ -87,12 +87,12 @@ class Variable(PolymorphicModel, Described):
     @property
     def aggregation_method_class(self):
         return {
-            self.NONE: models.Sum,
-            self.COUNT: models.Count,
-            self.SUM: models.Sum,
-            self.MEAN: models.Avg,
-            self.MAX: models.Max,
-            self.MIN: models.Min
+            AggregationMethod.NONE: models.Sum,
+            AggregationMethod.COUNT: models.Count,
+            AggregationMethod.SUM: models.Sum,
+            AggregationMethod.MEAN: models.Avg,
+            AggregationMethod.MAX: models.Max,
+            AggregationMethod.MIN: models.Min
         }.get(self.aggregation_method, models.Sum)
 
     @property
@@ -156,7 +156,7 @@ class Variable(PolymorphicModel, Described):
 
     def _generate_cache_key(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
                             agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None):
-        geog_key = tuple(sorted((geog.common_geoid for geog in geogs.all())))
+        geog_key = tuple(sorted((geog.global_geoid for geog in geogs.all())))
         time_key = time_axis.slug
         denom_key = int(use_denom)
         agg_key = str(agg_method)
@@ -281,7 +281,7 @@ class CensusVariable(Variable):
                 if denom and denom > 0:
                     percent = val / denom
 
-            results[time_part_slug] = Datum(variable=self.slug, time=time_part_slug, geog=geog.common_geoid,
+            results[time_part_slug] = Datum(variable=self.slug, time=time_part_slug, geog=geog.global_geoid,
                                             value=val, moe=moe, denom=denom, percent=percent)
 
         # return dict that maps time_part slugs to the data at that time
@@ -384,7 +384,7 @@ class CKANVariable(Variable):
 
     @property
     def agg_str(self):
-        return '' if self.aggregation_method == self.NONE else self.aggregation_method
+        return '' if self.aggregation_method == AggregationMethod.NONE else self.aggregation_method
 
     # Utils
     @staticmethod
@@ -397,13 +397,13 @@ class CKANVariable(Variable):
                         parent_geog_lvl: Type[AdminRegion]) -> list[Datum]:
         """ Rolls up data to `parent_geog_lvl` using `self.aggregation_method` """
         # join parent join to base_geogs
-        parent_sq = Subquery(parent_geog_lvl.objects.filter(geom__covers=OuterRef('geom')).values('common_geoid'))
+        parent_sq = Subquery(parent_geog_lvl.objects.filter(geom__covers=OuterRef('geom')).values('global_geoid'))
         # filter to geoids found in data
         lookup_geogs: QuerySet[AdminRegion] = base_geog_lvl.objects.filter(
-            common_geoid__in=[d.geog for d in data]
+            global_geoid__in=[d.geog for d in data]
         ).annotate(parent_geoid=parent_sq)
         # make lookup dict from queryset
-        lookup = {geog.common_geoid: geog.parent_geoid for geog in lookup_geogs}
+        lookup = {geog.global_geoid: geog.parent_geoid for geog in lookup_geogs}
         # using lookup, replace each datum's geog with the parent one
         joined_data = [datum.update(geog=lookup[datum.geog]) for datum in data]
 

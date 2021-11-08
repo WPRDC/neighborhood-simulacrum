@@ -46,7 +46,7 @@ class GeogCollection:
     def all_subgeogs(self) -> QuerySet['AdminRegion']:
         all_subgeog_geoids = []
         for geog_record in self.records.values():
-            all_subgeog_geoids += [sg.common_geoid for sg in geog_record.subgeogs]
+            all_subgeog_geoids += [sg.global_geoid for sg in geog_record.subgeogs]
         return AdminRegion.objects.filter(global_geoid__in=all_subgeog_geoids)
 
     @property
@@ -111,7 +111,7 @@ class GeogRecord:
         """
         # if this is a direct record, then we don't need to perform any aggregation
         if not self.is_divided:
-            return self.data_by_subgeog[self.geog.common_geoid]
+            return self.data_by_subgeog[self.geog.global_geoid]
 
         # if we need to perform agg_method
         agg_method: AggregationMethod = variable.aggregation_method
@@ -121,7 +121,7 @@ class GeogRecord:
             data = subgeog_record.values()
             results[time_part_slug] = Datum(
                 variable=variable.slug,
-                geog=self.geog.common_geoid,
+                geog=self.geog.global_geoid,
                 time=time_part_slug,
                 value=aggregate_data([datum.value for datum in data], agg_method),
                 # todo: figure out margin of error
@@ -135,16 +135,16 @@ class GeogRecord:
         :returns: number of records added.
         """
         count = 0
-        if subgeog.common_geoid not in self.data_by_subgeog:
-            self.data_by_subgeog[subgeog.common_geoid] = {}
+        if subgeog.global_geoid not in self.data_by_subgeog:
+            self.data_by_subgeog[subgeog.global_geoid] = {}
 
         for time_part_slug, datum in records.items():
             if time_part_slug not in self.data_by_time_part:
                 self.data_by_time_part[time_part_slug] = {}
 
             # keep tract of both hierarchies for now just in case
-            self.data_by_subgeog[subgeog.common_geoid][time_part_slug] = datum
-            self.data_by_time_part[time_part_slug][subgeog.common_geoid] = datum
+            self.data_by_subgeog[subgeog.global_geoid][time_part_slug] = datum
+            self.data_by_time_part[time_part_slug][subgeog.global_geoid] = datum
             count += 1
         return count
 
