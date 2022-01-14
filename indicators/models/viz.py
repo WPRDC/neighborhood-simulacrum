@@ -259,9 +259,12 @@ class MiniMap(DataViz):
         # todo: provide options to allow for different neighbor selection
         return geog_type.objects.filter(in_extent=True)
 
-    def _get_viz_data(self, geogs: QuerySet['AdminRegion'],
-                      parent_geog_lvl: Optional[Type['AdminRegion']] = None) -> list[dict]:
-        return []  # map data is stored in geojson that is served elsewhere
+    def _get_viz_data(
+            self,
+            geogs: QuerySet['AdminRegion'],
+            parent_geog_lvl: Optional[Type['AdminRegion']] = None
+    ) -> (list[Datum], list[ErrorRecord]):
+        return [], []  # map data is stored in geojson that is served elsewhere
 
     def _get_viz_options(self, geog_collection: GeogCollection) -> dict:
         """
