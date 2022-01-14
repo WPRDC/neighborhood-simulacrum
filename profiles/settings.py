@@ -32,11 +32,13 @@ ALLOWED_HOSTS = ['api.profiles.wprdc.org', '127.0.0.1', 'localhost']
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.contenttypes',
+    'grappelli.dashboard',
+    'grappelli',
     'profiles.apps.CustomAdminConfig',
     'django.contrib.auth',
     'polymorphic',
     'corsheaders',
-    'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
@@ -62,7 +64,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -195,8 +196,6 @@ REST_FRAMEWORK = {
 
 CORS_ORIGIN_ALLOW_ALL = True
 
-GRAPPELLI_ADMIN_TITLE = 'Profiles II'
-
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 
 INTERNAL_IPS = '127.0.0.1'
@@ -249,4 +248,9 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'WPRDC Neighborhood Simulacrum',
     'DESCRIPTION': 'API for neighborhood indicators and other civic open data.',
     'VERSION': '0.0.1',
+}
+
+GRAPPELLI_INDEX_DASHBOARD = {
+    'django.contrib.admin.site': 'profiles.dashboard.CustomIndexDashboard',
+    'profiles.admin.CustomAdminSite': 'profiles.dashboard.CustomIndexDashboard',
 }

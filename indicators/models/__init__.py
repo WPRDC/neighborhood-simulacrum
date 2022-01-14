@@ -69,7 +69,7 @@ class Indicator(Described):
 
     """ Indicators """
     long_description = models.TextField(
-        help_text='A thorough description for long-form representation.',
+        help_text='🛑 Deprecated!!! This field will go away soon. Used "Full Description" instead.',
         blank=True,
         null=True,
     )

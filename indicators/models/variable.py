@@ -218,6 +218,10 @@ class CensusVariable(Variable):
         AggregationMethod.MIN: models.Min,
     }
 
+    class Meta:
+        verbose_name = 'Census Variable'
+        verbose_name_plural = 'Census Variables'
+
     def _get_values(self,
                     geog_collection: GeogCollection,
                     time_axis: TimeAxis,
@@ -359,6 +363,10 @@ class CKANVariable(Variable):
         AggregationMethod.MAX: 'MAX',
         AggregationMethod.MIN: 'MIN',
     }
+
+    class Meta:
+        verbose_name = 'CKAN Variable'
+        verbose_name_plural = 'CKAN Variables'
 
     def _get_values(self,
                     geog_collection: GeogCollection,

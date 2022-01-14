@@ -23,6 +23,10 @@ def m2q(m: int) -> int:
 class TimeAxis(PolymorphicModel, Described):
     """ Base class for time axes. """
 
+    class Meta:
+        verbose_name = 'Time Axis'
+        verbose_name_plural = 'Time Axes'
+
     @dataclass
     class TimePart(object):
         """ Holds what's necessary to describe one continuous chunk of time """
