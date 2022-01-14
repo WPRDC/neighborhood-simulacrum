@@ -20,15 +20,25 @@ class CustomIndexDashboard(Dashboard):
     def init_with_context(self, context):
         site_name = get_admin_site_name(context)
 
+        # Column 1
+
         self.children.append(modules.ModelList(
-            title='❇️ Quick List',
+            title='❇️ Most Used',
             column=1,
             models=(
                 'indicators.models.Indicator',
                 'indicators.models.viz.DataViz',
             ),
             # hack to quickly make the links not burn your eyes out
-            pre_content='<style>.grp-link-external { color: blue !important; text-decoration: underline !important;}</style>'
+            pre_content="""
+            <style>
+                        .grp-link-external {
+                        color: #309bbf !important;
+                        font-weight: 600; 
+                        text-decoration: underline !important;
+                        }
+                     </style>
+            """,
         ))
 
         self.children.append(modules.ModelList(
@@ -60,20 +70,36 @@ class CustomIndexDashboard(Dashboard):
             )
         ))
 
-        self.children.append(modules.AppList(
-            _('All Models'),
-            collapsible=True,
+        self.children.append(modules.ModelList(
+            title='🌎 Geographies',
             column=1,
-            css_classes=('collapse closed',),
-            exclude=('django.contrib.*',),
+            models=(
+                'geo.models.Neighborhood',
+                'geo.models.BlockGroup',
+                'geo.models.Tract',
+                'geo.models.CountySubdivision',
+                'geo.models.County',
+                'geo.models.ZipCodeTabulationArea',
+                'geo.models.SchoolDistrict',
+            )
         ))
 
         self.children.append(modules.ModelList(
-            _('Administration'),
+            _('🛂 Administration'),
             column=2,
             collapsible=True,
             models=('django.contrib.*',),
         ))
+
+        self.children.append(modules.AppList(
+            _('All Models'),
+            collapsible=True,
+            column=2,
+            css_classes=('grp-closed',),
+            exclude=('django.contrib.*',),
+        ))
+
+        # Column 3
 
         self.children.append(modules.LinkList(
             _('External Links'),
@@ -109,7 +135,7 @@ class CustomIndexDashboard(Dashboard):
 
         self.children.append(modules.RecentActions(
             _('Recent actions'),
-            limit=5,
+            limit=10,
             collapsible=False,
-            column=2,
+            column=3,
         ))
