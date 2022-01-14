@@ -371,19 +371,6 @@ class Table(DataViz):
     def variables(self):
         return self.vars.order_by('variable_to_table')
 
-    def _get_viz_data(self, geog_collection: GeogCollection) -> list[dict]:
-        """ Gets data for each variable across time """
-        data_check = []
-        results = []
-        for variable in self.variables:
-            var_data = variable.get_values(geog_collection, self.time_axis)
-            data_check += var_data
-            time_data = {datum.time: datum.as_value_dict() for datum in var_data}
-            results.append({'variable': variable.slug, **time_data})
-        if not data_check:
-            raise EmptyResultsError('Data not available.')
-        return results
-
     def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
         columns = [{"Header": '', "accessor": 'variable'}, ] + \
                   [{"Header": tp.name, "accessor": tp.slug} for tp in self.time_axis.time_parts]
