@@ -1,27 +1,23 @@
 import json
-from typing import Type, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, filters
 from rest_framework.exceptions import NotFound
-from rest_framework.negotiation import BaseContentNegotiation
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from indicators.models import Variable, DataViz
-from indicators.utils import get_geog_model
-from indicators.views import GeoJSONRenderer
 from maps.models import DataLayer
 from maps.serializers import DataLayerSerializer, DataLayerDetailsSerializer
+from profiles.content_negotiation import GeoJSONContentNegotiation
 from profiles.settings import VIEW_CACHE_TTL
 
 if TYPE_CHECKING:
-    from geo.models import AdminRegion
-    from indicators.models.viz import MiniMap
+    pass
 
 
 class DataLayerViewSet(viewsets.ModelViewSet):
@@ -40,24 +36,6 @@ class DataLayerViewSet(viewsets.ModelViewSet):
 
     def render(self, data, media_type=None, renderer_context=None):
         return json.dumps(data)
-
-
-class GeoJSONContentNegotiation(BaseContentNegotiation):
-    """
-    Custom content negotiation scheme for GeoJSON files.
-
-    `GeoJSONRenderer` is used for downloading geojson files
-    `JSONRenderer` is used for ajax calls.
-    """
-
-    def select_parser(self, request, parsers):
-        return super(GeoJSONContentNegotiation, self).select_parser(request, parsers)
-
-    def select_renderer(self, request: Request, renderers, format_suffix=None):
-        renderer = renderers[0]
-        if request.query_params.get('download', False):
-            renderer = GeoJSONRenderer()
-        return renderer, renderer.media_type
 
 
 class GeoJSONDataLayerView(APIView):

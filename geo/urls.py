@@ -11,5 +11,6 @@ router.register(r'neighborhood', views.NeighborhoodViewSet, basename='neighborho
 router.register(r'zcta', views.ZipCodeViewSet, basename='zcta')
 
 urlpatterns = router.urls + [
-    re_path(r'geog-types/?$', views.geog_list),
+    re_path(r'geog-types/?$', views.GeoLevelView.as_view()),
+    re_path(r'geog-levels/?$', views.GeoLevelView.as_view()),
 ]

@@ -16,7 +16,7 @@ from geo.models import AdminRegion
 from indicators.data import GeogRecord, GeogCollection, Datum
 from indicators.errors import DataRetrievalError, EmptyResultsError, AggregationError
 from indicators.models.source import Source
-from indicators.utils import DataResponse, ErrorResponse, ErrorLevel
+from indicators.utils import DataResponse, ErrorRecord, ErrorLevel
 from maps.models import DataLayer
 from maps.util import menu_view_name
 from profiles.abstract_models import Described
@@ -27,8 +27,6 @@ if TYPE_CHECKING:
 CARTO_REQUIRED_FIELDS = "cartodb_id, the_geom, the_geom_webmercator"
 
 logger = logging.getLogger(__name__)
-
-pattern = re.compile(r'(?<!^)(?=[A-Z])')
 
 
 class VizVariable(models.Model):
@@ -140,7 +138,7 @@ class DataViz(PolymorphicModel, Described):
 
         Generalized solution
             1. Get full set of geogs necessary for viz
-              a. get set of neighbor geogs including the primary geog if necessary for teh viz
+              a. get set of neighbor geogs, including the primary geog, if necessary for the viz
                   (e.g. a map of neighborhoods, table across counties)
               b. for each geog in the set, find the set of subgeogs necessary for the source.
                   if not necessary, the subgeog set will just be [geog]
@@ -152,7 +150,10 @@ class DataViz(PolymorphicModel, Described):
         :param geog: the geography being examined
         :return: DataResponse with data and error information
         """
-        data, options, error = None, None, ErrorResponse(level=ErrorLevel.OK, message='')
+        data: Optional[list[Datum]] = None
+        options: Optional[dict] = None
+        error = ErrorRecord(level=ErrorLevel.OK, message='')
+        warnings: Optional[list[ErrorRecord]] = None
 
         try:
             # 1. Get full set of geogs necessary for viz
@@ -174,21 +175,21 @@ class DataViz(PolymorphicModel, Described):
             # this is done in the private method which may be overridden to
             # handle difference cases for difference visualizations
 
-            # todo: add information about geographic aggregation if it occured
+            # todo: add information about geographic aggregation if it occureda
             #   - list of subgeogs so we can link to them on Apps and sites
 
             if neighbor_geogs:
-                data = self._get_viz_data(geog_collection)
+                data, warnings = self._get_viz_data(geog_collection)
                 options = self._get_viz_options(geog_collection)
             else:
-                error = ErrorResponse(level=ErrorLevel.EMPTY,
-                                      message=f'This visualization is not available for {geog.name}.')
-            return DataResponse(data, options, error)
+                error = ErrorRecord(level=ErrorLevel.EMPTY,
+                                    message=f'This visualization is not available for {geog.name}.')
+            return DataResponse(data, options, error, warnings=warnings)
 
         except DataRetrievalError as e:
             logger.error(str(e))
             error = e.error_response
-            return DataResponse(data, options, error)
+            return DataResponse(data, options, error, warnings=warnings)
 
         except Exception as e:
             logger.exception(str(e))
@@ -197,7 +198,7 @@ class DataViz(PolymorphicModel, Described):
             raise e
             # return DataResponse(data, options, error)
 
-    def _get_viz_data(self, geog_collection: GeogCollection) -> list['Datum']:
+    def _get_viz_data(self, geog_collection: GeogCollection) -> (list[Datum], list[ErrorRecord]):
         """
         Gets a representation of data for the viz.
 
@@ -210,16 +211,15 @@ class DataViz(PolymorphicModel, Described):
         If representing the data as a list of records doesn't make sense for the visualization (e.g. maps),
         this method can be overridden.
         """
+        data: list[Datum] = []
+        warnings: list[ErrorRecord] = []
 
-        # 2. For each variable in the data viz,
-        #   a. get values for full set of subgeogs
-        #   b. aggregate those values up to the set of neighbor geogs
-        data: list['Datum'] = []
         for variable in self.variables:
-            data += [datum.as_dict() for datum in
-                     variable.get_values(geog_collection, self.time_axis)]
+            var_data, var_warnings = variable.get_values(geog_collection, self.time_axis)
+            data += var_data
+            warnings += var_warnings
 
-        return data
+        return data, warnings
 
     def _get_viz_options(self, geog_collection: GeogCollection) -> Optional[dict]:
         return {}
@@ -292,7 +292,7 @@ class MiniMap(DataViz):
             'default_viewport': {
                 'longitude': primary_geog.geom.centroid.x,
                 'latitude': primary_geog.geom.centroid.y,
-                'zoom': primary_geog.base_zoom - 3
+                'zoom': primary_geog.base_zoom - 1
             }
         }
 
@@ -344,9 +344,17 @@ class MapLayer(PolymorphicModel, VizVariable):
 # +  Table
 # ==================
 class Table(DataViz):
+    DEFAULT = 'default'
+    DEMOGRAPHICS = 'demographics'
+    STYLE_CHOICES = (
+        ('Default', DEFAULT),
+        ('Demographics', DEMOGRAPHICS)
+    )
+
     vars = models.ManyToManyField('Variable', verbose_name='Rows', through='TableRow')
     transpose = models.BooleanField(default=False)
     show_percent = models.BooleanField(default=True)
+    table_style = models.CharField(max_length=40, choices=STYLE_CHOICES)
 
     @property
     def view_height(self):
@@ -376,7 +384,12 @@ class Table(DataViz):
     def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
         columns = [{"Header": '', "accessor": 'variable'}, ] + \
                   [{"Header": tp.name, "accessor": tp.slug} for tp in self.time_axis.time_parts]
-        return {'transpose': self.transpose, 'show_percent': self.show_percent, 'columns': columns}
+        return {
+            'table_style': self.table_style,
+            'transpose': self.transpose,
+            'show_percent': self.show_percent,
+            'columns': columns
+        }
 
 
 class TableRow(VizVariable):
@@ -430,7 +443,7 @@ class Chart(DataViz):
 
     def get_neighbor_geogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
         if self.across_geogs:
-            return geog.__class__().objects.filter(in_extent=True)
+            return geog.__class__.objects.filter(in_extent=True)
         # default behavior for DataViz subclasses
         return super(Chart, self).get_neighbor_geogs(geog)
 
@@ -499,7 +512,7 @@ class Sentence(Alphanumeric):
 
     def get_text_data(self, geog: 'AdminRegion') -> DataResponse:
         data = ''
-        error: ErrorResponse
+        error: ErrorRecord
         only_time_part = self.time_axis.time_parts[0]
 
         if self.can_handle_geography(geog):
@@ -514,12 +527,12 @@ class Sentence(Alphanumeric):
                         d_val = variable.get_proportional_datum(geog, only_time_part, denoms[0])
                         fields[f'v{order}d'] = f"{d_val:.2%}"
                 data = pystache.render(self.text, fields)
-                error = ErrorResponse(level=ErrorLevel.OK, message=None)
+                error = ErrorRecord(level=ErrorLevel.OK, message=None)
             except Exception as e:
-                error = ErrorResponse(level=ErrorLevel.ERROR, message=str(e))
+                error = ErrorRecord(level=ErrorLevel.ERROR, message=str(e))
         else:
-            error = ErrorResponse(level=ErrorLevel.EMPTY,
-                                  message=f'This Sentence is not available for {geog.name}.')
+            error = ErrorRecord(level=ErrorLevel.EMPTY,
+                                message=f'This Sentence is not available for {geog.name}.')
 
         return DataResponse(data=data, error=error)
 

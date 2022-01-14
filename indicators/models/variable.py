@@ -14,7 +14,7 @@ from indicators.data import Datum, GeogRecord, GeogCollection, AggregationMethod
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
 from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource
 from indicators.models.time import TimeAxis
-from indicators.utils import ErrorLevel
+from indicators.utils import ErrorLevel, ErrorRecord
 from profiles.abstract_models import Described
 
 logger = logging.getLogger(__name__)
@@ -22,11 +22,7 @@ logger = logging.getLogger(__name__)
 
 class Variable(PolymorphicModel, Described):
     _agg_methods: dict
-
-    # todo: currently everything has been built with aggregation in mind.  selecting 'None' will mean that the variable
-    #   will return a list and not a single value. Data Presentations may require certain return values or behave
-    #   different depending on the variable return type
-    _warnings: list[dict] = []
+    _warnings: list[ErrorRecord] = []
 
     sources: Manager['Source']
     short_name = models.CharField(max_length=26, null=True, blank=True)
@@ -110,7 +106,7 @@ class Variable(PolymorphicModel, Described):
             geog_collection: GeogCollection,
             time_axis: 'TimeAxis',
             use_denom=True
-    ) -> list['Datum']:
+    ) -> (list['Datum'], list[ErrorRecord]):
         """
         Collects data for this `Variable` instance across geographies in `geogs` and times in `time_axis`.
 
@@ -129,9 +125,10 @@ class Variable(PolymorphicModel, Described):
             use_denom=using_denom,
             agg_method=agg_method,
         )
-        self._check_values(data)
 
-        return data
+        # check data will raise any exception if there are any errors
+        warnings = self._check_values(data) + self._warnings
+        return data, warnings
 
     def _get_values(
             self,
@@ -148,11 +145,28 @@ class Variable(PolymorphicModel, Described):
         raise NotImplementedError
 
     @staticmethod
-    def _check_values(data: list[Datum]):
+    def _check_values(data: list[Datum]) -> list[ErrorRecord]:
+        """
+        Runs checks on data and returns any warnings found.
+        A DataRetrievalError will be raised if no values are returned.
+        """
+        warnings: list[ErrorRecord] = []
+        found_any = False
+
         for datum in data:
-            if datum.value is not None:
-                continue
+            if not found_any and datum.value is not None:
+                found_any = True
+            else:
+                warnings.append(ErrorRecord(
+                    level=ErrorLevel.WARNING,
+                    message='Record found with null value',
+                    record=datum.as_dict()
+                ))
+
+        if not found_any:
             raise EmptyResultsError('No values returned.')
+
+        return warnings
 
     def _generate_cache_key(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
                             agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None):
@@ -177,8 +191,11 @@ class Variable(PolymorphicModel, Described):
                 return True
         return False
 
-    def _add_warning(self, warning: dict):
+    def _add_warning(self, warning: ErrorRecord):
         self._warnings += [warning]
+
+    def _add_warnings(self, warnings: List[ErrorRecord]):
+        self._warnings += warnings
 
     def __str__(self):
         return f'{self.name} ({self.slug})'
@@ -263,10 +280,17 @@ class CensusVariable(Variable):
                 ).annotate(
                     moe=(F('value') ** 2.0)
                 ).values('moe').values('moe')
-                moe: Optional[float] = math.sqrt(sum(result['moe'] for result in moe_results))
+                moe: Optional[float] = None
+                # filter out null values
+                all_moes = [result['moe'] for result in moe_results if result['moe'] is not None]
+                if all_moes:
+                    moe = math.sqrt(sum(all_moes))
+
             else:
                 self._add_warning(
-                    {'message': 'Margins of Error for compound variables cannot be accurately reported at this time.'})
+                    ErrorRecord(
+                        level=ErrorLevel.WARNING,
+                        message='Margins of Error for compound variables cannot be accurately reported at this time.'))
                 moe = None
 
             # if denom is being used, look up the corresponding record and get its value
@@ -427,10 +451,11 @@ class CKANVariable(Variable):
                     raise AggregationError(f"Cannot aggregate data for '{geog}' since data is not available for all of "
                                            f"its constituent '{base_geog_lvl.geog_type}'s.")
                 if None in denoms:
-                    self._add_warning({'level': ErrorLevel.WARNING,
-                                       'message': f"Cannot aggregate denominator data for '{geog}' at '{time}' "
-                                                  f"since data is not available for "
-                                                  f"all of its constituent '{base_geog_lvl.geog_type}'s"})
+                    self._add_warning(ErrorRecord(
+                        level=ErrorLevel.WARNING,
+                        message=f"Cannot aggregate denominator data for '{geog}' at '{time}' "
+                                f"since data is not available for "
+                                f"all of its constituent '{base_geog_lvl.geog_type}'s"))
                 value = sum(values)
                 denom = sum(denoms) if len(denoms) and None not in denoms else None
                 percent = value / denom if denom else None

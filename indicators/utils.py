@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Type, Union, Optional, List, TYPE_CHECKING
+from typing import Type, Union, Optional, TYPE_CHECKING, Mapping
 
 import psycopg2.extras
 from django.conf import settings
@@ -16,6 +16,7 @@ from geo.models import Tract, County, BlockGroup, CountySubdivision, AdminRegion
 
 if TYPE_CHECKING:
     from indicators.models import Variable, Variable, DataViz
+    from indicators.data import Datum
 
 # Constants
 # =-=-=-=-=
@@ -49,29 +50,33 @@ class ErrorLevel(Enum):
 
 
 @dataclass
-class ErrorResponse:
+class ErrorRecord:
     level: ErrorLevel
     message: Optional[str] = None
+    record: Optional[Mapping] = None
 
     def as_dict(self):
         return {
             'status': self.level.name,
             'level': self.level.value,
             'message': self.message,
+            'record': self.record
         }
 
 
 @dataclass
 class DataResponse:
-    data: Optional[Union[List[dict], dict]]
+    data: Optional[Union[list['Datum'], dict]]
     options: dict = field(default_factory=dict)
-    error: ErrorResponse = ErrorResponse(ErrorLevel.OK)
+    error: ErrorRecord = ErrorRecord(ErrorLevel.OK)
+    warnings: Optional[list[ErrorRecord]] = None
 
     def as_dict(self):
         return {
-            'data': self.data,
+            'data': [datum.as_dict() for datum in self.data],
             'options': self.options,
-            'error': self.error.as_dict()
+            'error': self.error.as_dict(),
+            'warnings': self.warnings
         }
 
 

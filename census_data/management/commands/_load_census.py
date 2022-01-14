@@ -273,9 +273,6 @@ def download_acs5_data(seq_no, year, redownload=False):
     # the data for geographies is split across two files
     for (data_dir, dl_dir) in (tract_bg_dir_pair, other_geo_dir_pair,):
         ftp.cwd(data_dir)
-        # print('📡️', f'Downloading data files')
-        # print(f'  from: {data_dir}')
-        # print(f'    to: {dl_dir}')
         data_files = ftp.nlst()
         for data_file in data_files:
             # skip the other file(s)

@@ -1,5 +1,4 @@
 from django.contrib import admin
-
 from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin, CKANGeomSourceAdmin
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin

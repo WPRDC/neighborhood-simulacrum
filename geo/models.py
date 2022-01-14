@@ -4,6 +4,7 @@ from typing import List, Type, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
+from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
 from profiles.abstract_models import Described
@@ -98,6 +99,10 @@ class AdminRegion(PolymorphicModel, Geography):
 
     # Model fields
     name = models.CharField(max_length=200, db_index=True)
+    slug = models.SlugField(max_length=200, db_index=True, null=True, blank=True)
+    geog_type = models.CharField(max_length=200, null=True, blank=True, editable=False)
+
+    
     # Better formatted name than what's in the data. (e.g. Allegheny County instead of just Allegheny)
     display_name = models.CharField(max_length=200, null=True, blank=True)
 
@@ -119,10 +124,6 @@ class AdminRegion(PolymorphicModel, Geography):
         if self.display_name:
             return self.display_name
         return self.name
-
-    @property
-    def geog_type(self) -> str:
-        return self.geog_type_id
 
     @property
     def geog_id(self):
@@ -178,6 +179,11 @@ class AdminRegion(PolymorphicModel, Geography):
         return self.name
 
     def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(f'{self.geog_type_title}-{self.global_geoid}')
+        if not self.geog_type:
+            self.geog_type = self.geog_type_id
+        self.display_name = self.title
         super(AdminRegion, self).save(*args, **kwargs)
 
 
@@ -255,7 +261,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
     type_description = "Townships, municipalities, boroughs and cities."
     ckan_resource = "8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"
-    base_zoom = 7
+    base_zoom = 9
 
     statefp = models.CharField(max_length=2)
     countyfp = models.CharField(max_length=3)
@@ -375,6 +381,7 @@ class SchoolDistrict(AdminRegion, CensusGeography):
 class Neighborhood(AdminRegion):
     geog_type_id = AdminRegion.NEIGHBORHOOD
     geog_type_title = 'Neighborhood'
+    base_zoom = 12
 
     type_description = 'Official City of Pittsburgh neighborhood boundaries'
 

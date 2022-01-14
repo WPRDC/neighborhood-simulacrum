@@ -1,3 +1,10 @@
+--- on datastore server, make a read only account for profiles to use
+create user profiles with password 'YOUR DATASTORE PASSWORD';
+grant connect on database datastore_prod to profiles;
+grant usage on schema public to profiles ;
+alter default privileges in schema public grant select on tables to profiles;
+
+
 CREATE EXTENSION IF NOT EXISTS postgres_fdw;
 CREATE EXTENSION IF NOT EXISTS postgis;
 
@@ -9,8 +16,11 @@ CREATE SERVER IF NOT EXISTS datastore
 -- map our user accounts to the datastore account
 CREATE USER MAPPING IF NOT EXISTS FOR profiles_user
     SERVER datastore
-    OPTIONS (user 'datastore', password 'YOUR DATASTORE PASSWORD');
+    OPTIONS (user 'profiles', password 'YOUR DATASTORE PASSWORD');
 
+CREATE USER MAPPING IF NOT EXISTS FOR profiles_maps_user
+    SERVER datastore
+    OPTIONS (user 'profiles', password 'YOUR DATASTORE PASSWORD');
 
 CREATE USER MAPPING FOR postgres
     SERVER datastore
@@ -23,13 +33,15 @@ CREATE TYPE public.nested AS
     extra text
 );
 
+-- ?? dunno why this was here
+-- ?? ALTER TYPE NESTED OWNER TO ckan;
+
 -- import the datastore's public shema into a local one
 CREATE SCHEMA IF NOT EXISTS datastore; -- the local one
 IMPORT FOREIGN SCHEMA public
     FROM SERVER datastore INTO datastore;
 
--- ?? dunno why this was here
--- ?? ALTER TYPE NESTED OWNER TO ckan;
+
 
 -- test pulling gdata
 SELECT *
