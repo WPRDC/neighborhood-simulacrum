@@ -16,6 +16,4 @@ urlpatterns = [
     path('schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('markdownx/', include('markdownx.urls')),
     path('grappelli/', include('grappelli.urls')),
-    path('grappelli-docs/', include('grappelli.urls_docs')),  # grappelli docs URLS
-
 ]

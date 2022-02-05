@@ -3,7 +3,7 @@ from django.contrib import admin
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin
 
 from indicators.models.viz import DataViz, MiniMap, Table, Chart, \
-    BigValue, Sentence, TableRow, ChartPart, MapLayer, SentenceVariable, BigValueVariable
+    BigValue, Sentence, TableVariable, ChartPart, MapLayer, SentenceVariable, BigValueVariable
 
 
 @admin.register(DataViz)
@@ -29,7 +29,7 @@ class MapLayerInline(nested_admin.NestedTabularInline):
 
 class TableRowInline(nested_admin.NestedTabularInline):
     autocomplete_fields = ('variable',)
-    model = TableRow
+    model = TableVariable
 
 
 class ChartPartInline(nested_admin.NestedTabularInline):

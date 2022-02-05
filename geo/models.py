@@ -360,7 +360,7 @@ class SchoolDistrict(AdminRegion, CensusGeography):
 
     @property
     def title(self):
-        return f'{self.name}'
+        return f'Zip code {self.name}'
 
     @property
     def hierarchy(self):

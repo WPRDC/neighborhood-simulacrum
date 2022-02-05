@@ -44,7 +44,8 @@ def parse_params(qd: QueryDict):
     simple: dict[str] = {}
     complx: list[ComplexQuery] = []
     for key, value in qd.items():
-        if key == 'search':  # handled by SearchFilter
+        if key in ['search', 'limit', 'offset']:
+            # handled by SearchFilter
             continue
         query, method = split_key(key)
         # filter out the complex queries

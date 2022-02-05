@@ -18,7 +18,7 @@ from indicators.serializers import DomainSerializer, IndicatorSerializer, Subdom
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, \
     DataVizSerializer, DataVizBriefSerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel, \
-    extract_geo_params, get_geog_model
+    get_geog_model
 from maps.models import DataLayer
 from profiles.content_negotiation import GeoJSONContentNegotiation
 from profiles.settings import VIEW_CACHE_TTL
@@ -85,9 +85,10 @@ class DataVizViewSet(viewsets.ModelViewSet):
                 context['geography'] = get_geog_from_request(self.request)
             except AdminRegion.DoesNotExist as e:
                 print(e)  # todo: figure out how we should log stuff
-                geo_type, geoid = extract_geo_params(self.request)
-                context['error'] = ErrorRecord(ErrorLevel.ERROR,
-                                                 f'Can\'t find "{geo_type}" with ID "{geoid}".').as_dict()
+                context['error'] = ErrorRecord(
+                    ErrorLevel.ERROR,
+                    f'Can\'t find "{self.request.geog}".'
+                ).as_dict()
         return context
 
     # Cache requested url for each user for 2 minutes

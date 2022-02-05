@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 
 from indicators.models import Domain, Subdomain, Indicator, SubdomainIndicator, TimeAxis, Variable
 from indicators.models.viz import DataViz, \
-    Table, TableRow, \
+    Table, TableVariable, \
     MiniMap, MapLayer, \
     Chart, ChartPart, \
     BigValue, BigValueVariable
@@ -19,7 +19,7 @@ MODEL_MAP: Dict[str, Type['DataViz']] = {
 }
 
 THROUGH_MODEL_MAP: Dict[str, Type['DataViz']] = {
-    'Table': TableRow,
+    'Table': TableVariable,
     'MiniMap': MapLayer,
     'Chart': ChartPart,
     'BigValue': BigValueVariable,

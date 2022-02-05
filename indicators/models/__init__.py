@@ -17,6 +17,9 @@ class SubdomainIndicator(models.Model):
         unique_together = ('subdomain', 'indicator',)
         ordering = ('order',)
 
+    def __str__(self):
+        return f'{self.subdomain.__str__()} -> {self.indicator.__str__()}'
+
 
 class Domain(Described):
     """ Main categories for organizing indicators """

@@ -14,7 +14,7 @@ from polymorphic.models import PolymorphicModel
 
 from geo.models import AdminRegion
 from indicators.data import GeogRecord, GeogCollection, Datum
-from indicators.errors import DataRetrievalError, EmptyResultsError, AggregationError
+from indicators.errors import DataRetrievalError, AggregationError
 from indicators.models.source import Source
 from indicators.utils import DataResponse, ErrorRecord, ErrorLevel
 from maps.models import DataLayer
@@ -347,6 +347,7 @@ class MapLayer(PolymorphicModel, VizVariable):
 # +  Table
 # ==================
 class Table(DataViz):
+    # styles
     DEFAULT = 'default'
     DEMOGRAPHICS = 'demographics'
     STYLE_CHOICES = (
@@ -354,10 +355,24 @@ class Table(DataViz):
         ('Demographics', DEMOGRAPHICS)
     )
 
-    vars = models.ManyToManyField('Variable', verbose_name='Rows', through='TableRow')
-    transpose = models.BooleanField(default=False)
-    show_percent = models.BooleanField(default=True)
+    # axes
+    GEOGRAPHY = 'geography'
+    VARIABLE = 'variable'
+    TIME = 'time'
+    AXIS_CHOICES = (
+        ('Geography', GEOGRAPHY),
+        ('Variable', VARIABLE),
+        ('Time', TIME)
+    )
+
+    vars = models.ManyToManyField('Variable', verbose_name='Rows', through='TableVariable')
+
     table_style = models.CharField(max_length=40, choices=STYLE_CHOICES)
+    show_percent = models.BooleanField(default=True)
+
+    row_axis = models.CharField(max_length=20, choices=AXIS_CHOICES, default=VARIABLE)
+    column_axis = models.CharField(max_length=20, choices=AXIS_CHOICES, default=TIME)
+    view_axis = models.CharField(max_length=20, choices=AXIS_CHOICES, default=GEOGRAPHY)
 
     @property
     def view_height(self):
@@ -372,17 +387,25 @@ class Table(DataViz):
         return self.vars.order_by('variable_to_table')
 
     def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
-        columns = [{"Header": '', "accessor": 'variable'}, ] + \
-                  [{"Header": tp.name, "accessor": tp.slug} for tp in self.time_axis.time_parts]
         return {
             'table_style': self.table_style,
-            'transpose': self.transpose,
             'show_percent': self.show_percent,
-            'columns': columns
+            'row_axis': self.row_axis,
+            'column_axis': self.column_axis,
+            'view_axis': self.view_axis,
         }
 
+    def clean(self):
+        """ Ensure that no axis is used twice. """
+        if (
+                self.row_axis == self.column_axis
+                or self.row_axis == self.view_axis
+                or self.column_axis == self.view_axis
+        ):
+            raise ValidationError("Each axis can only be used once.")
 
-class TableRow(VizVariable):
+
+class TableVariable(VizVariable):
     viz = models.ForeignKey('Table', on_delete=models.CASCADE, related_name='table_to_variable')
     variable = models.ForeignKey('Variable', on_delete=models.CASCADE, related_name='variable_to_table')
 

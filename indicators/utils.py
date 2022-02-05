@@ -124,8 +124,7 @@ def is_valid_geography_type(geog_type: str):
 def is_geog_data_request(request: Request) -> bool:
     """ Determines if a request should be responded to with calculated indicator data"""
     # for data visualization requests, data can be provided when a geog is defined
-    # todo, handle other types.
-    return GEOG_TYPE_LABEL in request.query_params and GEOG_ID_LABEL in request.query_params
+    return 'geog' in request.query_params
 
 
 def extract_geo_params(request: Request) -> (str, str):
@@ -133,10 +132,8 @@ def extract_geo_params(request: Request) -> (str, str):
 
 
 def get_geog_from_request(request: Request) -> AdminRegion:
-    geog, geoid = extract_geo_params(request)
-    geog_model = get_geog_model(geog)
-    geog = geog_model.objects.get(global_geoid=geoid)
-    return geog
+    slug = request.query_params.get('geog')
+    return AdminRegion.objects.get(slug=slug)
 
 
 def get_geog_model_from_request(request: Request) -> Type[Union[Tract, County, BlockGroup, CountySubdivision]]:

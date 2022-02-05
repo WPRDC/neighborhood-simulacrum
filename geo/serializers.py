@@ -33,6 +33,7 @@ class AdminRegionSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'name',
+            'slug',
             'title',
             'geog_type',
             'geogID',

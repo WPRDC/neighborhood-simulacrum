@@ -40,12 +40,12 @@ class GeoLevelView(views.APIView):
 
 
 class AdminRegionViewSet(viewsets.ReadOnlyModelViewSet):
-    model: Type['AdminRegion']
+    model: Type['AdminRegion'] = AdminRegion
     brief_serializer_class: [serializers.Serializer] = AdminRegionBriefSerializer
     detailed_serializer_class: [serializers.Serializer] = AdminRegionSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'global_geoid']
-    lookup_field = 'global_geoid'
+    lookup_field = 'slug'
 
     def get_queryset(self):
         return all_geogs_in_extent(self.model)

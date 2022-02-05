@@ -52,13 +52,13 @@ class DataVizWithDataSerializer(DataVizSerializer):
     options = serializers.SerializerMethodField()
     error = serializers.SerializerMethodField()
     warnings = serializers.SerializerMethodField()
-    geog = serializers.SerializerMethodField()
+    geogs = serializers.SerializerMethodField()
 
     _cached_response = None
 
     class Meta:
         model = DataViz
-        fields = DataVizSerializer.Meta.fields + ('data', 'options', 'error', 'warnings', 'geog')
+        fields = DataVizSerializer.Meta.fields + ('data', 'options', 'error', 'warnings', 'geogs')
 
     @lru_cache
     def _get_data_response(self, viz: DataViz, geog: AdminRegion) -> DataResponse:
@@ -70,7 +70,9 @@ class DataVizWithDataSerializer(DataVizSerializer):
         if 'error' in self.context:
             return []
         data_response: DataResponse = self._get_data_response(obj, self.context['geography'])
-        return [datum.as_dict() for datum in data_response.data]
+        if data_response.data:
+            return [datum.as_dict() for datum in data_response.data]
+        return None
 
     def get_options(self, obj: DataViz):
         if 'error' in self.context:
@@ -91,8 +93,8 @@ class DataVizWithDataSerializer(DataVizSerializer):
             return [warning.as_dict() for warning in warnings]
         return None
 
-    def get_geog(self, obj: DataViz):
-        return AdminRegionPolymorphicSerializer(self.context['geography']).data
+    def get_geogs(self, obj: DataViz):
+        return [AdminRegionPolymorphicSerializer(self.context['geography']).data]
 
 
 class DataVizIdentifiersSerializer(serializers.HyperlinkedModelSerializer):

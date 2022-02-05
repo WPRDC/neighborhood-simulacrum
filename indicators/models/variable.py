@@ -46,6 +46,7 @@ class Variable(PolymorphicModel, Described):
         null=True,
         blank=True
     )
+
     denominators = models.ManyToManyField(
         'Variable',
         help_text='Variables that represent a universe under which the current variable can be analyzed',

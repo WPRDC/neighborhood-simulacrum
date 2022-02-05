@@ -9,6 +9,9 @@ from ..models import Indicator, Subdomain, Domain, Value, SubdomainIndicator, In
 class SubdomainIndicatorInline(admin.StackedInline):
     model = SubdomainIndicator
 
+    def __str__(self):
+        return self.ob
+
 
 class IndicatorDataVizInline(admin.StackedInline):
     model = IndicatorDataViz
