@@ -72,6 +72,10 @@ class CensusSource(Source):
         default='CEN'
     )
 
+    class Meta:
+        verbose_name = 'Census/ACS Source'
+        verbose_name_plural = 'Census/ACS Sources'
+
     @property
     def info_link(self):
         return 'https://www.census.gov/' if self.dataset == 'CEN' else 'https://www.census.gov/programs-surveys/acs/'
@@ -103,6 +107,10 @@ class CKANSource(Source, PolymorphicModel):
         blank=True, null=True)
 
     standardization_query = models.TextField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'CKAN Source'
+        verbose_name_plural = 'CKAN Sources'
 
     @property
     def info_link(self):

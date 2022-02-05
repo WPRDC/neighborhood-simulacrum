@@ -1,13 +1,11 @@
-import json
 from typing import Type
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from rest_framework import viewsets, renderers, filters
+from rest_framework import viewsets, filters
 from rest_framework.exceptions import NotFound
-from rest_framework.negotiation import BaseContentNegotiation
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.request import Request
@@ -19,36 +17,11 @@ from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, T
 from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, \
     DataVizSerializer, DataVizBriefSerializer
-from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorResponse, ErrorLevel, \
-    extract_geo_params, get_geog_model
+from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel, \
+    get_geog_model
 from maps.models import DataLayer
+from profiles.content_negotiation import GeoJSONContentNegotiation
 from profiles.settings import VIEW_CACHE_TTL
-
-
-class GeoJSONRenderer(renderers.BaseRenderer):
-    media_type = 'application/geo+json'
-    format = 'geojson'
-
-    def render(self, data, media_type=None, renderer_context=None):
-        return json.dumps(data)
-
-
-class GeoJSONContentNegotiation(BaseContentNegotiation):
-    """
-    Custom content negotiation scheme for GeoJSON files.
-
-    `GeoJSONRenderer` is used for downloading geojson files
-    `JSONRenderer` is used for ajax calls.
-    """
-
-    def select_parser(self, request, parsers):
-        return super(GeoJSONContentNegotiation, self).select_parser(request, parsers)
-
-    def select_renderer(self, request: Request, renderers, format_suffix=None):
-        renderer = renderers[0]
-        if request.query_params.get('download', False):
-            renderer = GeoJSONRenderer()
-        return renderer, renderer.media_type
 
 
 class DomainViewSet(viewsets.ModelViewSet):
@@ -112,9 +85,10 @@ class DataVizViewSet(viewsets.ModelViewSet):
                 context['geography'] = get_geog_from_request(self.request)
             except AdminRegion.DoesNotExist as e:
                 print(e)  # todo: figure out how we should log stuff
-                geo_type, geoid = extract_geo_params(self.request)
-                context['error'] = ErrorResponse(ErrorLevel.ERROR,
-                                                 f'Can\'t find "{geo_type}" with ID "{geoid}".').as_dict()
+                context['error'] = ErrorRecord(
+                    ErrorLevel.ERROR,
+                    f'Can\'t find "{self.request.geog}".'
+                ).as_dict()
         return context
 
     # Cache requested url for each user for 2 minutes

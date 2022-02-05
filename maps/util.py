@@ -3,6 +3,7 @@ import urllib.request
 from typing import TYPE_CHECKING, Type
 from urllib.error import URLError
 
+from django.conf import settings
 from django.db import connection
 
 from indicators.data import GeogCollection
@@ -81,9 +82,12 @@ def store_map_data(
 
 
 def store_menu_layer(geog_type: Type['AdminRegion']):
+    """ Creates tables of geographies to be served by tile server for use in menus"""
     print('Adding menu view for', geog_type.geog_type_id)
     view_name = menu_view_name(geog_type)
     view_query = as_tile_server_query(geog_type.objects.filter(in_extent=True).query)
+
+    # todo: make geog menu table with limited, standardized fields
 
     with connection.cursor() as cursor:
         cursor.execute(f"""DROP VIEW IF EXISTS {view_name}""")
@@ -92,3 +96,5 @@ def store_menu_layer(geog_type: Type['AdminRegion']):
     print('Menu view added.')
 
     refresh_tile_index()
+
+

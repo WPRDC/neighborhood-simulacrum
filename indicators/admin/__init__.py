@@ -1,5 +1,4 @@
 from django.contrib import admin
-
 from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin, CKANGeomSourceAdmin
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
@@ -9,6 +8,9 @@ from ..models import Indicator, Subdomain, Domain, Value, SubdomainIndicator, In
 
 class SubdomainIndicatorInline(admin.StackedInline):
     model = SubdomainIndicator
+
+    def __str__(self):
+        return self.ob
 
 
 class IndicatorDataVizInline(admin.StackedInline):

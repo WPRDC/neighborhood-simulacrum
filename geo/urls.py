@@ -9,7 +9,12 @@ router.register(r'countySubdivision', views.CountySubdivisionViewSet, basename='
 router.register(r'county', views.CountyViewSet, basename='county')
 router.register(r'neighborhood', views.NeighborhoodViewSet, basename='neighborhood')
 router.register(r'zcta', views.ZipCodeViewSet, basename='zcta')
+router.register(r'', views.AdminRegionViewSet, basename='adminregion')
 
-urlpatterns = router.urls + [
-    re_path(r'geog-types/?$', views.geog_list),
-]
+urlpatterns = [
+    re_path(r'geog-types/?$', views.GeoLevelView.as_view()),
+    re_path(r'geog-levels/?$', views.GeoLevelView.as_view()),
+] + router.urls
+
+# todo: make view that gets geo's by slug.  in fact, standardize all resource views to be accessible the same way
+#   and then go over the API on the typescript end

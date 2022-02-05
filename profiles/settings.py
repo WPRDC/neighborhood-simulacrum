@@ -32,12 +32,13 @@ ALLOWED_HOSTS = ['api.profiles.wprdc.org', '127.0.0.1', 'localhost']
 # Application definition
 
 INSTALLED_APPS = [
-    # 'grappelli',
-    'django.contrib.admin',
+    'django.contrib.contenttypes',
+    'grappelli.dashboard',
+    'grappelli',
+    'profiles.apps.CustomAdminConfig',
     'django.contrib.auth',
     'polymorphic',
     'corsheaders',
-    'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
@@ -47,20 +48,22 @@ INSTALLED_APPS = [
     'rest_framework_gis',
     'django_filters',
     'nested_admin',
+    'markdownx',
 
     # local apps
     'indicators',
     'geo',
     'census_data',
     'maps',
-    #  'debug_toolbar'
+    'public_housing',
+
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -110,6 +113,8 @@ DATABASES = {
         'PASSWORD': DATASTORE_PASSWORD,
     },
 }
+
+DATABASE_ROUTERS = ['profiles.routers.DatastoreRouter', ]
 
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators
@@ -185,11 +190,11 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend', ],
 
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning',
+
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 CORS_ORIGIN_ALLOW_ALL = True
-
-GRAPPELLI_ADMIN_TITLE = 'Profiles II'
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 
@@ -234,3 +239,18 @@ VIEW_CACHE_TTL = 0  # 60 * 60 # 60 mins
 LONG_TERM_CACHE_TTL = 0  # 60 * 60 * 24  # 24 hours
 
 USE_LONG_TERM_CACHE = False
+
+PUBLIC_HOUSING_PROJECT_LAYER_VIEW = 'all_public_housing_projects'
+
+APPEND_SLASH = True
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'WPRDC Neighborhood Simulacrum',
+    'DESCRIPTION': 'API for neighborhood indicators and other civic open data.',
+    'VERSION': '0.0.1',
+}
+
+GRAPPELLI_INDEX_DASHBOARD = {
+    'django.contrib.admin.site': 'profiles.dashboard.CustomIndexDashboard',
+    'profiles.admin.CustomAdminSite': 'profiles.dashboard.CustomIndexDashboard',
+}

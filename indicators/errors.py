@@ -1,4 +1,4 @@
-from indicators.utils import ErrorLevel, ErrorResponse
+from indicators.utils import ErrorLevel, ErrorRecord
 
 
 class DataRetrievalError(Exception):
@@ -12,7 +12,7 @@ class DataRetrievalError(Exception):
 
     @property
     def error_response(self):
-        return ErrorResponse(level=self.level, message=self.message)
+        return ErrorRecord(level=self.level, message=self.message)
 
 
 class AggregationError(DataRetrievalError):

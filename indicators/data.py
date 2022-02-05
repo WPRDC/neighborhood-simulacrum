@@ -206,7 +206,7 @@ class Datum:
         """ Merge the denom value and generate the percent """
         return replace(self, denom=denom_val, percent=(self.value / denom_val))
 
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return {'variable': self.variable, 'geog': self.geog, 'time': self.time,
                 'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
 

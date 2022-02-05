@@ -1,7 +1,15 @@
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
-from .models import AdminRegion, CountySubdivision, Tract, BlockGroup, County, Neighborhood, ZipCodeTabulationArea
+from .models import (
+    AdminRegion,
+    CountySubdivision,
+    Tract,
+    BlockGroup,
+    County,
+    Neighborhood,
+    ZipCodeTabulationArea
+)
 
 
 class AdminRegionBriefSerializer(serializers.ModelSerializer):
@@ -10,6 +18,7 @@ class AdminRegionBriefSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'name',
+            'slug',
             'title',
             'geog_type',
             'geogID',
@@ -24,6 +33,7 @@ class AdminRegionSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'name',
+            'slug',
             'title',
             'geog_type',
             'geogID',

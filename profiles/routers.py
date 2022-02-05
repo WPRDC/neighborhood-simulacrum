@@ -1,12 +1,17 @@
-class DatastoreRouter(object):
-    def db_for_read(self, model, **hints):
-        """
-        Reads go to a randomly-chosen replica.
-        """
-        return 'datastore'
+# https://docs.djangoproject.com/en/3.2/topics/db/multi-db/#using-routers
 
-    def db_for_write(self, model, **hints):
-        """
-        Writes always go to primary.
-        """
-        return 'primary'
+
+class DatastoreRouter(object):
+    """ Router for reading from the CKAN datastore """
+
+    def db_for_read(self, model, **hints):
+        """ For select models, route queries to the CKAN datastore """
+        if hasattr(model, 'USE_DATASTORE') and getattr(model, 'USE_DATASTORE'):
+            return 'datastore'
+        return None
+
+    def allow_migration(self, db, app_label, model_name=None, **hints):
+        """ Prevent migration attempts on the datastore -- shouldn't happen anyway."""
+        if db == 'datastore':
+            return False
+        return None
