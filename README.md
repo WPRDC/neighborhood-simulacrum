@@ -1,9 +1,14 @@
 # Neighborhood Simulacrum
 **Open Data Community Indicators Platform**
 
+
 ## Links
-[API](https://api.profiles.wprdc.org)  
-[Apps and Tools built on the API](https://profiles.wprdc.org)
+[API](https://api.profiles.wprdc.org)  \
+[OpenAPI Schema](https://api.profiles.wprdc.org/schema)  
+Documentation (
+[Swagger UI](https://api.profiles.wprdc.org/schema/swagger-ui/) |
+[Redoc](https://api.profiles.wprdc.org/schema/redoc/))  
+
 
 ## System Requirements
 1. [Python (^3.8)](https://www.python.org/downloads/)

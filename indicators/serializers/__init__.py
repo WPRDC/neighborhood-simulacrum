@@ -42,6 +42,7 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'slug',
             'description',
             'long_description',
+            'full_description',
             'limitations',
             'importance',
             'source',

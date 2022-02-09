@@ -53,7 +53,7 @@ def store_map_data(
     table_name = f'maps.t_{map_slug}'
     view_name = f'maps.v_{map_slug}'
 
-    data = variable.get_values(geog_collection, time_axis)
+    data, warnings = variable.get_values(geog_collection, time_axis)
     number_format_options = {'style': 'percent'} if use_percent else variable.locale_options
     with connection.cursor() as cursor:
         cursor.execute(f"""DROP VIEW IF EXISTS {view_name}""")

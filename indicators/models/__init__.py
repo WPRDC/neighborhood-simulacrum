@@ -55,7 +55,7 @@ class IndicatorDataViz(models.Model):
     order = models.IntegerField(default=0)
 
     def __str__(self):
-        return f'{self.indicator.slug} - {self.data_viz.slug}'
+        return f'{self.indicator.__str__()} -> {self.data_viz.__str__()}'
 
     class Meta:
         ordering = ('order',)
@@ -111,7 +111,7 @@ class Indicator(Described):
         return self.vizes.order_by('dataviz_to_indicator')
 
     def __str__(self):
-        return f'{self.name} ({self.id})'
+        return f'{self.name}'
 
     @property
     def hierarchies(self):
