@@ -464,7 +464,7 @@ class CKANVariable(Variable):
                         level=ErrorLevel.WARNING,
                         message=f"Cannot aggregate denominator data for '{geog}' at '{time}' "
                                 f"since data is not available for "
-                                f"all of its constituent '{base_geog_lvl.geog_type}'s"))
+                                f"all of its constituent '{base_geog_lvl.geog_type_title}'s"))
                 value = sum(values)
                 denom = sum(denoms) if len(denoms) and None not in denoms else None
                 percent = value / denom if denom else None
