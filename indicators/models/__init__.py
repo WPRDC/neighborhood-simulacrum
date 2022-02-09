@@ -18,7 +18,7 @@ class SubdomainIndicator(models.Model):
         ordering = ('order',)
 
     def __str__(self):
-        return f'{self.subdomain.__str__()} -> {self.indicator.__str__()}'
+        return f'{self.subdomain.__str__()} ➡ {self.indicator.__str__()}'
 
 
 class Domain(Described):
@@ -55,7 +55,7 @@ class IndicatorDataViz(models.Model):
     order = models.IntegerField(default=0)
 
     def __str__(self):
-        return f'{self.indicator.__str__()} -> {self.data_viz.__str__()}'
+        return f'{self.indicator.__str__()} ➡ {self.data_viz.__str__()}'
 
     class Meta:
         ordering = ('order',)
