@@ -9,6 +9,7 @@ from jenkspy import jenks_breaks
 
 from geo.models import AdminRegion
 from indicators.data import GeogCollection
+from indicators.errors import NotAvailableForGeogError
 from indicators.models import Variable, TimeAxis
 from maps.util import store_map_data
 from profiles.abstract_models import Described, TimeStamped
@@ -125,11 +126,16 @@ class DataLayer(Described, TimeStamped):
     @property
     def breaks(self):
         # todo: handle custom bucket counts
-        if not self._breaks:
-            values = [feat['properties']['value'] for feat in self.as_geojson()['features'] if
-                      feat['properties']['value'] is not None]
-            self._breaks = jenks_breaks(values, nb_class=min(len(values), 6))[0:]
-        return self._breaks
+        try:
+            if not self._breaks:
+                values = [feat['properties']['value'] for feat in self.as_geojson()['features'] if
+                          feat['properties']['value'] is not None]
+                self._breaks = jenks_breaks(values, nb_class=min(len(values), 6))[0:]
+            return self._breaks
+        except ValueError as e:
+            raise NotAvailableForGeogError(
+                f'This map is not available for geography Level: {self.geog_content_type.name}.'
+            )
 
     def as_geojson(self) -> dict:
         """ Return [geojson](https://geojson.org) representation of the map """
@@ -168,33 +174,31 @@ class DataLayer(Described, TimeStamped):
         If it exists but the data is out of date, new data will be collected and an updated map is returned.
         Otherwise the existing map is returned.
         """
-        print('gettin or creatin')
         geog_ctype: ContentType = ContentType.objects.get_for_model(geog_collection.geog_type)
         try:
             # check if we already have map data
             return DataLayer.objects.get(geog_content_type=geog_ctype, variable=variable, time_axis=time_axis)
             # todo: do some freshness checks - and update data if necessary
         except DataLayer.DoesNotExist:
-            print('creatin')
-        # if not, we need to get the data and register it with a new map record
-        geog_type_id = geog_collection.geog_type.geog_type_id
-        geog_type_title = geog_collection.geog_type.geog_type_title
-        slug = str(uuid.uuid4()).replace('-', '_')
+            # if not, we need to get the data and register it with a new map record
+            geog_type_id = geog_collection.geog_type.geog_type_id
+            geog_type_title = geog_collection.geog_type.geog_type_title
+            slug = str(uuid.uuid4()).replace('-', '_')
 
-        # create data table
-        store_map_data(slug, geog_collection, time_axis, variable, use_percent)
+            # create data table
+            store_map_data(slug, geog_collection, time_axis, variable, use_percent)
 
-        return DataLayer.objects.create(
-            name=f"{variable.name} across {geog_type_title}",
-            label=f"{variable.name}",
-            slug=slug,
-            geog_type_id=geog_type_id,
-            time_axis=time_axis,
-            geog_content_type=geog_ctype,
-            variable=variable,
-            use_percent=use_percent,
-            number_format_options=variable.locale_options
-        )
+            return DataLayer.objects.create(
+                name=f"{variable.name} across {geog_type_title}",
+                label=f"{variable.name}",
+                slug=slug,
+                geog_type_id=geog_type_id,
+                time_axis=time_axis,
+                geog_content_type=geog_ctype,
+                variable=variable,
+                use_percent=use_percent,
+                number_format_options=variable.locale_options
+            )
 
     def get_map_options(self):
         return self.source, self.layers, self.interactive_layer_ids, self.legend

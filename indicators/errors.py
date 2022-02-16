@@ -25,3 +25,7 @@ class MissingSourceError(DataRetrievalError):
 
 class EmptyResultsError(DataRetrievalError):
     level = ErrorLevel.EMPTY
+
+
+class NotAvailableForGeogError(DataRetrievalError):
+    level = ErrorLevel.EMPTY
