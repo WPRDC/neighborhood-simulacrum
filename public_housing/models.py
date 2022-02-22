@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, timedelta
 from functools import lru_cache
 from typing import Type
 
 from django.contrib.gis.db import models
-from django.contrib.gis.geos import Point, MultiPoint
+from django.contrib.gis.geos import Point
 from django.db.models import QuerySet
 
 from profiles.abstract_models import DatastoreDataset
@@ -23,7 +23,14 @@ from public_housing.housing_datasets import (
     LIHTCDataFromPHFA,
     PHFAStats,
     LIHTC,
-    HousingDataset, ContractID, DevelopmentCode, FHALoanID, LIHTCProjectID, NormalizeStateID, PMIndx, LookupTable,
+    HousingDataset,
+    ContractID,
+    DevelopmentCode,
+    FHALoanID,
+    LIHTCProjectID,
+    NormalizeStateID,
+    PMIndx,
+    LookupTable,
     HouseCatSubsidyListing,
 )
 
@@ -44,6 +51,18 @@ DATASETS: list[Type[HousingDataset]] = [
     PHFAStats,
     LIHTC,
 ]
+
+
+def get_risk_level_query_parts(lvl: str) -> (str, date):
+    if lvl == 'future':
+        return 'gt', date.today() + timedelta(days=365 * 5)
+    n, dur = lvl[0], lvl[1:]
+    days = -1
+    if dur == 'mo':
+        days = 31 * int(n)
+    if dur == 'yr':
+        days = 365 * int(n)
+    return 'lt', date.today() + timedelta(days=days)
 
 
 def get_fkeys(model: Type['LookupTable'], origin_id: int):
@@ -80,11 +99,14 @@ class ProjectIndex(DatastoreDataset):
 
     @staticmethod
     @lru_cache
-    def filter_by_subsidy_expiration(queryset: QuerySet['ProjectIndex'], date: str, method='lte') -> QuerySet[
-        'ProjectIndex']:
+    def filter_by_at_risk(
+            queryset: QuerySet['ProjectIndex'],
+            lvl: str
+    ) -> QuerySet['ProjectIndex']:
         """ Finds subsidy listings that expire on or before `date` and returns ProjectIndexes that match """
+        mthd, dt = get_risk_level_query_parts(lvl)
         matching_ids = [subsidy.property_id for subsidy
-                        in HouseCatSubsidyListing.objects.filter(subsidy_expiration_date__lte=date)
+                        in HouseCatSubsidyListing.objects.filter(**{f'subsidy_expiration_date__{mthd}': dt})
                         if subsidy.subsidy_expiration_date is not None]
         return queryset.filter(property_id__in=matching_ids)
 

@@ -14,7 +14,8 @@ from rest_framework.views import APIView
 from maps.models import DataLayer
 from maps.serializers import DataLayerSerializer, DataLayerDetailsSerializer
 from profiles.content_negotiation import GeoJSONContentNegotiation
-from profiles.settings import VIEW_CACHE_TTL
+
+from django.conf import settings
 
 if TYPE_CHECKING:
     pass
@@ -34,6 +35,7 @@ class DataLayerViewSet(viewsets.ModelViewSet):
     media_type = 'application/geo+json'
     format = 'geojson'
 
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def render(self, data, media_type=None, renderer_context=None):
         return json.dumps(data)
 
@@ -42,7 +44,7 @@ class GeoJSONDataLayerView(APIView):
     permission_classes = [AllowAny, ]
     content_negotiation_class = GeoJSONContentNegotiation
 
-    @method_decorator(cache_page(VIEW_CACHE_TTL))
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def get(self, request: Request, map_slug=None):
         try:
             data_layer: DataLayer = DataLayer.objects.get(slug=map_slug)

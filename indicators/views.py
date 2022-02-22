@@ -21,7 +21,8 @@ from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorR
     get_geog_model
 from maps.models import DataLayer
 from profiles.content_negotiation import GeoJSONContentNegotiation
-from profiles.settings import VIEW_CACHE_TTL
+from django.conf import settings
+
 
 
 class DomainViewSet(viewsets.ModelViewSet):
@@ -92,7 +93,7 @@ class DataVizViewSet(viewsets.ModelViewSet):
         return context
 
     # Cache requested url for each user for 2 minutes
-    @method_decorator(cache_page(VIEW_CACHE_TTL))
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def retrieve(self, request, *args, **kwargs):
         return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
 
@@ -101,7 +102,7 @@ class GeoJSONWithDataView(APIView):
     permission_classes = [AllowAny, ]
     content_negotiation_class = GeoJSONContentNegotiation
 
-    @method_decorator(cache_page(VIEW_CACHE_TTL))
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
         try:
             geog_type: Type[AdminRegion] = get_geog_model(geog_type_id)
