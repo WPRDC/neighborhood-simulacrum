@@ -33,7 +33,7 @@ class Domain(Described):
 
 
 class Subdomain(Described):
-    domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.PROTECT)
+    domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.CASCADE)
     order = models.IntegerField(default=0)
     inds = models.ManyToManyField('Indicator', related_name='subdomains', through='SubdomainIndicator')
 

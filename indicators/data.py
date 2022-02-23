@@ -162,7 +162,7 @@ class Datum:
     percent: Optional[float] = None
 
     def __post_init__(self):
-        if self.denom:
+        if self.denom and self.value:
             self.percent = self.value / self.denom
 
     @staticmethod
@@ -185,7 +185,8 @@ class Datum:
         denom, percent = None, None
         if DENOM_DKEY in ckan_datum:
             denom = ckan_datum[DENOM_DKEY]
-            percent = (ckan_datum[VALUE_DKEY] / ckan_datum[DENOM_DKEY])
+            if ckan_datum[VALUE_DKEY] is not None and ckan_datum[DENOM_DKEY]:
+                percent = (ckan_datum[VALUE_DKEY] / ckan_datum[DENOM_DKEY])
 
         return Datum(variable=variable.slug,
                      geog=ckan_datum[GEOG_DKEY],

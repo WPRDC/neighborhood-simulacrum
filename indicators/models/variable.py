@@ -456,20 +456,24 @@ class CKANVariable(Variable):
             for time, data in time_record.items():
                 values = [d.value for d in data]
                 denoms = [d.denom for d in data]
-                if None in values:
-                    raise AggregationError(f"Cannot aggregate data for '{geog}' since data is not available for all of "
-                                           f"its constituent '{base_geog_lvl.geog_type}'s.")
-                if None in denoms:
-                    self._add_warning(ErrorRecord(
-                        level=ErrorLevel.WARNING,
-                        message=f"Cannot aggregate denominator data for '{geog}' at '{time}' "
-                                f"since data is not available for "
-                                f"all of its constituent '{base_geog_lvl.geog_type_title}'s"))
-                value = sum(values)
-                denom = sum(denoms) if len(denoms) and None not in denoms else None
-                percent = value / denom if denom else None
-                results.append(
-                    Datum(variable=self.slug, geog=geog, time=time, value=value, denom=denom, percent=percent))
+                if len(data) == 1:
+                    value = values[0]
+                    denom = denoms[0]
+                else:
+                    if None in values:
+                        raise AggregationError(
+                            f"Cannot aggregate data for '{geog}' since data is not available for all of "
+                            f"its constituent '{base_geog_lvl.geog_type}'s.")
+                    if None in denoms:
+                        self._add_warning(ErrorRecord(
+                            level=ErrorLevel.WARNING,
+                            message=f"Cannot aggregate denominator data for '{geog}' at '{time}' "
+                                    f"since data is not available for "
+                                    f"all of its constituent '{base_geog_lvl.geog_type_title}'s"))
+                    value = sum(values)
+                    denom = sum(denoms) if len(denoms) and None not in denoms else None
+
+                results.append(Datum(variable=self.slug, geog=geog, time=time, value=value, denom=denom))
         return results
 
     def _get_source_for_time_part(self, time_part: TimeAxis.TimePart) -> Optional[CKANSource]:

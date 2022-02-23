@@ -4,6 +4,7 @@ from typing import List, Type, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
+from django.contrib.gis.db.models.functions import Centroid
 from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
@@ -207,8 +208,8 @@ class BlockGroup(AdminRegion, CensusGeography):
     @property
     def hierarchy(self):
         return [
-            County.objects.get(geoid=f'{self.statefp}{self.countyfp}'),
-            Tract.objects.get(geoid=f'{self.statefp}{self.countyfp}{self.tractce}')
+            County.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}'),
+            Tract.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}{self.tractce}')
         ]
 
     @property
@@ -241,7 +242,7 @@ class Tract(AdminRegion, CensusGeography):
 
     @property
     def hierarchy(self):
-        return [County.objects.get(geoid=f'{self.statefp}{self.countyfp}')]
+        return [County.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}')]
 
     @property
     def census_geo(self):
@@ -274,7 +275,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
     @property
     def hierarchy(self):
-        return [County.objects.get(geoid=f'{self.statefp}{self.countyfp}')]
+        return [County.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}')]
 
     @property
     def census_geo(self):
@@ -345,6 +346,7 @@ class ZipCodeTabulationArea(AdminRegion, CensusGeography):
     class Meta:
         verbose_name = "Zip Code Tabulation Area"
         verbose_name_plural = "Zip Code Tabulation Areas"
+        ordering = ['name']
 
 
 class SchoolDistrict(AdminRegion, CensusGeography):
@@ -396,3 +398,5 @@ class Neighborhood(AdminRegion):
     class Meta:
         verbose_name = "Neighborhood"
         verbose_name_plural = "Neighborhoods"
+        ordering = ['name']
+

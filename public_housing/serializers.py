@@ -542,6 +542,8 @@ class ProjectIndexSerializer(serializers.ModelSerializer):
 
 
 class ProjectIndexBriefSerializer(serializers.HyperlinkedModelSerializer):
+    centroid = serializers.SerializerMethodField()
+
     class Meta:
         model = ProjectIndex
         fields = (
@@ -562,7 +564,14 @@ class ProjectIndexBriefSerializer(serializers.HyperlinkedModelSerializer):
             'crowdsourced_id',
             'house_cat_id',
             'status',
+            'centroid'
         )
+
+    def get_centroid(self, obj):
+        try:
+            return obj.centroid.coords
+        except:
+            return None
 
 
 class ProjectIndexGeoJSONSerializer(GeoFeatureModelSerializer):

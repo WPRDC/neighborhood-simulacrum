@@ -1,6 +1,7 @@
 from typing import Union
 
 from django.conf import settings
+from django.contrib.gis.db.models.functions import Centroid
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -18,7 +19,9 @@ from public_housing.serializers import (
 
 
 def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
-    queryset = ProjectIndex.objects.all()
+    queryset = ProjectIndex.objects \
+        .annotate(centroid=Centroid('geom')) \
+        .all()
 
     # Match filter form items from app's map page
     risk_level = request.query_params.get('risk-level')

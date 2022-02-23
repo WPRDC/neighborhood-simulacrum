@@ -11,8 +11,7 @@ from .models import (
     ZipCodeTabulationArea
 )
 
-
-class AdminRegionBriefSerializer(serializers.ModelSerializer):
+class AdminRegionHierarchySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminRegion
         fields = (
@@ -25,8 +24,28 @@ class AdminRegionBriefSerializer(serializers.ModelSerializer):
         )
 
 
+
+class AdminRegionBriefSerializer(serializers.ModelSerializer):
+    centroid = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AdminRegion
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'title',
+            'geog_type',
+            'geogID',
+            'centroid',
+        )
+
+    def get_centroid(self, obj):
+        return obj.centroid.coords
+
+
 class AdminRegionSerializer(serializers.ModelSerializer):
-    hierarchy = AdminRegionBriefSerializer(many=True)
+    hierarchy = AdminRegionHierarchySerializer(many=True)
 
     class Meta:
         model = AdminRegion
