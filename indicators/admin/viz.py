@@ -2,8 +2,23 @@ import nested_admin
 from django.contrib import admin
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin
 
-from indicators.models.viz import DataViz, MiniMap, Table, Chart, \
-    BigValue, Sentence, TableVariable, ChartPart, MapLayer, SentenceVariable, BigValueVariable
+from indicators.models.viz import (
+    DataViz,
+    MiniMap,
+    Table,
+    BigValue,
+    Sentence,
+    TableVariable,
+    MapLayer,
+    SentenceVariable,
+    BigValueVariable,
+    BarChart,
+    LineChart,
+    PieChart,
+    PyramidChart,
+    ScatterPlot,
+    Histogram
+)
 
 
 @admin.register(DataViz)
@@ -11,8 +26,21 @@ class DataVizAdmin(PolymorphicParentModelAdmin):
     list_display = ('slug', 'name',)
     search_fields = ('name', 'slug')
     base_model = DataViz
-    child_models = (MiniMap, Table, Chart, MiniMap, BigValue, Sentence)
+    child_models = (
+        MiniMap,
+        Table,
+        MiniMap,
+        BigValue,
+        Sentence,
+        BarChart,
+        LineChart,
+        PieChart,
+        PyramidChart,
+        ScatterPlot,
+        Histogram
+    )
     prepopulated_fields = {"slug": ("name",)}
+    autocomplete_fields = ('time_axis',)
 
 
 class DataVizChildAdmin(nested_admin.NestedPolymorphicInlineSupportMixin, PolymorphicChildModelAdmin):
@@ -32,11 +60,6 @@ class TableRowInline(nested_admin.NestedTabularInline):
     model = TableVariable
 
 
-class ChartPartInline(nested_admin.NestedTabularInline):
-    autocomplete_fields = ('variable',)
-    model = ChartPart
-
-
 class BigValueVariableInline(nested_admin.NestedTabularInline):
     autocomplete_fields = ('variable',)
     model = BigValueVariable
@@ -47,50 +70,79 @@ class SentenceVariableInline(nested_admin.NestedTabularInline):
     model = SentenceVariable
 
 
+class BarChartPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
+    model = BarChart.BarChartPart
+
+
+class LineChartPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
+    model = LineChart.LineChartPart
+
+
+class PieChartPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
+    model = PieChart.PieChartPart
+
+
+class PyramidChartLeftPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
+    model = PyramidChart.PyramidChartLeftPart
+
+
+class PyramidChartRightPartInline(nested_admin.NestedTabularInline):
+    autocomplete_fields = ('variable',)
+    model = PyramidChart.PyramidChartRightPart
+
+
 @admin.register(MiniMap)
 class MiniMapAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
     inlines = (MapLayerInline,)
-    autocomplete_fields = ('time_axis',)
 
 
 @admin.register(Table)
 class TableAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
     inlines = (TableRowInline,)
-
-
-@admin.register(Chart)
-class ChartAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
-    inlines = (ChartPartInline,)
 
 
 @admin.register(BigValue)
 class BigValueAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
     inlines = (BigValueVariableInline,)
 
 
 @admin.register(Sentence)
 class SentenceAdmin(DataVizChildAdmin):
-    list_display = (
-        'name',
-    )
-    search_fields = ('name',)
     inlines = (SentenceVariableInline,)
+
+
+@admin.register(BarChart)
+class BarChartAdmin(DataVizChildAdmin):
+    inlines = (BarChartPartInline,)
+
+
+@admin.register(LineChart)
+class LineChartAdmin(DataVizChildAdmin):
+    inlines = (LineChartPartInline,)
+
+
+@admin.register(PieChart)
+class PieChartAdmin(DataVizChildAdmin):
+    inlines = (PieChartPartInline,)
+
+
+@admin.register(PyramidChart)
+class PyramidChartAdmin(DataVizChildAdmin):
+    inlines = (PyramidChartLeftPartInline, PyramidChartRightPartInline,)
+
+
+@admin.register(ScatterPlot)
+class ScatterPlotAdmin(DataVizChildAdmin):
+    pass
+
+
+@admin.register(Histogram)
+class HistogramAdmin(DataVizChildAdmin):
+    pass
 
 
 class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
@@ -104,11 +156,6 @@ class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
         model = Table
         inlines = (TableRowInline,)
 
-    # Chart
-    class ChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
-        model = Chart
-        inlines = (ChartPartInline,)
-
     # Alphanumeric
     class BigValueInline(nested_admin.NestedStackedPolymorphicInline.Child):
         model = BigValue
@@ -118,11 +165,39 @@ class DataVizInline(nested_admin.NestedStackedPolymorphicInline):
         model = Sentence
         inlines = (SentenceVariableInline,)
 
+    # Charts
+    class BarChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = BarChart
+        inlines = (BarChartPartInline,)
+
+    class LineChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = LineChart
+        inlines = (LineChartPartInline,)
+
+    class PieChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = PieChart
+        inlines = (PieChartPartInline,)
+
+    class PyramidChartInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = PyramidChart
+        inlines = (PyramidChartLeftPartInline, PyramidChartRightPartInline,)
+
+    class ScatterPlotInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = ScatterPlot
+
+    class HistogramInline(nested_admin.NestedStackedPolymorphicInline.Child):
+        model = Histogram
+
     model = DataViz
     child_inlines = (
         MiniMapInline,
         TableInline,
-        ChartInline,
         BigValueInline,
         SentenceInline,
+        BarChartInline,
+        LineChartInline,
+        PieChartInline,
+        PyramidChartInline,
+        ScatterPlotInline,
+        HistogramInline
     )
