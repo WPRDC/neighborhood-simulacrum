@@ -45,6 +45,7 @@ class CustomIndexDashboard(Dashboard):
             title='📚 Taxonomy',
             column=1,
             models=(
+                'indicators.models.Taxonomy',
                 'indicators.models.Domain',
                 'indicators.models.Subdomain',
                 'indicators.models.Indicator',

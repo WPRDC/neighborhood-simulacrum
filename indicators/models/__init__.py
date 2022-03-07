@@ -21,15 +21,35 @@ class SubdomainIndicator(models.Model):
         return f'{self.subdomain.__str__()} ➡ {self.indicator.__str__()}'
 
 
-class Domain(Described):
-    """ Main categories for organizing indicators """
+class TaxonomyDomain(models.Model):
+    taxonomy = models.ForeignKey('Taxonomy', on_delete=models.CASCADE, related_name='taxonomy_to_domain')
+    domain = models.ForeignKey('Domain', on_delete=models.CASCADE, related_name='domain_to_taxonomy')
+
     order = models.IntegerField(default=0)
 
     class Meta:
+        unique_together = ('taxonomy', 'domain',)
         ordering = ('order',)
 
     def __str__(self):
-        return self.name
+        return f'{self.taxonomy.__str__()} ➡ {self.domain.__str__()}'
+
+
+class Taxonomy(Described):
+    _domains = models.ManyToManyField('Domain', related_name='project', through=TaxonomyDomain)
+
+    @property
+    def domains(self):
+        return self._domains.order_by('domain_to_taxonomy')
+
+    class Meta:
+        verbose_name = 'Taxonomy'
+        verbose_name_plural = 'Taxonomies'
+
+
+class Domain(Described):
+    """ Main categories for organizing indicators """
+    pass
 
 
 class Subdomain(Described):
@@ -43,9 +63,6 @@ class Subdomain(Described):
 
     class Meta:
         ordering = ('order',)
-
-    def __str__(self):
-        return self.name
 
 
 class IndicatorDataViz(models.Model):
@@ -109,9 +126,6 @@ class Indicator(Described):
     @property
     def data_vizes(self):
         return self.vizes.order_by('dataviz_to_indicator')
-
-    def __str__(self):
-        return f'{self.name}'
 
     @property
     def hierarchies(self):

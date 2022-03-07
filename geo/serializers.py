@@ -57,6 +57,7 @@ class AdminRegionSerializer(serializers.ModelSerializer):
             'geog_type',
             'geogID',
             'hierarchy',
+            'overlap'
         )
 
 

@@ -1,10 +1,16 @@
 from rest_framework import serializers
 
-from indicators.models import Domain, Subdomain, Indicator
+from indicators.models import Domain, Subdomain, Indicator, Taxonomy
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
 from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
 from .viz import DataVizSerializer, DataVizWithDataSerializer, DataVizIdentifiersSerializer, DataVizBriefSerializer
+
+
+class TaxonomyBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Taxonomy
+        fields = ('id', 'slug', 'name')
 
 
 class DomainBriefSerializer(serializers.ModelSerializer):
@@ -80,4 +86,18 @@ class DomainSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'subdomains',
+        )
+
+
+class TaxonomySerializer(serializers.ModelSerializer):
+    domains = DomainSerializer(many=True)
+
+    class Meta:
+        model = Taxonomy
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'description',
+            'domains'
         )

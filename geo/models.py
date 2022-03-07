@@ -5,6 +5,7 @@ from typing import List, Type, Optional
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models.functions import Centroid
+from django.db.models import QuerySet
 from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
@@ -150,6 +151,14 @@ class AdminRegion(PolymorphicModel, Geography):
     @abstractmethod
     def hierarchy(self) -> List['AdminRegion']:
         raise NotImplementedError
+
+    @property
+    def overlap(self) -> dict[str, list[str]]:
+        results = {}
+        for subclass in AdminRegion.__subclasses__():
+            intersecting_geogs = subclass.objects.filter(geom__intersects=self.geom)
+            results[subclass.geog_type_id] = [g.slug for g in intersecting_geogs]
+        return results
 
     @staticmethod
     def from_uid(uid: str):

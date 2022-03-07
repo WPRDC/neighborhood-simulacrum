@@ -13,16 +13,24 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from geo.models import AdminRegion, BlockGroup
-from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis, MiniMap
+from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis, MiniMap, Taxonomy
 from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, \
-    DataVizSerializer, DataVizBriefSerializer
+    DataVizSerializer, DataVizBriefSerializer, TaxonomySerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel, \
     get_geog_model
 from maps.models import DataLayer
 from profiles.content_negotiation import GeoJSONContentNegotiation
 from django.conf import settings
 
+
+class TaxonomyViewSet(viewsets.ModelViewSet):
+    queryset = Taxonomy.objects.all()
+    serializer_class = TaxonomySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
+    lookup_field = 'slug'
 
 
 class DomainViewSet(viewsets.ModelViewSet):
@@ -31,6 +39,7 @@ class DomainViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
+    lookup_field = 'slug'
 
 
 class SubdomainViewSet(viewsets.ModelViewSet):
@@ -39,6 +48,7 @@ class SubdomainViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
+    lookup_field = 'slug'
 
 
 class IndicatorViewSet(viewsets.ModelViewSet):

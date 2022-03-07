@@ -3,14 +3,11 @@ from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin,
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
 from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
-from ..models import Indicator, Subdomain, Domain, Value, SubdomainIndicator, IndicatorDataViz
+from ..models import Indicator, Subdomain, Domain, Value, SubdomainIndicator, IndicatorDataViz, Taxonomy, TaxonomyDomain
 
 
 class SubdomainIndicatorInline(admin.StackedInline):
     model = SubdomainIndicator
-
-    def __str__(self):
-        return self.ob
 
 
 class IndicatorDataVizInline(admin.StackedInline):
@@ -49,6 +46,20 @@ class DomainAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
 
     inlines = (SubdomainInline,)
+
+
+class TaxonomyDomainInline(admin.TabularInline):
+    model = TaxonomyDomain
+    autocomplete_fields = ('domain',)
+
+
+@admin.register(Taxonomy)
+class TaxonomyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description')
+    search_fields = ('name',)
+    prepopulated_fields = {"slug": ("name",)}
+
+    inlines = (TaxonomyDomainInline,)
 
 
 @admin.register(Value)
