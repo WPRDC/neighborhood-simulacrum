@@ -157,7 +157,7 @@ class AdminRegion(PolymorphicModel, Geography):
         results = {}
         for subclass in AdminRegion.__subclasses__():
             intersecting_geogs = subclass.objects.filter(geom__intersects=self.geom)
-            results[subclass.geog_type_id] = [g.slug for g in intersecting_geogs]
+            results[subclass.geog_type_id] = [{'name': g.name, 'slug': g.slug, 'id': g.id} for g in intersecting_geogs]
         return results
 
     @staticmethod

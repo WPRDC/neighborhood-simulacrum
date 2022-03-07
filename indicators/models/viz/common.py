@@ -16,9 +16,9 @@ from indicators.utils import ErrorRecord, DataResponse, ErrorLevel
 
 from profiles.abstract_models import Described
 from django.db.models import QuerySet, Manager
+from geo.models import AdminRegion
 
 if TYPE_CHECKING:
-    from geo.models import AdminRegion
     from indicators.models.variable import Variable
 
 logger = logging.getLogger(__name__)
