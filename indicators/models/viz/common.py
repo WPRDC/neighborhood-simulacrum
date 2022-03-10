@@ -58,7 +58,7 @@ class DataViz(PolymorphicModel, Described):
     @property
     def ref_name(self) -> str:
         """ The snake case string used to reference this model in related names. """
-        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', self.viz_type)
+        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', self.__class__.__qualname__)
         # noinspection RegExpSimplifiable
         return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 

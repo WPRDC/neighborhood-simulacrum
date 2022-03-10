@@ -22,7 +22,7 @@ from indicators.models.viz import (
 
 
 @admin.register(DataViz)
-class DataVizAdmin(PolymorphicParentModelAdmin):
+class DataVizAdmin(PolymorphicParentModelAdmin, nested_admin.NestedPolymorphicInlineSupportMixin):
     list_display = ('slug', 'name',)
     search_fields = ('name', 'slug')
     base_model = DataViz

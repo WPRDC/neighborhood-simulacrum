@@ -155,9 +155,12 @@ class AdminRegion(PolymorphicModel, Geography):
     @property
     def overlap(self) -> dict[str, list[str]]:
         results = {}
-        for subclass in AdminRegion.__subclasses__():
-            intersecting_geogs = subclass.objects.filter(geom__intersects=self.geom)
-            results[subclass.geog_type_id] = [{'name': g.name, 'slug': g.slug, 'id': g.id} for g in intersecting_geogs]
+        for subclass in [County, CountySubdivision, Tract]:
+            if self.geog_type_id == AdminRegion.COUNTY:
+                results[subclass.geog_type_id] = []
+            else:
+                intersecting_geogs = subclass.objects.filter(geom__intersects=self.geom)
+                results[subclass.geog_type_id] = [{'name': g.name, 'slug': g.slug, 'id': g.id} for g in intersecting_geogs]
         return results
 
     @staticmethod

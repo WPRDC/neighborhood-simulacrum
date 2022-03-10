@@ -69,6 +69,13 @@ class BarChart(Chart):
     def _get_viz_options(self, geog: 'AdminRegion') -> Optional[dict]:
         return {'legend_type': self.legend_type, 'across_geogs': self.across_geogs}
 
+    @property
+    def options(self):
+        return {
+            'across_geogs': self.across_geogs,
+            'as_columns': self.as_columns,
+        }
+
     class BarChartPart(VizVariable):
         """ Links bar chart to variables """
         viz = models.ForeignKey('BarChart', on_delete=models.CASCADE, related_name='bar_chart_to_variable')
