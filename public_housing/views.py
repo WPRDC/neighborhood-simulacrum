@@ -6,15 +6,16 @@ from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import views, viewsets, filters
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from profiles.content_negotiation import GeoJSONContentNegotiation
-from public_housing.models import ProjectIndex
+from public_housing.models import ProjectIndex, Watchlist
 from public_housing.serializers import (
     ProjectIndexSerializer,
     ProjectIndexBriefSerializer,
-    ProjectIndexGeoJSONSerializer,
+    ProjectIndexGeoJSONSerializer, WatchlistSerializer, WatchlistDetailedSerializer,
 )
 
 
@@ -25,10 +26,30 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
 
     # Match filter form items from app's map page
     risk_level = request.query_params.get('risk-level')
+    watchlist = request.query_params.get('watchlist')
+
+    if watchlist:
+        wl = Watchlist.objects.get(slug=watchlist)
+        queryset = ProjectIndex.objects.filter(property_id__in=wl.items)
+
     if risk_level:
         queryset = ProjectIndex.filter_by_at_risk(queryset, lvl=risk_level)
 
     return queryset
+
+
+class WatchlistViewSet(viewsets.ModelViewSet):
+    serializer_class = WatchlistSerializer
+    queryset = Watchlist.objects.all()
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
+    lookup_field = 'slug'
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return WatchlistSerializer
+        return WatchlistDetailedSerializer
 
 
 class ProjectViewSet(viewsets.ModelViewSet):

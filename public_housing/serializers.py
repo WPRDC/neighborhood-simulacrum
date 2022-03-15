@@ -8,7 +8,7 @@ from public_housing.housing_datasets import PHFAStats, ActiveHUDMultifamilyInsur
     SubsidyExtractFromMultifamilyAssistanceAndSection8Contracts, MultifamilyAssistanceAndSection8Contracts, \
     HUDInsuredMultifamilyProperties, HUDMultifamilyInspectionScores, LIHTCDataFromPHFA, \
     DemographicsByHousingProjectFromPHFA, HouseCatSubsidyListing
-from public_housing.models import ProjectIndex
+from public_housing.models import ProjectIndex, Watchlist
 
 
 class ActiveHUDMultifamilyInsuredMortgagesSerializer(serializers.ModelSerializer):
@@ -289,7 +289,6 @@ class SubsidyExtractFromMultifamilyAssistanceAndSection8ContractsSerializer(seri
         model = SubsidyExtractFromMultifamilyAssistanceAndSection8Contracts
         fields = (
             'property_id',
-
             'county_fips_code',
             'county',
             'congressional_district_code',
@@ -598,4 +597,28 @@ class ProjectIndexGeoJSONSerializer(GeoFeatureModelSerializer):
             'crowdsourced_id',
             'house_cat_id',
             'status',
+        )
+
+
+class WatchlistDetailedSerializer(serializers.ModelSerializer):
+    project_indices = ProjectIndexBriefSerializer(many=True)
+
+    class Meta:
+        model = Watchlist
+        fields = (
+            'id',
+            'slug',
+            'user_name',
+            'project_indices'
+        )
+
+
+class WatchlistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Watchlist
+        fields = (
+            'id',
+            'slug',
+            'user_name',
+            'items',
         )

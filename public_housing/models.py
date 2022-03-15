@@ -2,11 +2,13 @@ from datetime import date, timedelta
 from functools import lru_cache
 from typing import Type
 
+from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
+from django.contrib.postgres.fields import ArrayField
 from django.db.models import QuerySet
 
-from profiles.abstract_models import DatastoreDataset
+from profiles.abstract_models import DatastoreDataset, Described
 from public_housing.housing_datasets import (
     ActiveHUDMultifamilyInsuredMortgages,
     HUDInspectionScores,
@@ -277,3 +279,21 @@ class ProjectIndex(DatastoreDataset):
 
     def __str__(self):
         return f'{self.id}: {self.hud_property_name}'
+
+
+class Account(models.Model):
+    name = models.CharField(max_length=40)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+
+class Watchlist(Described):
+    account = models.OneToOneField(Account, on_delete=models.CASCADE)
+    items = ArrayField(base_field=models.CharField(max_length=200))
+
+    @property
+    def user_name(self):
+        return self.account.name
+
+    @property
+    def project_indices(self):
+        return ProjectIndex.objects.filter(property_id__in=self.items)
