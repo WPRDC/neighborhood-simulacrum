@@ -95,7 +95,6 @@ class ProjectVectorTileViewSet(views.APIView):
     def get_queryset(self) -> QuerySet[ProjectIndex]:
         return get_filtered_project_indices(self.request)
 
-    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def get(self, request: Request) -> Response:
         # use complete set of projects, filtering will be handled by the layer's filter property
         map_view = settings.PUBLIC_HOUSING_PROJECT_LAYER_VIEW
@@ -106,7 +105,28 @@ class ProjectVectorTileViewSet(views.APIView):
             'id': f'{map_id}/marker',
             'source': map_id,
             'source-layer': f'maps.v_{map_view}',
-            'type': 'circle',
+            'type': 'symbol',
+            "sprite": "mapbox://sprites/stevendsaylor/ckd6ixslm00461iqqn1hltgs8/cgf87udw29dtg22hkck4yaevo",
+            'layout': {
+                'icon-image': 'project',
+                'icon-size': 0.8,
+                'icon-allow-overlap': True,
+                'text-allow-overlap': True,
+                'text-field': ['to-string', ['get', 'hud_property_name']],
+                'text-offset': [0, 0.5],
+                'text-anchor': 'top',
+            },
+            'paint': {
+                'text-opacity': [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    0, 0,  # at zoom 0, have 0 opacity
+                    14, 0,  # at zoom 14, have 0 but start to go up quickly
+                    16, 1,
+                    22, 1
+                ]
+            }
         }
 
         # only filter if necessary
