@@ -95,6 +95,7 @@ class ProjectVectorTileViewSet(views.APIView):
     def get_queryset(self) -> QuerySet[ProjectIndex]:
         return get_filtered_project_indices(self.request)
 
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def get(self, request: Request) -> Response:
         # use complete set of projects, filtering will be handled by the layer's filter property
         map_view = settings.PUBLIC_HOUSING_PROJECT_LAYER_VIEW
