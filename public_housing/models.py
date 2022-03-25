@@ -6,8 +6,8 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import QuerySet, F
-from django.db.models.functions import Cast, Substr
+from django.db.models import QuerySet, F, Q
+from django.db.models.functions import Cast, Substr, Length
 
 from profiles.abstract_models import DatastoreDataset, Described
 from public_housing.housing_datasets import (
@@ -104,7 +104,6 @@ class ProjectIndex(DatastoreDataset):
         db_table = '1885161c-65f3-4cb2-98aa-4402487ae888'
 
     @staticmethod
-    @lru_cache
     def filter_by_risk_level(
             queryset: QuerySet['ProjectIndex'],
             lvl: str
@@ -117,7 +116,6 @@ class ProjectIndex(DatastoreDataset):
         return queryset.filter(property_id__in=matching_ids)
 
     @staticmethod
-    @lru_cache
     def filter_by_lihtc_compliance(queryset: QuerySet['ProjectIndex'], lvl: str):
         """
         Filter showing properties in the initial LIHTC compliance period (years 0-15) from the date or year placed into service
@@ -154,6 +152,7 @@ class ProjectIndex(DatastoreDataset):
                     (TODAY - timedelta(days=365 * 27)).year
                 )
             }
+        else:
             return queryset
         # get all the possible lihtc ids
         lihtc_records = LIHTC.objects.filter(**_filter)
@@ -168,7 +167,6 @@ class ProjectIndex(DatastoreDataset):
         return queryset.filter(id__in=project_index_ids)
 
     @staticmethod
-    @lru_cache
     def filter_by_reac_score(queryset: QuerySet['ProjectIndex'], lvl: str):
         """ Filter by REAC score for HUD properties """
         if lvl == 'failing':
@@ -181,7 +179,9 @@ class ProjectIndex(DatastoreDataset):
 
         multi_fam_records = HUDMultifamilyInspectionScores.objects.annotate(
             # strip out int of score
-            score=Cast(Substr(F('inspection_score'), 2), output_field=models.IntegerField())
+            score=Cast(
+                Substr(F('inspection_score'), 1, Length(F('inspection_score')) - 2),
+                output_field=models.IntegerField())
         ).filter(score__lt=max_score)
         devel_records = HUDInspectionScores.objects.filter(inspection_score__lt=max_score)
 
@@ -192,22 +192,21 @@ class ProjectIndex(DatastoreDataset):
         project_index_ids = [r.projectindex_id for r in dev_code_lookup]
         property_ids = [mf.property_id for mf in multi_fam_records]
 
-        return queryset.filter(id__in=project_index_ids, property_id__in=property_ids)
+        return queryset.filter(Q(id__in=project_index_ids) | Q(property_id__in=property_ids))
 
     @staticmethod
-    @lru_cache
     def filter_by_last_inspection(queryset: QuerySet['ProjectIndex'], lvl: str):
         """ Filter projects by last HUD inspection """
         if lvl == '3mos':
             time_back = timedelta(weeks=4 * 3)
         elif lvl == '6mos':
-            time_back = timedelta(weeks=4 * 3)
+            time_back = timedelta(weeks=4 * 6)
         else:
             # don't filter by default
             return queryset
 
         multi_fam_records = HUDMultifamilyInspectionScores.objects.filter(inspection_date__gte=TODAY - time_back)
-        devel_records = HUDInspectionScores.objects.filter(inspection_score__gte=TODAY - time_back)
+        devel_records = HUDInspectionScores.objects.filter(inspection_date__gte=TODAY - time_back)
 
         # find project index records that relate to these inspection records
         dev_code_lookup = DevelopmentCode.objects.filter(
@@ -216,10 +215,9 @@ class ProjectIndex(DatastoreDataset):
         project_index_ids = [r.projectindex_id for r in dev_code_lookup]
         property_ids = [mf.property_id for mf in multi_fam_records]
 
-        return queryset.filter(id__in=project_index_ids, property_id__in=property_ids)
+        return queryset.filter(Q(id__in=project_index_ids) | Q(property_id__in=property_ids))
 
     @staticmethod
-    @lru_cache
     def filter_by_funding_type(queryset: QuerySet['ProjectIndex'], lvl: str):
         """ Filters by source of funding - TBD """
         if lvl == 'public-housing':
