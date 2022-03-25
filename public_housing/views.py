@@ -5,8 +5,9 @@ from django.contrib.gis.db.models.functions import Centroid
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import views, viewsets, filters
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -25,15 +26,29 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
         .all()
 
     # Match filter form items from app's map page
-    risk_level = request.query_params.get('risk-level')
     watchlist = request.query_params.get('watchlist')
+    risk_level = request.query_params.get('risk-level')
+    lihtc_compliance = request.query_params.get('lihtc-compliance')
+    reac_score = request.query_params.get('reac-score')
+    last_inspection = request.query_params.get('last-inspection')
+    funding_type = request.query_params.get('funding-type')
 
+    print('LIHTC', lihtc_compliance)
+
+    # run all the filters
     if watchlist:
         wl = Watchlist.objects.get(slug=watchlist)
         queryset = ProjectIndex.objects.filter(property_id__in=wl.items)
-
     if risk_level:
-        queryset = ProjectIndex.filter_by_at_risk(queryset, lvl=risk_level)
+        queryset = ProjectIndex.filter_by_risk_level(queryset, lvl=risk_level)
+    if lihtc_compliance:
+        queryset = ProjectIndex.filter_by_lihtc_compliance(queryset, lvl=lihtc_compliance)
+    if reac_score:
+        queryset = ProjectIndex.filter_by_reac_score(queryset, lvl=reac_score)
+    if last_inspection:
+        queryset = ProjectIndex.filter_by_last_inspection(queryset, lvl=last_inspection)
+    if funding_type:
+        queryset = ProjectIndex.filter_by_funding_type(queryset, lvl=funding_type)
 
     return queryset
 
@@ -41,7 +56,7 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
 class WatchlistViewSet(viewsets.ModelViewSet):
     serializer_class = WatchlistSerializer
     queryset = Watchlist.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
     lookup_field = 'slug'
@@ -58,6 +73,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     filter_backends = [filters.SearchFilter, ]
     search_fields = ['hud_property_name', ]
+    permission_classes = [IsAuthenticated]
+
+    @csrf_exempt
+    def list(self, request, *args, **kwargs):
+        return super(ProjectViewSet, self).list(self, request, *args, **kwargs)
+
+    @csrf_exempt
+    def retrieve(self, request, *args, **kwargs):
+        return super(ProjectViewSet, self).retrieve(self, request, *args, **kwargs)
 
     def get_serializer_class(self) -> type(Union[ProjectIndexSerializer, ProjectIndexBriefSerializer]):
         if self.action == 'list':
@@ -75,6 +99,8 @@ class ProjectGeoJSONViewSet(viewsets.ModelViewSet):
     queryset = ProjectIndex.objects.all()
     serializer_class = ProjectIndexGeoJSONSerializer
     content_negotiation_class = GeoJSONContentNegotiation
+    permission_classes = [IsAuthenticated]
+
     pagination_class = None
 
     def get_queryset(self) -> QuerySet[ProjectIndex]:

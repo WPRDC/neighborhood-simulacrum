@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from functools import lru_cache
 from typing import Type
 
@@ -6,7 +6,8 @@ from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import QuerySet
+from django.db.models import QuerySet, F
+from django.db.models.functions import Cast, Substr
 
 from profiles.abstract_models import DatastoreDataset, Described
 from public_housing.housing_datasets import (
@@ -73,6 +74,9 @@ def get_fkeys(model: Type['LookupTable'], origin_id: int):
     return [item['projectidentifier_id'] for item in qs]
 
 
+TODAY = datetime.now().date()
+
+
 class ProjectIndex(DatastoreDataset):
     id = models.IntegerField(unique=True, primary_key=True)
 
@@ -101,7 +105,7 @@ class ProjectIndex(DatastoreDataset):
 
     @staticmethod
     @lru_cache
-    def filter_by_at_risk(
+    def filter_by_risk_level(
             queryset: QuerySet['ProjectIndex'],
             lvl: str
     ) -> QuerySet['ProjectIndex']:
@@ -111,6 +115,121 @@ class ProjectIndex(DatastoreDataset):
                         in HouseCatSubsidyListing.objects.filter(**{f'subsidy_expiration_date__{mthd}': dt})
                         if subsidy.subsidy_expiration_date is not None]
         return queryset.filter(property_id__in=matching_ids)
+
+    @staticmethod
+    @lru_cache
+    def filter_by_lihtc_compliance(queryset: QuerySet['ProjectIndex'], lvl: str):
+        """
+        Filter showing properties in the initial LIHTC compliance period (years 0-15) from the date or year placed into service
+        Filter showing properties in the LIHTC extended use period (years 15-30) from date placed into service
+        :param queryset:
+        :param lvl:
+        :return:
+        """
+        _filter = {}
+        if lvl == 'initial':
+            # in the initial LIHTC compliance period (years 0-15) from the date or year placed into service
+            _filter = {'lihtc_year_in_service__gte': (TODAY - timedelta(days=365 * 15)).year}
+        elif lvl == 'extended':
+            #  in the LIHTC extended use period (years 15-30) from date placed into service
+            _filter = {
+                'lihtc_year_in_service__range': (
+                    (TODAY - timedelta(days=365 * 30)).year,
+                    (TODAY - timedelta(days=365 * 15)).year
+                )
+            }
+        elif lvl == 'initial-exp':
+            # in year 13-15 from year placed into service (initial LIHTC compliance period expires soon)
+            _filter = {
+                'lihtc_year_in_service__range': (
+                    (TODAY - timedelta(days=365 * 15)).year,
+                    (TODAY - timedelta(days=365 * 13)).year
+                )
+            }
+        elif lvl == 'extended-exp':
+            # in year 27-30 from year placed into service (LIHTC extended use period expires soon)
+            _filter = {
+                'lihtc_year_in_service__range': (
+                    (TODAY - timedelta(days=365 * 30)).year,
+                    (TODAY - timedelta(days=365 * 27)).year
+                )
+            }
+            return queryset
+        # get all the possible lihtc ids
+        lihtc_records = LIHTC.objects.filter(**_filter)
+        lihtc_project_ids = [l.lihtc_project_id for l in lihtc_records]
+        lihtc_normalized_state_ids = [l.normalized_state_id for l in lihtc_records]
+
+        # find project index records that relate to these lihtc records
+        lookup_records = LIHTCProjectID.objects.filter(
+            projectidentifier_id__in=lihtc_project_ids + lihtc_normalized_state_ids)
+        project_index_ids = [r.projectindex_id for r in lookup_records]
+
+        return queryset.filter(id__in=project_index_ids)
+
+    @staticmethod
+    @lru_cache
+    def filter_by_reac_score(queryset: QuerySet['ProjectIndex'], lvl: str):
+        """ Filter by REAC score for HUD properties """
+        if lvl == 'failing':
+            max_score = 60
+        elif lvl == 'annual-inspection':
+            max_score = 80
+        else:
+            # don't filter by default
+            return queryset
+
+        multi_fam_records = HUDMultifamilyInspectionScores.objects.annotate(
+            # strip out int of score
+            score=Cast(Substr(F('inspection_score'), 2), output_field=models.IntegerField())
+        ).filter(score__lt=max_score)
+        devel_records = HUDInspectionScores.objects.filter(inspection_score__lt=max_score)
+
+        # find project index records that relate to these inspection records
+        dev_code_lookup = DevelopmentCode.objects.filter(
+            projectidentifier_id__in=[d.development_code for d in devel_records]
+        )
+        project_index_ids = [r.projectindex_id for r in dev_code_lookup]
+        property_ids = [mf.property_id for mf in multi_fam_records]
+
+        return queryset.filter(id__in=project_index_ids, property_id__in=property_ids)
+
+    @staticmethod
+    @lru_cache
+    def filter_by_last_inspection(queryset: QuerySet['ProjectIndex'], lvl: str):
+        """ Filter projects by last HUD inspection """
+        if lvl == '3mos':
+            time_back = timedelta(weeks=4 * 3)
+        elif lvl == '6mos':
+            time_back = timedelta(weeks=4 * 3)
+        else:
+            # don't filter by default
+            return queryset
+
+        multi_fam_records = HUDMultifamilyInspectionScores.objects.filter(inspection_date__gte=TODAY - time_back)
+        devel_records = HUDInspectionScores.objects.filter(inspection_score__gte=TODAY - time_back)
+
+        # find project index records that relate to these inspection records
+        dev_code_lookup = DevelopmentCode.objects.filter(
+            projectidentifier_id__in=[d.development_code for d in devel_records]
+        )
+        project_index_ids = [r.projectindex_id for r in dev_code_lookup]
+        property_ids = [mf.property_id for mf in multi_fam_records]
+
+        return queryset.filter(id__in=project_index_ids, property_id__in=property_ids)
+
+    @staticmethod
+    @lru_cache
+    def filter_by_funding_type(queryset: QuerySet['ProjectIndex'], lvl: str):
+        """ Filters by source of funding - TBD """
+        if lvl == 'public-housing':
+            pass
+        if lvl == 'multifamily':
+            pass
+        if lvl == 'lihtc':
+            pass
+
+        return queryset
 
     def get_data_for_std_field(self, std_field: str) -> list[dict]:
         """ Takes a standardized field name and searches for records containing it in the connected datasets """
