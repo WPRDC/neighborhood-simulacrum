@@ -23,7 +23,8 @@ class Command(BaseCommand):
             FROM (
                 SELECT 
                 id, property_id, hud_property_name, property_street_address, municipality_name, city,
-                zip_code, units, scattered_sites, latitude, longitude, census_tract, crowdsourced_id, house_cat_id, status,
+                zip_code, units, scattered_sites, latitude, longitude, census_tract, crowdsourced_id, house_cat_id, status, 
+                funding_category, max_units,
                 ST_Transform(ST_SetSRID(ST_Point(longitude::numeric, latitude::numeric), 4326), 3857)::geometry(point,3857) as geom_webmercator
                 --- ST_SetSRID(ST_Point(longitude::numeric, latitude::numeric), 4326)::geometry(point,4326) as geom
                 
@@ -31,8 +32,6 @@ class Command(BaseCommand):
             WHERE latitude IS NOT NULL AND longitude IS NOT NULL
             ) source_table
         """.lstrip())
-
-
 
         print(view_query)
 

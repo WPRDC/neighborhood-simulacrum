@@ -36,17 +36,18 @@ CREATE TYPE public.nested AS
 -- ?? dunno why this was here
 -- ?? ALTER TYPE NESTED OWNER TO ckan;
 
--- import the datastore's public shema into a local one
+-- import (or refresh) the datastore's public shema into a local one
+DROP SCHEMA IF EXISTS datastore CASCADE;
 CREATE SCHEMA IF NOT EXISTS datastore; -- the local one
 IMPORT FOREIGN SCHEMA public
     FROM SERVER datastore INTO datastore;
-
+-- give the django db user privileges to the linked schema
+GRANT USAGE ON FOREIGN SERVER datastore TO profiles_user;
+GRANT USAGE ON SCHEMA datastore TO profiles_user;
+GRANT ALL ON ALL TABLES IN SCHEMA datastore TO profiles_user;
 
 
 -- test pulling gdata
 SELECT *
 FROM "datastore"."bb9a7972-981c-4026-8483-df8bdd1801c2";
--- give the django db user privileges to the linked schema
-GRANT USAGE ON FOREIGN SERVER datastore TO profiles_user;
-GRANT USAGE ON SCHEMA datastore TO profiles_user;
-GRANT ALL ON ALL TABLES IN SCHEMA datastore TO profiles_user;
+
