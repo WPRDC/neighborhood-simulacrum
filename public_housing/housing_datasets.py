@@ -398,6 +398,7 @@ class SubsidyExtractFromHUDInsuredMultifamilyProperties(HousingDataset):
     class Meta:
         managed = False
         db_table = '7eeabaa5-bd27-4df0-9459-d56acd826451'
+        ordering = ['-subsidy_expiration_date']
 
 
 class SubsidyExtractFromMultifamilyAssistanceAndSection8Contracts(HousingDataset):
@@ -436,6 +437,7 @@ class SubsidyExtractFromMultifamilyAssistanceAndSection8Contracts(HousingDataset
     class Meta:
         managed = False
         db_table = '127d12cd-9718-4b44-9cc1-2673a1a50dba'
+        ordering = ['-owner_effective_date']
 
 
 class MultifamilyAssistanceAndSection8Contracts(HousingDataset):
@@ -464,6 +466,7 @@ class MultifamilyAssistanceAndSection8Contracts(HousingDataset):
     class Meta:
         managed = False
         db_table = '438a732d-c86f-4a06-bff8-61eb6ebe7328'
+        ordering = ['-subsidy_start_date']
 
 
 class HUDInsuredMultifamilyProperties(HousingDataset):
@@ -509,6 +512,7 @@ class HUDInsuredMultifamilyProperties(HousingDataset):
     class Meta:
         managed = False
         db_table = 'c099b5b9-df5d-4380-9cb3-6c45b03ac8b4'
+        ordering = ['-initial_endorsement_date']
 
 
 class HUDMultifamilyInspectionScores(HousingDataset):
@@ -530,6 +534,7 @@ class HUDMultifamilyInspectionScores(HousingDataset):
     class Meta:
         managed = False
         db_table = '7d4ad5ee-7229-4aa6-b3a2-69779fe5c52a'
+        ordering = ['-inspection_date']
 
 
 class LIHTCDataFromPHFA(HousingDataset):

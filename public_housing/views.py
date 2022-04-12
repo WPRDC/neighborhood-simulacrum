@@ -33,8 +33,6 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
     last_inspection = request.query_params.get('last-inspection')
     funding_type = request.query_params.get('funding-type')
 
-    print('LIHTC', lihtc_compliance)
-
     # run all the filters
     if watchlist:
         wl = Watchlist.objects.get(slug=watchlist)
