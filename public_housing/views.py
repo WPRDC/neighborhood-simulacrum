@@ -119,7 +119,7 @@ class ProjectVectorTileViewSet(views.APIView):
     def get_queryset(self) -> QuerySet[ProjectIndex]:
         return get_filtered_project_indices(self.request)
 
-    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
+    # @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def get(self, request: Request) -> Response:
         # use complete set of projects, filtering will be handled by the layer's filter property
         map_view = settings.PUBLIC_HOUSING_PROJECT_LAYER_VIEW
@@ -133,8 +133,25 @@ class ProjectVectorTileViewSet(views.APIView):
             'type': 'symbol',
             "sprite": "mapbox://sprites/stevendsaylor/ckd6ixslm00461iqqn1hltgs8/cgf87udw29dtg22hkck4yaevo",
             'layout': {
-                'icon-image': 'project',
-                'icon-size': 0.8,
+                'icon-image': [
+                    'match',
+                    ['to-string', ['get', 'funding_category']],
+                    'HUD Multifamily', 'project-sky',
+                    'LIHTC', 'project-orange',
+                    'Public Housing', 'project-teal',
+                    'HUD Multifamily|LIHTC', 'project-purple',
+                    'LIHTC|Public Housing', 'project-gold',
+                    'project-lite'
+                ],
+                'icon-size': [
+                    'step',
+                    ['to-number', ['get', 'max_units']],
+                    0.6,
+                    50, 0.8,
+                    100, 1.2,
+                    250, 1.4,
+                    500, 1.8,
+                ],
                 'icon-allow-overlap': True,
                 'text-allow-overlap': True,
                 'text-field': ['to-string', ['get', 'hud_property_name']],
@@ -142,6 +159,7 @@ class ProjectVectorTileViewSet(views.APIView):
                 'text-anchor': 'top',
             },
             'paint': {
+                'icon-color': '#0000FF',
                 'text-opacity': [
                     "interpolate",
                     ["linear"],
@@ -176,11 +194,43 @@ class ProjectVectorTileViewSet(views.APIView):
                 marker_layer
             ],
             'extras': {
-                'legend_items': [{
-                    'key': 'ah-projects',
-                    'variant': 'categorical',
-                    'marker': 'black',
-                    'label': 'Affordable Housing Projects'
-                }]
+                'legend_items': [
+                    {
+                        'key': 'hud-mf',
+                        'variant': 'categorical',
+                        'marker': '#0369a1',
+                        'label': 'HUD Multifamily'
+                    },
+                    {
+                        'key': 'lihtc',
+                        'variant': 'categorical',
+                        'marker': '#d97706',
+                        'label': 'LIHTC'
+                    },
+                    {
+                        'key': 'public-housing',
+                        'variant': 'categorical',
+                        'marker': '#0f766e',
+                        'label': 'Public Housing'
+                    },
+                    {
+                        'key': 'hud-lihtc',
+                        'variant': 'categorical',
+                        'marker': '#7e22ce',
+                        'label': 'HUD Multifamily & LIHTC'
+                    },
+                    {
+                        'key': 'lihtc-ph',
+                        'variant': 'categorical',
+                        'marker': '#eab308',
+                        'label': 'LIHTC & Public Housing'
+                    },
+                    {
+                        'key': 'other',
+                        'variant': 'categorical',
+                        'marker': 'gray',
+                        'label': 'Other/Cannot Determine'
+                    },
+                ]
             }
         })
