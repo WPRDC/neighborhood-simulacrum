@@ -137,7 +137,8 @@ class ProjectIndex(DatastoreDataset):
             for record in qs:
                 record: Union[HUDInspectionScores, HUDMultifamilyInspectionScores]
                 results[record.inspection_date.isoformat()] = record.inspection_score
-        return results
+
+            return results if results else None
 
     @staticmethod
     def filter_by_risk_level(
