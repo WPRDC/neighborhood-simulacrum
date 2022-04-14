@@ -1,6 +1,6 @@
 from datetime import date, timedelta, datetime
 from functools import lru_cache
-from typing import Type
+from typing import Type, Union
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
@@ -96,12 +96,48 @@ class ProjectIndex(DatastoreDataset):
 
     status = models.TextField(blank=True, null=True)
 
+    max_units = models.IntegerField()
+    funding_category = models.TextField(blank=True, null=True)
+
     geom = models.MultiPointField(db_column='_geom', blank=True, null=True)
     geom_webmercator = models.MultiPointField(db_column='_the_geom_webmercator', srid=3857, blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = '1885161c-65f3-4cb2-98aa-4402487ae888'
+
+    @property
+    def subsidy_expiration_date(self):
+        try:
+            return HouseCatSubsidyListing.objects.get(property_id=self.property_id).subsidy_expiration_date.isoformat()
+        except HouseCatSubsidyListing.DoesNotExist:
+            return None
+
+    @property
+    def lihtc_year_of_service(self):
+        lihtc_record: LIHTC
+        this_year = date.today().year
+        temp_year = this_year + 1
+
+        for lihtc_record in self.get_related_data(LIHTC):
+            test_year = int(lihtc_record.lihtc_year_in_service)
+            if test_year < temp_year:
+                temp_year = test_year
+
+        if temp_year <= this_year:
+            return temp_year
+        return None
+
+    @property
+    def reac_scores(self):
+        dev_inspections = self.get_related_data(HUDInspectionScores)
+        mf_inspections = self.get_related_data(HUDMultifamilyInspectionScores)
+        results = {}
+        for qs in [dev_inspections, mf_inspections]:
+            for record in qs:
+                record: Union[HUDInspectionScores, HUDMultifamilyInspectionScores]
+                results[record.inspection_date.isoformat()] = record.inspection_score
+        return results
 
     @staticmethod
     def filter_by_risk_level(
@@ -124,13 +160,13 @@ class ProjectIndex(DatastoreDataset):
         :param lvl:
         :return:
         """
-        _filter = {}
+        l_filter = {}
         if lvl == 'initial':
             # in the initial LIHTC compliance period (years 0-15) from the date or year placed into service
-            _filter = {'lihtc_year_in_service__gte': (TODAY - timedelta(days=365 * 15)).year}
+            l_filter = {'lihtc_year_in_service__gte': (TODAY - timedelta(days=365 * 15)).year}
         elif lvl == 'extended':
             #  in the LIHTC extended use period (years 15-30) from date placed into service
-            _filter = {
+            l_filter = {
                 'lihtc_year_in_service__range': (
                     (TODAY - timedelta(days=365 * 30)).year,
                     (TODAY - timedelta(days=365 * 15)).year
@@ -138,7 +174,7 @@ class ProjectIndex(DatastoreDataset):
             }
         elif lvl == 'initial-exp':
             # in year 13-15 from year placed into service (initial LIHTC compliance period expires soon)
-            _filter = {
+            l_filter = {
                 'lihtc_year_in_service__range': (
                     (TODAY - timedelta(days=365 * 15)).year,
                     (TODAY - timedelta(days=365 * 13)).year
@@ -146,7 +182,7 @@ class ProjectIndex(DatastoreDataset):
             }
         elif lvl == 'extended-exp':
             # in year 27-30 from year placed into service (LIHTC extended use period expires soon)
-            _filter = {
+            l_filter = {
                 'lihtc_year_in_service__range': (
                     (TODAY - timedelta(days=365 * 30)).year,
                     (TODAY - timedelta(days=365 * 27)).year
@@ -155,7 +191,7 @@ class ProjectIndex(DatastoreDataset):
         else:
             return queryset
         # get all the possible lihtc ids
-        lihtc_records = LIHTC.objects.filter(**_filter)
+        lihtc_records = LIHTC.objects.filter(**l_filter)
         lihtc_project_ids = [l.lihtc_project_id for l in lihtc_records]
         lihtc_normalized_state_ids = [l.normalized_state_id for l in lihtc_records]
 
@@ -192,7 +228,7 @@ class ProjectIndex(DatastoreDataset):
 
         # filter querysets
         multi_fam_records = HUDMultifamilyInspectionScores.objects.annotate(
-            # strip out int of score
+            # extract int from score
             score=Cast(
                 Substr(F('inspection_score'), 1, Length(F('inspection_score')) - 2),
                 output_field=models.IntegerField())
@@ -255,7 +291,7 @@ class ProjectIndex(DatastoreDataset):
                     results.append(getattr(record, std_field))
         return results
 
-    def get_related_data(self, model: Type['HousingDataset']):
+    def get_related_data(self, model: Type['HousingDataset']) -> QuerySet['HousingDataset']:
         """ Use metadata from the supplied model to find linked data to the instance index """
         index_fields = model.hc_index_fields
         # chain key array lookups by ORs

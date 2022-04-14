@@ -61,7 +61,7 @@ class HouseCatSubsidyListing(HousingDataset):
     property_id = models.TextField(blank=True, null=True)
     subsidy_data_source = models.TextField(blank=True, null=True)
     hud_property_name = models.TextField(blank=True, null=True)
-    subsidy_expiration_date = models.TextField()
+    subsidy_expiration_date = models.DateField()
 
     hc_index_fields = ('property_id',)
 

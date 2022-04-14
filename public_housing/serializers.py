@@ -519,6 +519,13 @@ class ProjectIndexSerializer(serializers.ModelSerializer):
             'crowdsourced_id',
             'house_cat_id',
             'status',
+            'max_units',
+            'funding_category',
+
+            # calculated properties
+            'subsidy_expiration_date',
+            'lihtc_year_of_service',
+            'reac_scores',
 
             # Connected dataset properties
             'active_hud_multifamily_insured_mortgages',
