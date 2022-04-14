@@ -155,8 +155,16 @@ class ProjectVectorTileViewSet(views.APIView):
                 'icon-allow-overlap': True,
                 'text-allow-overlap': True,
                 'text-field': ['to-string', ['get', 'hud_property_name']],
-                'text-offset': [0, 0.5],
+                'text-offset': [0, 1],
                 'text-anchor': 'top',
+                'text-size': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    0, 0,
+                    14, 0,
+                    14.1, 12
+                ]
             },
             'paint': {
                 'icon-color': '#0000FF',

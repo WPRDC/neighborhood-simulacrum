@@ -169,21 +169,35 @@ class ProjectIndex(DatastoreDataset):
     @staticmethod
     def filter_by_reac_score(queryset: QuerySet['ProjectIndex'], lvl: str):
         """ Filter by REAC score for HUD properties """
+        max_score, min_score = None, None
         if lvl == 'failing':
             max_score = 60
         elif lvl == 'annual-inspection':
             max_score = 80
+        elif lvl == 'minimal-inspection':
+            min_score = 80
         else:
             # don't filter by default
             return queryset
 
+        # make a filter based on the args provided
+        mf_filter_args, d_filter_args = {}, {}
+        if max_score is not None:
+            mf_filter_args = {'score__lt': max_score}
+            d_filter_args = {'inspection_score__lt': max_score}
+
+        if min_score is not None:
+            mf_filter_args = {**{'score__gte': min_score}, **mf_filter_args}
+            d_filter_args = {**{'inspection_score__gte': min_score}, **d_filter_args}
+
+        # filter querysets
         multi_fam_records = HUDMultifamilyInspectionScores.objects.annotate(
             # strip out int of score
             score=Cast(
                 Substr(F('inspection_score'), 1, Length(F('inspection_score')) - 2),
                 output_field=models.IntegerField())
-        ).filter(score__lt=max_score)
-        devel_records = HUDInspectionScores.objects.filter(inspection_score__lt=max_score)
+        ).filter(**mf_filter_args)
+        devel_records = HUDInspectionScores.objects.filter(**d_filter_args)
 
         # find project index records that relate to these inspection records
         dev_code_lookup = DevelopmentCode.objects.filter(
