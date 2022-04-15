@@ -138,7 +138,7 @@ class ProjectIndex(DatastoreDataset):
                 record: Union[HUDInspectionScores, HUDMultifamilyInspectionScores]
                 results[record.inspection_date.isoformat()] = record.inspection_score
 
-            return results if results else None
+        return results if results else None
 
     @staticmethod
     def filter_by_risk_level(
@@ -269,14 +269,16 @@ class ProjectIndex(DatastoreDataset):
         return queryset.filter(Q(id__in=project_index_ids) | Q(property_id__in=property_ids))
 
     @staticmethod
-    def filter_by_funding_type(queryset: QuerySet['ProjectIndex'], lvl: str):
+    def filter_by_funding_category(queryset: QuerySet['ProjectIndex'], lvl: str):
         """ Filters by source of funding - TBD """
-        if lvl == 'public-housing':
-            pass
-        if lvl == 'multifamily':
-            pass
+        if lvl == 'hud-mf':
+            queryset = queryset.filter(funding_category='HUD Multifamily')
         if lvl == 'lihtc':
-            pass
+            queryset = queryset.filter(funding_category='LIHTC')
+        if lvl == 'public-housing':
+            queryset = queryset.filter(funding_category='Public Housing')
+        if lvl == 'multiple':
+            queryset = queryset.filter(funding_category__contains='|')
 
         return queryset
 

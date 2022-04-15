@@ -31,7 +31,7 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
     lihtc_compliance = request.query_params.get('lihtc-compliance')
     reac_score = request.query_params.get('reac-score')
     last_inspection = request.query_params.get('last-inspection')
-    funding_type = request.query_params.get('funding-type')
+    funding_category = request.query_params.get('funding-category')
 
     # run all the filters
     if watchlist:
@@ -45,8 +45,8 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
         queryset = ProjectIndex.filter_by_reac_score(queryset, lvl=reac_score)
     if last_inspection:
         queryset = ProjectIndex.filter_by_last_inspection(queryset, lvl=last_inspection)
-    if funding_type:
-        queryset = ProjectIndex.filter_by_funding_type(queryset, lvl=funding_type)
+    if funding_category:
+        queryset = ProjectIndex.filter_by_funding_category(queryset, lvl=funding_category)
 
     return queryset
 
@@ -126,33 +126,43 @@ class ProjectVectorTileViewSet(views.APIView):
         map_id = kebab(map_view)
 
         # base marker layer, can have filter added if need be
-        marker_layer = {
+        circle_layer = {
             'id': f'{map_id}/marker',
             'source': map_id,
             'source-layer': f'maps.v_{map_view}',
-            'type': 'symbol',
-            "sprite": "mapbox://sprites/stevendsaylor/ckd6ixslm00461iqqn1hltgs8/cgf87udw29dtg22hkck4yaevo",
-            'layout': {
-                'icon-image': [
-                    'match',
-                    ['to-string', ['get', 'funding_category']],
-                    'HUD Multifamily', 'project-sky',
-                    'LIHTC', 'project-orange',
-                    'Public Housing', 'project-teal',
-                    'HUD Multifamily|LIHTC', 'project-purple',
-                    'LIHTC|Public Housing', 'project-gold',
-                    'project-lite'
-                ],
-                'icon-size': [
+            'type': 'circle',
+            'paint': {
+                'circle-opacity': 0.8,
+                'circle-stroke-width': 1,
+                'circle-radius': [
                     'step',
                     ['to-number', ['get', 'max_units']],
-                    0.6,
-                    50, 0.8,
-                    100, 1.2,
-                    250, 1.4,
-                    500, 1.8,
+                    5,
+                    50, 5,
+                    100, 7.5,
+                    250, 12.5,
+                    500, 25,
                 ],
-                'icon-allow-overlap': True,
+                'circle-color': [
+                    'match',
+                    ['to-string', ['get', 'funding_category']],
+                    'HUD Multifamily', '#7F3C8D',
+                    'LIHTC', '#11A579',
+                    'Public Housing', '#3969AC',
+                    'HUD Multifamily|LIHTC', '#F2B701',
+                    'LIHTC|Public Housing', '#F2B701',
+                    'HUD Multifamily|LIHTC|Public Housing', '#F2B701',
+                    'gray',
+                ],
+            }
+        }
+
+        text_layer = {
+            'id': f'{map_id}/text',
+            'source': map_id,
+            'source-layer': f'maps.v_{map_view}',
+            'type': 'symbol',
+            'layout': {
                 'text-allow-overlap': True,
                 'text-field': ['to-string', ['get', 'hud_property_name']],
                 'text-offset': [0, 1],
@@ -167,7 +177,6 @@ class ProjectVectorTileViewSet(views.APIView):
                 ]
             },
             'paint': {
-                'icon-color': '#0000FF',
                 'text-opacity': [
                     "interpolate",
                     ["linear"],
@@ -187,8 +196,12 @@ class ProjectVectorTileViewSet(views.APIView):
             ids = [project.id for project in projects]
             # only those with an id in `ids`
             # https://docs.mapbox.com/mapbox-gl-js/style-spec/expressions
-            marker_layer = {
-                **marker_layer,
+            circle_layer = {
+                **circle_layer,
+                'filter': ['in', ['get', 'id'], ['literal', ids]]
+            }
+            text_layer = {
+                **text_layer,
                 'filter': ['in', ['get', 'id'], ['literal', ids]]
             }
 
@@ -199,45 +212,40 @@ class ProjectVectorTileViewSet(views.APIView):
                 'url': f'https://{request.META["SERVER_NAME"]}/tiles/maps.v_{map_view}.json'
             },
             'layers': [
-                marker_layer
+                circle_layer,
+                text_layer,
             ],
             'extras': {
                 'legend_items': [
                     {
                         'key': 'hud-mf',
                         'variant': 'categorical',
-                        'marker': '#0369a1',
+                        'marker': '#7F3C8D',
                         'label': 'HUD Multifamily'
                     },
                     {
                         'key': 'lihtc',
                         'variant': 'categorical',
-                        'marker': '#d97706',
+                        'marker': '#11A579',
                         'label': 'LIHTC'
                     },
                     {
                         'key': 'public-housing',
                         'variant': 'categorical',
-                        'marker': '#0f766e',
+                        'marker': '#3969AC',
                         'label': 'Public Housing'
                     },
                     {
-                        'key': 'hud-lihtc',
+                        'key': 'multiple',
                         'variant': 'categorical',
-                        'marker': '#7e22ce',
-                        'label': 'HUD Multifamily & LIHTC'
-                    },
-                    {
-                        'key': 'lihtc-ph',
-                        'variant': 'categorical',
-                        'marker': '#eab308',
-                        'label': 'LIHTC & Public Housing'
+                        'marker': '#F2B701',
+                        'label': 'More than one funding source'
                     },
                     {
                         'key': 'other',
                         'variant': 'categorical',
                         'marker': 'gray',
-                        'label': 'Other/Cannot Determine'
+                        'label': 'Other/Unable to Determine'
                     },
                 ]
             }
