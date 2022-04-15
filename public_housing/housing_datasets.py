@@ -221,7 +221,7 @@ class HUDInspectionScores(HousingDataset):
     class Meta:
         managed = False
         db_table = 'a768bb6b-9d1e-463f-9711-651fedf971fb'
-
+        ordering = ['-inspection_date']
 
 class HUDPublicHousingDevelopments(HousingDataset):
     development_code = models.TextField(blank=True, null=True)
@@ -466,7 +466,7 @@ class MultifamilyAssistanceAndSection8Contracts(HousingDataset):
     class Meta:
         managed = False
         db_table = '438a732d-c86f-4a06-bff8-61eb6ebe7328'
-        ordering = ['-subsidy_start_date']
+        ordering = ['-subsidy_expiration_date']
 
 
 class HUDInsuredMultifamilyProperties(HousingDataset):
