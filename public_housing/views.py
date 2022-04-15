@@ -110,6 +110,8 @@ def kebab(string: str) -> str:
 
 
 class ProjectVectorTileViewSet(views.APIView):
+    permission_classes = [IsAuthenticated]
+
     """
     Provides necessary settings to render a mapbox-gl map plus additional settings for use with
       [@wprdc-widgets/map](https://github.com/WPRDC/frontend-libraries/tree/main/packages/%40wprdc-widgets/map)
