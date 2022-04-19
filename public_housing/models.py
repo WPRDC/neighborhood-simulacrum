@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from datetime import date, timedelta, datetime
 from functools import lru_cache
 from typing import Type, Union
@@ -142,13 +143,18 @@ class ProjectIndex(DatastoreDataset):
     def reac_scores(self):
         dev_inspections = self.get_related_data(HUDInspectionScores)
         mf_inspections = self.get_related_data(HUDMultifamilyInspectionScores)
-        results = {}
+        unsorted = {}
+        # compile results from source data
         for qs in [dev_inspections, mf_inspections]:
             for record in qs:
                 record: Union[HUDInspectionScores, HUDMultifamilyInspectionScores]
-                results[record.inspection_date.isoformat()] = record.inspection_score
+                unsorted[record.inspection_date.isoformat()] = record.inspection_score
 
-        return results if results else None
+        if unsorted:
+            # order by date descending
+            return dict(reversed(sorted(unsorted.items())))
+
+        return None
 
     @staticmethod
     def filter_by_risk_level(
