@@ -223,6 +223,7 @@ class HUDInspectionScores(HousingDataset):
         db_table = 'a768bb6b-9d1e-463f-9711-651fedf971fb'
         ordering = ['-inspection_date']
 
+
 class HUDPublicHousingDevelopments(HousingDataset):
     development_code = models.TextField(blank=True, null=True)
 

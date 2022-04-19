@@ -7,6 +7,7 @@ from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import QuerySet, F, Q
+from django.db.models.expressions import RawSQL
 from django.db.models.functions import Cast, Substr, Length
 
 from profiles.abstract_models import DatastoreDataset, Described
@@ -78,6 +79,11 @@ TODAY = datetime.now().date()
 
 
 class ProjectIndex(DatastoreDataset):
+    """
+    Index of projects.
+
+    Links to the disparate datasets.
+    """
     id = models.IntegerField(unique=True, primary_key=True)
 
     property_id = models.TextField(blank=True, null=True)
@@ -88,8 +94,10 @@ class ProjectIndex(DatastoreDataset):
     zip_code = models.TextField(blank=True, null=True)
     units = models.TextField(blank=True, null=True)
     scattered_sites = models.CharField(max_length=20, blank=True, null=True)
+
     latitude = models.TextField(blank=True, null=True)
     longitude = models.TextField(blank=True, null=True)
+
     census_tract = models.TextField(blank=True, null=True)
     crowdsourced_id = models.TextField(blank=True, null=True)
     house_cat_id = models.TextField(blank=True, null=True)
@@ -108,10 +116,12 @@ class ProjectIndex(DatastoreDataset):
 
     @property
     def subsidy_expiration_date(self):
-        try:
-            return HouseCatSubsidyListing.objects.get(property_id=self.property_id).subsidy_expiration_date.isoformat()
-        except HouseCatSubsidyListing.DoesNotExist:
-            return None
+        """ Returns the earliest expiration date found to be associated with project """
+        dates = sorted([item.subsidy_expiration_date.isoformat() for item in
+                        HouseCatSubsidyListing.objects.filter(property_id=self.property_id)])
+        if dates:
+            return dates[0]
+        return dates
 
     @property
     def lihtc_year_of_service(self):
@@ -220,20 +230,25 @@ class ProjectIndex(DatastoreDataset):
         # make a filter based on the args provided
         mf_filter_args, d_filter_args = {}, {}
         if max_score is not None:
-            mf_filter_args = {'score__lt': max_score}
+            mf_filter_args = f"< {max_score}"
             d_filter_args = {'inspection_score__lt': max_score}
 
         if min_score is not None:
-            mf_filter_args = {**{'score__gte': min_score}, **mf_filter_args}
+            if max_score:
+                mf_filter_args = f"BETWEEN {min_score} AND {max_score}"
+            else:
+                mf_filter_args = f">= ${min_score}"
             d_filter_args = {**{'inspection_score__gte': min_score}, **d_filter_args}
 
         # filter querysets
-        multi_fam_records = HUDMultifamilyInspectionScores.objects.annotate(
-            # extract int from score
-            score=Cast(
-                Substr(F('inspection_score'), 1, Length(F('inspection_score')) - 2),
-                output_field=models.IntegerField())
-        ).filter(**mf_filter_args)
+        multi_fam_records = HUDMultifamilyInspectionScores.objects.raw(f"""
+            SELECT *
+            FROM (
+               SELECT *, substring(inspection_score, '[0-9]+')::int as score 
+               FROM "7d4ad5ee-7229-4aa6-b3a2-69779fe5c52a"
+            ) withScore
+            WHERE score {mf_filter_args}
+        """)
         devel_records = HUDInspectionScores.objects.filter(**d_filter_args)
 
         # find project index records that relate to these inspection records
@@ -270,7 +285,7 @@ class ProjectIndex(DatastoreDataset):
 
     @staticmethod
     def filter_by_funding_category(queryset: QuerySet['ProjectIndex'], lvl: str):
-        """ Filters by source of funding - TBD """
+        """ Filters by source of funding """
         if lvl == 'hud-mf':
             queryset = queryset.filter(funding_category='HUD Multifamily')
         if lvl == 'lihtc':
