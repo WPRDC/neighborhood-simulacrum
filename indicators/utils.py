@@ -5,6 +5,7 @@ from typing import Type, Union, Optional, TYPE_CHECKING, Mapping
 import psycopg2.extras
 from django.conf import settings
 from django.contrib.gis.db.models import Union as GeoUnion
+from django.contrib.gis.db.models.functions import Centroid
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
@@ -133,7 +134,9 @@ def extract_geo_params(request: Request) -> (str, str):
 
 def get_geog_from_request(request: Request) -> AdminRegion:
     slug = request.query_params.get('geog')
-    return AdminRegion.objects.get(slug=slug)
+    return AdminRegion.objects \
+        .annotate(centroid=Centroid('geom')) \
+        .get(slug=slug)
 
 
 def get_geog_model_from_request(request: Request) -> Type[Union[Tract, County, BlockGroup, CountySubdivision]]:

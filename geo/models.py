@@ -60,6 +60,7 @@ class AdminRegion(PolymorphicModel, Geography):
     """
     # Class field declarations, subclasses must override these values
     geog_type_id: str
+    geog_type_slug: str
     geog_type_title: str
 
     type_description: str
@@ -104,7 +105,6 @@ class AdminRegion(PolymorphicModel, Geography):
     slug = models.SlugField(max_length=200, db_index=True, null=True, blank=True)
     geog_type = models.CharField(max_length=200, null=True, blank=True, editable=False)
 
-    
     # Better formatted name than what's in the data. (e.g. Allegheny County instead of just Allegheny)
     display_name = models.CharField(max_length=200, null=True, blank=True)
 
@@ -160,7 +160,8 @@ class AdminRegion(PolymorphicModel, Geography):
                 results[subclass.geog_type_id] = []
             else:
                 intersecting_geogs = subclass.objects.filter(geom__intersects=self.geom)
-                results[subclass.geog_type_id] = [{'name': g.name, 'slug': g.slug, 'id': g.id} for g in intersecting_geogs]
+                results[subclass.geog_type_id] = [{'name': g.name, 'slug': g.slug, 'id': g.id} for g in
+                                                  intersecting_geogs]
         return results
 
     @staticmethod
@@ -202,6 +203,7 @@ class AdminRegion(PolymorphicModel, Geography):
 
 class BlockGroup(AdminRegion, CensusGeography):
     geog_type_id = AdminRegion.BLOCK_GROUP
+    geog_type_slug = 'blockgroup'
     geog_type_title = "Block Group"
 
     type_description = 'Smallest geographical unit w/ ACS sample data.'
@@ -238,6 +240,7 @@ class BlockGroup(AdminRegion, CensusGeography):
 
 class Tract(AdminRegion, CensusGeography):
     geog_type_id = AdminRegion.TRACT
+    geog_type_slug = 'tract'
     geog_type_title = 'Tract'
 
     type_description = "Drawn to encompass ~2500-8000 people"
@@ -270,6 +273,7 @@ class Tract(AdminRegion, CensusGeography):
 
 class CountySubdivision(AdminRegion, CensusGeography):
     geog_type_id = AdminRegion.COUNTY_SUBDIVISION
+    geog_type_slug = 'county-subdivision'
     geog_type_title = 'County Subdivision'
 
     type_description = "Townships, municipalities, boroughs and cities."
@@ -303,6 +307,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
 class County(AdminRegion, CensusGeography):
     geog_type_id = AdminRegion.COUNTY
+    geog_type_slug = 'county'
     geog_type_title = "County"
 
     type_description = "Largest subdivision of a state."
@@ -336,6 +341,7 @@ class County(AdminRegion, CensusGeography):
 
 class ZipCodeTabulationArea(AdminRegion, CensusGeography):
     geog_type_id = AdminRegion.ZCTA
+    geog_type_slug = 'zip-code'
     geog_type_title = 'Zip Code'
 
     type_description = "The area covered by a postal Zip code."
@@ -363,6 +369,7 @@ class ZipCodeTabulationArea(AdminRegion, CensusGeography):
 
 class SchoolDistrict(AdminRegion, CensusGeography):
     geog_type_id = AdminRegion.SCHOOL_DISTRICT
+    geog_type_slug = 'school-district'
     geog_type_title = "School District"
 
     type_description = 'Area served by a School District.'
@@ -394,6 +401,7 @@ class SchoolDistrict(AdminRegion, CensusGeography):
 
 class Neighborhood(AdminRegion):
     geog_type_id = AdminRegion.NEIGHBORHOOD
+    geog_type_slug = 'neighborhood'
     geog_type_title = 'Neighborhood'
     base_zoom = 12
 
@@ -411,4 +419,3 @@ class Neighborhood(AdminRegion):
         verbose_name = "Neighborhood"
         verbose_name_plural = "Neighborhoods"
         ordering = ['name']
-

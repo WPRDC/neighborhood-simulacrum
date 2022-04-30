@@ -11,6 +11,7 @@ from .models import (
     ZipCodeTabulationArea
 )
 
+
 class AdminRegionHierarchySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminRegion
@@ -22,7 +23,6 @@ class AdminRegionHierarchySerializer(serializers.ModelSerializer):
             'geog_type',
             'geogID',
         )
-
 
 
 class AdminRegionBriefSerializer(serializers.ModelSerializer):
@@ -46,6 +46,7 @@ class AdminRegionBriefSerializer(serializers.ModelSerializer):
 
 class AdminRegionSerializer(serializers.ModelSerializer):
     hierarchy = AdminRegionHierarchySerializer(many=True)
+    centroid = serializers.SerializerMethodField()
 
     class Meta:
         model = AdminRegion
@@ -57,8 +58,12 @@ class AdminRegionSerializer(serializers.ModelSerializer):
             'geog_type',
             'geogID',
             'hierarchy',
-            'overlap'
+            'overlap',
+            'centroid'
         )
+
+    def get_centroid(self, obj):
+        return obj.centroid.coords
 
 
 class CountySerializer(AdminRegionSerializer):

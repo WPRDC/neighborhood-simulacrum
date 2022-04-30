@@ -51,7 +51,7 @@ class AdminRegionViewSet(viewsets.ReadOnlyModelViewSet):
         return all_geogs_in_extent(self.model)
 
     def get_serializer_class(self):
-        if self.request.query_params.get('details', False):
+        if self.request.query_params.get('details'):
             return self.detailed_serializer_class
         return self.brief_serializer_class
 
