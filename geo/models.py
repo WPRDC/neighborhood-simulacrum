@@ -159,7 +159,7 @@ class AdminRegion(PolymorphicModel, Geography):
             if self.geog_type_id == AdminRegion.COUNTY:
                 results[subclass.geog_type_id] = []
             else:
-                intersecting_geogs = subclass.objects.filter(geom__intersects=self.geom)
+                intersecting_geogs = subclass.objects.filter(geom__intersects=self.geom.buffer(-0.0001))
                 results[subclass.geog_type_id] = [{'name': g.name, 'slug': g.slug, 'id': g.id} for g in
                                                   intersecting_geogs]
         return results
