@@ -22,7 +22,7 @@ Documentation (
 0. Create a Postgres database with the PostGIS extension added.
 1. Clone this code
 ```shell
-git clone https://github.com/WPRDC/neighborhood-simulacra
+git clone https://github.com/WPRDC/neighborhood-simulacrum
 ```
 2. Enter the project directory
 ```shell
