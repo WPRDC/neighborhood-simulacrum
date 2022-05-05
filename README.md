@@ -22,11 +22,11 @@ Documentation (
 0. Create a Postgres database with the PostGIS extension added.
 1. Clone this code
 ```shell
-git clone https://github.com/WPRDC/neighborhood-simulacra
+git clone https://github.com/WPRDC/neighborhood-simulacrum
 ```
 2. Enter the project directory
 ```shell
-cd neighborhood-simulacra
+cd neighborhood-simulacrum
  ```
 3. Create a virtual environment and activate it ([docs](https://docs.python.org/3.9/tutorial/venv.html))
 ```shell
