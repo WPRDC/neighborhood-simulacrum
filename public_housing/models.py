@@ -237,29 +237,24 @@ class ProjectIndex(DatastoreDataset):
         # make a filter based on the args provided
         mf_filter_args, d_filter_args = {}, {}
         if max_score is not None:
-            mf_filter_args = f"< {max_score}"
             d_filter_args = {'inspection_score__lt': max_score}
             compare_op = operator.le
             score = max_score
 
         if min_score is not None:
-            if max_score:
-                mf_filter_args = f"BETWEEN {min_score} AND {max_score}"
-            else:
-                mf_filter_args = f">= {min_score}"
-                compare_op = operator.ge 
-                score = min_score
+            compare_op = operator.ge 
+            score = min_score
             d_filter_args = {**{'inspection_score__gte': min_score}, **d_filter_args}
 
         # filter querysets
         multi_fam_ordered_objects = HUDMultifamilyInspectionScores.objects.all().order_by('-inspection_date')
-        prop_ids = []
+        prop_id_set = set()
         multi_fam_list = []
 
         for item in multi_fam_ordered_objects.values():
             if item['property_id'] not in prop_ids:
                 item['inspection_score'] = int(''.join(filter(str.isdigit, item['inspection_score'])))
-                prop_ids.append(item['property_id'])
+                prop_id_set.add(item['property_id'])
                 multi_fam_list.append(item)
         
         multi_fam_list_filtered = [item for item in multi_fam_list if compare_op(item['inspection_score'],score)]
