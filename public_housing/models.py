@@ -2,6 +2,7 @@ from collections import OrderedDict
 from datetime import date, timedelta, datetime
 from functools import lru_cache
 from typing import Type, Union
+import operator 
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
@@ -186,7 +187,7 @@ class ProjectIndex(DatastoreDataset):
             l_filter = {
                 'lihtc_year_in_service__range': (
                     (TODAY - timedelta(days=365 * 30)).year,
-                    (TODAY - timedelta(days=365 * 15)).year
+                    (TODAY - timedelta(days=365 * 16)).year
                 )
             }
         elif lvl == 'initial-exp':
@@ -236,25 +237,30 @@ class ProjectIndex(DatastoreDataset):
         # make a filter based on the args provided
         mf_filter_args, d_filter_args = {}, {}
         if max_score is not None:
-            mf_filter_args = f"< {max_score}"
             d_filter_args = {'inspection_score__lt': max_score}
+            compare_op = operator.le
+            score = max_score
 
         if min_score is not None:
-            if max_score:
-                mf_filter_args = f"BETWEEN {min_score} AND {max_score}"
-            else:
-                mf_filter_args = f">= ${min_score}"
+            compare_op = operator.ge 
+            score = min_score
             d_filter_args = {**{'inspection_score__gte': min_score}, **d_filter_args}
 
         # filter querysets
-        multi_fam_records = HUDMultifamilyInspectionScores.objects.raw(f"""
-            SELECT *
-            FROM (
-               SELECT *, substring(inspection_score, '[0-9]+')::int as score 
-               FROM "7d4ad5ee-7229-4aa6-b3a2-69779fe5c52a"
-            ) withScore
-            WHERE score {mf_filter_args}
-        """)
+        multi_fam_ordered_objects = HUDMultifamilyInspectionScores.objects.all().order_by('-inspection_date')
+        prop_id_set = set()
+        multi_fam_list = []
+
+        for item in multi_fam_ordered_objects.values():
+            if item['property_id'] not in prop_ids:
+                item['inspection_score'] = int(''.join(filter(str.isdigit, item['inspection_score'])))
+                prop_id_set.add(item['property_id'])
+                multi_fam_list.append(item)
+        
+        multi_fam_list_filtered = [item for item in multi_fam_list if compare_op(item['inspection_score'],score)]
+        insp_id = [item['inspection_id'] for item in multi_fam_list_filtered]
+        multi_fam_records = HUDMultifamilyInspectionScores.objects.filter(inspection_id__in=insp_id)
+
         devel_records = HUDInspectionScores.objects.filter(**d_filter_args)
 
         # find project index records that relate to these inspection records
