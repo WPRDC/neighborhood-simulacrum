@@ -1,5 +1,6 @@
 from django.db import models
 
+from context.models import WithContext, WithTags
 from profiles.abstract_models import Described
 from .source import Source, CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource
 from .time import TimeAxis, RelativeTimeAxis, StaticTimeAxis, StaticConsecutiveTimeAxis
@@ -35,7 +36,7 @@ class TaxonomyDomain(models.Model):
         return f'{self.taxonomy.__str__()} ➡ {self.domain.__str__()}'
 
 
-class Taxonomy(Described):
+class Taxonomy(Described, WithTags, WithContext):
     _domains = models.ManyToManyField('Domain', related_name='project', through=TaxonomyDomain)
 
     @property
@@ -47,12 +48,12 @@ class Taxonomy(Described):
         verbose_name_plural = 'Taxonomies'
 
 
-class Domain(Described):
+class Domain(Described, WithTags, WithContext):
     """ Main categories for organizing indicators """
     pass
 
 
-class Subdomain(Described):
+class Subdomain(Described, WithTags, WithContext):
     domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.CASCADE)
     order = models.IntegerField(default=0)
     inds = models.ManyToManyField('Indicator', related_name='subdomains', through='SubdomainIndicator')
@@ -79,7 +80,7 @@ class IndicatorDataViz(models.Model):
         unique_together = ('indicator', 'data_viz',)
 
 
-class Indicator(Described):
+class Indicator(Described, WithTags, WithContext):
     LAYOUT_CHOICES = (
         ('A', 'Style A'),
         ('B', 'Style B'),

@@ -9,6 +9,7 @@ from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from polymorphic.models import PolymorphicModel
 
+from context.models import WithContext, WithTags
 from indicators.data import Datum, GeogCollection, GeogRecord
 from indicators.errors import AggregationError, DataRetrievalError
 from indicators.models import Variable, Source
@@ -33,7 +34,7 @@ class VizVariable(models.Model):
         ordering = ['order']
 
 
-class DataViz(PolymorphicModel, Described):
+class DataViz(PolymorphicModel, WithTags, WithContext, Described ):
     """ Base class for all Data Presentations """
     vars: Manager['Variable']
     time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)

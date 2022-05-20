@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from context.serializers import TagSerializer, ContextItemSerializer
 from indicators.models import Domain, Subdomain, Indicator, Taxonomy
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
@@ -39,6 +40,8 @@ class HierarchySerializer(serializers.Serializer):
 class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
     data_vizes = DataVizIdentifiersSerializer(many=True)
     hierarchies = HierarchySerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
 
     class Meta:
         model = Indicator
@@ -55,6 +58,8 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'provenance',
             'data_vizes',
             'hierarchies',
+            'tags',
+            'context',
         )
         extra_kwargs = {
             'url': {'lookup_field': 'slug'}
@@ -63,6 +68,8 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
 
 class SubdomainSerializer(serializers.ModelSerializer):
     indicators = IndicatorSerializer(many=True)
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
 
     class Meta:
         model = Subdomain
@@ -72,6 +79,8 @@ class SubdomainSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'indicators',
+            'tags',
+            'context',
         )
 
 
@@ -86,6 +95,8 @@ class DomainSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'subdomains',
+            'tags',
+            'context',
         )
 
 
@@ -99,5 +110,7 @@ class TaxonomySerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
-            'domains'
+            'domains',
+            'tags',
+            'context',
         )

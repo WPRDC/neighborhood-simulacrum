@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
+from context.serializers import TagSerializer, ContextItemSerializer
 from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource
 from indicators.serializers.source import CKANSourceSerializer
 
@@ -12,6 +13,8 @@ if TYPE_CHECKING:
 
 class DenominatorSerializer(serializers.ModelSerializer):
     locale_options = serializers.JSONField()
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
 
     class Meta:
         model = Variable
@@ -22,13 +25,17 @@ class DenominatorSerializer(serializers.ModelSerializer):
             'depth',
             'percent_label',
             'short_name',
-            'locale_options'
+            'locale_options',
+            'tags',
+            'context',
         )
 
 
 class VariableSerializer(serializers.ModelSerializer):
     denominators = DenominatorSerializer(many=True)
     locale_options = serializers.JSONField()
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
 
     class Meta:
         model = Variable
@@ -46,6 +53,8 @@ class VariableSerializer(serializers.ModelSerializer):
             'display_name',
             'percent_label',
             'locale_options',
+            'tags',
+            'context',
         )
 
 

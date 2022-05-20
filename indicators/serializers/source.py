@@ -1,9 +1,13 @@
 from rest_framework import serializers
 
+from context.serializers import TagSerializer, ContextItemSerializer
 from indicators.models import CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource, Source
 
 
 class SourceSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
+
     class Meta:
         model = Source
         fields = (
@@ -12,6 +16,8 @@ class SourceSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'info_link',
+            'tags',
+            'context',
         )
 
 

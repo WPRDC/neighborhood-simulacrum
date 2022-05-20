@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
+from context.serializers import TagSerializer, ContextItemSerializer
 from indicators.models import TimeAxis, StaticTimeAxis, RelativeTimeAxis, StaticConsecutiveTimeAxis
 
 
@@ -23,6 +24,8 @@ class TimeAxisSerializer(serializers.HyperlinkedModelSerializer):
             return instance
 
     time_parts = TimePartSerializer(many=True)
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
 
     class Meta:
         model = TimeAxis
