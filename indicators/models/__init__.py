@@ -71,6 +71,7 @@ class IndicatorDataViz(models.Model):
     data_viz = models.ForeignKey('DataViz', related_name='dataviz_to_indicator', on_delete=models.CASCADE)
 
     order = models.IntegerField(default=0)
+    primary = models.BooleanField(default=False, help_text='prioritize this data viz for display in the indicator card')
 
     def __str__(self):
         return f'{self.indicator.__str__()} ➡ {self.data_viz.__str__()}'

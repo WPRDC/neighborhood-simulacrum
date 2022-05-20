@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from context.serializers import TagSerializer, ContextItemSerializer
-from indicators.models import Domain, Subdomain, Indicator, Taxonomy
+from indicators.models import Domain, Subdomain, Indicator, Taxonomy, IndicatorDataViz
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
 from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
@@ -42,6 +42,7 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
     hierarchies = HierarchySerializer(many=True, read_only=True)
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
+    primary_data_vizIDs = serializers.SerializerMethodField()
 
     class Meta:
         model = Indicator
@@ -60,10 +61,15 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'hierarchies',
             'tags',
             'context',
+            'primary_data_vizIDs',
         )
         extra_kwargs = {
             'url': {'lookup_field': 'slug'}
         }
+
+    def get_primary_data_vizIDs(self, obj: Indicator):
+        primary_vizes = IndicatorDataViz.objects.filter(indicator=obj, primary=True)
+        return [v.id for v in primary_vizes]
 
 
 class SubdomainSerializer(serializers.ModelSerializer):

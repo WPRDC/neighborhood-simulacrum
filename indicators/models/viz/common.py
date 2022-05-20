@@ -34,7 +34,7 @@ class VizVariable(models.Model):
         ordering = ['order']
 
 
-class DataViz(PolymorphicModel, WithTags, WithContext, Described ):
+class DataViz(PolymorphicModel, WithTags, WithContext, Described):
     """ Base class for all Data Presentations """
     vars: Manager['Variable']
     time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)
