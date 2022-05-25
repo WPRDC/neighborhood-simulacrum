@@ -220,6 +220,10 @@ class CensusVariable(Variable):
         AggregationMethod.MIN: models.Min,
     }
 
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.sources.all()]
+
     class Meta:
         verbose_name = 'Census Variable'
         verbose_name_plural = 'Census Variables'
@@ -365,6 +369,10 @@ class CKANVariable(Variable):
         AggregationMethod.MAX: 'MAX',
         AggregationMethod.MIN: 'MIN',
     }
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.sources.all()]
 
     class Meta:
         verbose_name = 'CKAN Variable'

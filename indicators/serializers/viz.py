@@ -31,6 +31,7 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
     static_options = serializers.SerializerMethodField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
+    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = DataViz
@@ -46,6 +47,7 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
             'variables',
             'tags',
             'context',
+            'child_tags',
         )
 
     def get_static_options(self, obj: DataViz):

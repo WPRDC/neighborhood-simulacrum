@@ -1,4 +1,7 @@
+from typing import List
+
 from django.db import models
+from django.db.models import QuerySet
 
 from context.models import WithContext, WithTags
 from profiles.abstract_models import Described
@@ -50,7 +53,10 @@ class Taxonomy(Described, WithTags, WithContext):
 
 class Domain(Described, WithTags, WithContext):
     """ Main categories for organizing indicators """
-    pass
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.subdomains.all()]
 
 
 class Subdomain(Described, WithTags, WithContext):
@@ -61,6 +67,14 @@ class Subdomain(Described, WithTags, WithContext):
     @property
     def indicators(self):
         return self.inds.order_by('indicator_to_subdomain')
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.inds.all()]
+
+    @property
+    def parents(self) -> List[QuerySet]:
+        return [Domain.objects.filter(id=self.domain.id)]
 
     class Meta:
         ordering = ('order',)
@@ -126,7 +140,7 @@ class Indicator(Described, WithTags, WithContext):
     vizes = models.ManyToManyField('DataViz', related_name='new_indicator', through='IndicatorDataViz')
 
     @property
-    def data_vizes(self):
+    def data_vizes(self) -> QuerySet['DataViz']:
         return self.vizes.order_by('dataviz_to_indicator')
 
     @property
@@ -137,6 +151,14 @@ class Indicator(Described, WithTags, WithContext):
             subdomain = subdomainThrough.subdomain
             result.append({'domain': subdomain.domain, 'subdomain': subdomain})
         return result
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.data_vizes]
+
+    @property
+    def parents(self) -> List[QuerySet]:
+        return [self.indicator_to_subdomain.all()]
 
 
 class Value(models.Model):

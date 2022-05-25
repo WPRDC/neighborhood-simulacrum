@@ -36,6 +36,7 @@ class VariableSerializer(serializers.ModelSerializer):
     locale_options = serializers.JSONField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
+    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = Variable
@@ -55,6 +56,7 @@ class VariableSerializer(serializers.ModelSerializer):
             'locale_options',
             'tags',
             'context',
+            'child_tags',
         )
 
 

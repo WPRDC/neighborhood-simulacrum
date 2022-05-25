@@ -43,6 +43,7 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
     primary_data_vizIDs = serializers.SerializerMethodField()
+    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = Indicator
@@ -61,6 +62,7 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'hierarchies',
             'tags',
             'context',
+            'child_tags',
             'primary_data_vizIDs',
         )
         extra_kwargs = {

@@ -1,18 +1,54 @@
-from django.db import models
-from markdownx.models import MarkdownxField
+from typing import List, Set, Any
 
+from django.db import models
+from django.db.models import QuerySet
+from markdownx.models import MarkdownxField
+from functools import reduce
 from profiles.abstract_models import Identified
+
+
+def reduce_children_qs_to_tags(t: Set[int], child: 'WithTags'):
+    return t | recursively_get_child_tag_ids(child)
+
+
+def reduce_list_of_children_qses_to_tags(t: Set[int], children_qs: QuerySet['WithTags']):
+    return t | reduce(reduce_children_qs_to_tags, children_qs, set())
 
 
 class Tag(Identified):
     pass
 
 
+def recursively_get_child_tag_ids(obj: 'WithTags') -> Set[int]:
+    """ Traverse descendents tree and collect tags """
+    # if the object has children, get set of all their tags
+    if hasattr(obj, 'children'):
+        t = reduce(reduce_list_of_children_qses_to_tags, obj.children, set())
+        return t
+    # base cases
+    # if not children but tags, return those tags as a set
+    elif hasattr(obj, 'tags'):
+        t = set([tag.id for tag in obj.tags.all()])
+        return t
+    return set()
+
+
 class WithTags(models.Model):
     tags = models.ManyToManyField('context.Tag', blank=True)
 
+    # cache tag ids to prevent some duplicate lookups
+    _child_tag_ids: Set[int] = None
+
     class Meta:
         abstract = True
+
+    @property
+    def child_tags(self) -> QuerySet['Tag']:
+        """ Set of all tags from descendent model instances. """
+        if self._child_tag_ids is None:
+            tag_ids = recursively_get_child_tag_ids(self)
+            self._child_tag_ids = tag_ids
+        return Tag.objects.filter(id__in=self._child_tag_ids)
 
 
 class Link(Identified):
@@ -51,7 +87,7 @@ class ContextItem(Identified, WithTags):
 
 
 class WithContext(models.Model):
-    context = models.ManyToManyField('context.ContextItem', )
+    context = models.ManyToManyField('context.ContextItem', blank=True, null=True)
 
     class Meta:
         abstract = True
