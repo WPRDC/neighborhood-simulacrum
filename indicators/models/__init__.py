@@ -11,18 +11,18 @@ from .variable import Variable, CensusVariable, CKANVariable, CensusVariableSour
 from .viz import DataViz, Table, Chart, MiniMap, VizVariable
 
 
-class SubdomainIndicator(models.Model):
-    subdomain = models.ForeignKey('Subdomain', on_delete=models.CASCADE, related_name='subdomain_to_indicator')
-    indicator = models.ForeignKey('Indicator', on_delete=models.CASCADE, related_name='indicator_to_subdomain')
+class SubdomainTopic(models.Model):
+    subdomain = models.ForeignKey('Subdomain', on_delete=models.CASCADE, related_name='subdomain_to_topic')
+    topic = models.ForeignKey('Topic', on_delete=models.CASCADE, related_name='topic_to_subdomain')
 
     order = models.IntegerField(default=0)
 
     class Meta:
-        unique_together = ('subdomain', 'indicator',)
+        unique_together = ('subdomain', 'topic',)
         ordering = ('order',)
 
     def __str__(self):
-        return f'{self.subdomain.__str__()} ➡ {self.indicator.__str__()}'
+        return f'{self.subdomain.__str__()} ➡ {self.topic.__str__()}'
 
 
 class TaxonomyDomain(models.Model):
@@ -62,11 +62,11 @@ class Domain(Described, WithTags, WithContext):
 class Subdomain(Described, WithTags, WithContext):
     domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.CASCADE)
     order = models.IntegerField(default=0)
-    inds = models.ManyToManyField('Indicator', related_name='subdomains', through='SubdomainIndicator')
+    inds = models.ManyToManyField('Topic', related_name='subdomains', through='SubdomainTopic')
 
     @property
-    def indicators(self):
-        return self.inds.order_by('indicator_to_subdomain')
+    def topics(self):
+        return self.inds.order_by('topic_to_subdomain')
 
     @property
     def children(self) -> List[QuerySet]:
@@ -80,30 +80,28 @@ class Subdomain(Described, WithTags, WithContext):
         ordering = ('order',)
 
 
-class IndicatorDataViz(models.Model):
-    indicator = models.ForeignKey('Indicator', related_name='indicator_to_dataviz', on_delete=models.CASCADE)
-    data_viz = models.ForeignKey('DataViz', related_name='dataviz_to_indicator', on_delete=models.CASCADE)
+class TopicDataViz(models.Model):
+    topic = models.ForeignKey('Topic', related_name='topic_to_dataviz', on_delete=models.CASCADE)
+    data_viz = models.ForeignKey('DataViz', related_name='dataviz_to_topic', on_delete=models.CASCADE)
 
     order = models.IntegerField(default=0)
-    primary = models.BooleanField(default=False, help_text='prioritize this data viz for display in the indicator card')
+    primary = models.BooleanField(default=False, help_text='prioritize this data viz for display in the topic card')
 
     def __str__(self):
-        return f'{self.indicator.__str__()} ➡ {self.data_viz.__str__()}'
+        return f'{self.topic.__str__()} ➡ {self.data_viz.__str__()}'
 
     class Meta:
         ordering = ('order',)
-        unique_together = ('indicator', 'data_viz',)
+        unique_together = ('topic', 'data_viz',)
 
 
-class Indicator(Described, WithTags, WithContext):
+class Topic(Described, WithTags, WithContext):
     LAYOUT_CHOICES = (
         ('A', 'Style A'),
         ('B', 'Style B'),
         ('C', 'Style C'),
         ('D', 'Style D'),
     )
-
-    """ Indicators """
     long_description = models.TextField(
         help_text='🛑 Deprecated!!! This field will go away soon. Used "Full Description" instead.',
         blank=True,
@@ -137,17 +135,17 @@ class Indicator(Described, WithTags, WithContext):
         null=True,
     )
 
-    vizes = models.ManyToManyField('DataViz', related_name='new_indicator', through='IndicatorDataViz')
+    vizes = models.ManyToManyField('DataViz', related_name='topic', through='TopicDataViz')
 
     @property
     def data_vizes(self) -> QuerySet['DataViz']:
-        return self.vizes.order_by('dataviz_to_indicator')
+        return self.vizes.order_by('dataviz_to_topic')
 
     @property
     def hierarchies(self):
         """ Collect possible hierarchies. """
         result = []
-        for subdomainThrough in SubdomainIndicator.objects.filter(indicator=self):
+        for subdomainThrough in SubdomainTopic.objects.filter(topic=self):
             subdomain = subdomainThrough.subdomain
             result.append({'domain': subdomain.domain, 'subdomain': subdomain})
         return result
@@ -158,7 +156,7 @@ class Indicator(Described, WithTags, WithContext):
 
     @property
     def parents(self) -> List[QuerySet]:
-        return [self.indicator_to_subdomain.all()]
+        return [self.topic_to_subdomain.all()]
 
 
 class Value(models.Model):

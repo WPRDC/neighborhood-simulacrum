@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from context.serializers import TagSerializer, ContextItemSerializer
-from indicators.models import Domain, Subdomain, Indicator, Taxonomy, IndicatorDataViz
+from indicators.models import Domain, Subdomain, Topic, Taxonomy, TopicDataViz
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
 from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
@@ -37,7 +37,7 @@ class HierarchySerializer(serializers.Serializer):
     subdomain = SubdomainBriefSerializer(read_only=True)
 
 
-class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
+class TopicSerializer(serializers.HyperlinkedModelSerializer):
     data_vizes = DataVizIdentifiersSerializer(many=True)
     hierarchies = HierarchySerializer(many=True, read_only=True)
     tags = TagSerializer(many=True)
@@ -46,7 +46,7 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
     child_tags = TagSerializer(many=True)
 
     class Meta:
-        model = Indicator
+        model = Topic
         fields = (
             'id',
             'name',
@@ -69,13 +69,13 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'url': {'lookup_field': 'slug'}
         }
 
-    def get_primary_data_vizIDs(self, obj: Indicator):
-        primary_vizes = IndicatorDataViz.objects.filter(indicator=obj, primary=True)
+    def get_primary_data_vizIDs(self, obj: Topic):
+        primary_vizes = TopicDataViz.objects.filter(topic=obj, primary=True)
         return [v.id for v in primary_vizes]
 
 
 class SubdomainSerializer(serializers.ModelSerializer):
-    indicators = IndicatorSerializer(many=True)
+    topics = TopicSerializer(many=True)
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
 
@@ -86,7 +86,7 @@ class SubdomainSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
-            'indicators',
+            'topics',
             'tags',
             'context',
         )

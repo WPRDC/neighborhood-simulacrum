@@ -26,7 +26,7 @@ class CustomIndexDashboard(Dashboard):
             title='❇️ Most Used',
             column=1,
             models=(
-                'indicators.models.Indicator',
+                'indicators.models.Topic',
                 'indicators.models.viz.DataViz',
             ),
             # hack to quickly make the links not burn your eyes out
@@ -48,7 +48,7 @@ class CustomIndexDashboard(Dashboard):
                 'indicators.models.Taxonomy',
                 'indicators.models.Domain',
                 'indicators.models.Subdomain',
-                'indicators.models.Indicator',
+                'indicators.models.Topic',
             )
         ))
 

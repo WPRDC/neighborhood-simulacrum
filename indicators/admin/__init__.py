@@ -3,26 +3,26 @@ from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin,
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
 from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
-from ..models import Indicator, Subdomain, Domain, Value, SubdomainIndicator, IndicatorDataViz, Taxonomy, TaxonomyDomain
+from ..models import Topic, Subdomain, Domain, Value, SubdomainTopic, TopicDataViz, Taxonomy, TaxonomyDomain
 
 
-class SubdomainIndicatorInline(admin.StackedInline):
-    model = SubdomainIndicator
+class SubdomainTopicInline(admin.StackedInline):
+    model = SubdomainTopic
 
 
-class IndicatorDataVizInline(admin.StackedInline):
-    model = IndicatorDataViz
+class TopicDataVizInline(admin.StackedInline):
+    model = TopicDataViz
     autocomplete_fields = ('data_viz',)
 
 
-@admin.register(Indicator)
-class IndicatorAdmin(admin.ModelAdmin):
+@admin.register(Topic)
+class TopicAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'description',
     )
 
-    inlines = (IndicatorDataVizInline,)
+    inlines = (TopicDataVizInline,)
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
 
@@ -32,7 +32,7 @@ class SubdomainAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
-    inlines = (SubdomainIndicatorInline,)
+    inlines = (SubdomainTopicInline,)
 
 
 class SubdomainInline(admin.TabularInline):

@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from geo.models import AdminRegion, BlockGroup
-from indicators.models import Domain, Subdomain, Indicator, DataViz, Variable, TimeAxis, MiniMap, Taxonomy
-from indicators.serializers import DomainSerializer, IndicatorSerializer, SubdomainSerializer, \
+from indicators.models import Domain, Subdomain, Topic, DataViz, Variable, TimeAxis, MiniMap, Taxonomy
+from indicators.serializers import DomainSerializer, TopicSerializer, SubdomainSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, \
     DataVizSerializer, DataVizBriefSerializer, TaxonomySerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel, \
@@ -51,9 +51,9 @@ class SubdomainViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
 
-class IndicatorViewSet(viewsets.ModelViewSet):
-    queryset = Indicator.objects.all()
-    serializer_class = IndicatorSerializer
+class TopicViewSet(viewsets.ModelViewSet):
+    queryset = Topic.objects.all()
+    serializer_class = TopicSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
