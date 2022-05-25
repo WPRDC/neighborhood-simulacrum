@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List
 
 from colorama import Fore, Style
 from django.core.exceptions import ValidationError
@@ -9,6 +9,7 @@ from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from polymorphic.models import PolymorphicModel
 
+from context.models import WithContext, WithTags
 from indicators.data import Datum, GeogCollection, GeogRecord
 from indicators.errors import AggregationError, DataRetrievalError
 from indicators.models import Variable, Source
@@ -33,7 +34,7 @@ class VizVariable(models.Model):
         ordering = ['order']
 
 
-class DataViz(PolymorphicModel, Described):
+class DataViz(PolymorphicModel, WithTags, WithContext, Described):
     """ Base class for all Data Presentations """
     vars: Manager['Variable']
     time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)
@@ -72,6 +73,12 @@ class DataViz(PolymorphicModel, Described):
             for var_source_id in var_source_ids:
                 source_ids.add(var_source_id)
         return Source.objects.filter(pk__in=list(source_ids))
+
+    @property
+    def children(self) -> List[QuerySet]:
+        from indicators.models import TimeAxis
+        return [self.sources, self.variables, TimeAxis.objects.filter(id=self.time_axis.id)]
+
 
     def can_handle_geography(self, geog: 'AdminRegion') -> bool:
         """

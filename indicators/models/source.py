@@ -12,6 +12,7 @@ from django.db.models import QuerySet
 from polymorphic.models import PolymorphicModel
 from psycopg2.extras import RealDictCursor, RealDictConnection
 
+from context.models import WithTags, WithContext
 from geo.models import AdminRegion, Tract, County, BlockGroup, CountySubdivision, SchoolDistrict
 from indicators.models.time import TimeAxis
 from profiles.abstract_models import Described
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
     from indicators.models.variable import CKANVariable
 
 
-class Source(PolymorphicModel, Described):
+class Source(PolymorphicModel, Described, WithTags, WithContext):
     """ Base class that defines data sources """
     time_coverage_start = models.DateTimeField()
     time_coverage_end = models.DateTimeField(help_text='Leave blank for indefinite', blank=True, null=True)

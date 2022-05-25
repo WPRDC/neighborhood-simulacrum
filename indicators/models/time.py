@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
+
+from context.models import WithTags, WithContext
 from profiles.abstract_models import Described
 from dataclasses import dataclass
 from dateutil.relativedelta import relativedelta
@@ -20,7 +22,7 @@ def m2q(m: int) -> int:
     return ((m - 1) // 3) + 1
 
 
-class TimeAxis(PolymorphicModel, Described):
+class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
     """ Base class for time axes. """
 
     class Meta:

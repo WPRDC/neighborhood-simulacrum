@@ -1,14 +1,15 @@
 import logging
-import math
 from datetime import MINYEAR, MAXYEAR
 from typing import Dict, Optional, Type, List
 
+import math
 from django.db import models
 from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 
 from census_data.models import CensusValue, CensusTableRecord
+from context.models import WithContext, WithTags
 from geo.models import AdminRegion
 from indicators.data import Datum, GeogRecord, GeogCollection, AggregationMethod
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
@@ -20,7 +21,7 @@ from profiles.abstract_models import Described
 logger = logging.getLogger(__name__)
 
 
-class Variable(PolymorphicModel, Described):
+class Variable(PolymorphicModel, Described, WithTags, WithContext):
     _agg_methods: dict
     _warnings: list[ErrorRecord] = []
 
@@ -219,6 +220,10 @@ class CensusVariable(Variable):
         AggregationMethod.MIN: models.Min,
     }
 
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.sources.all()]
+
     class Meta:
         verbose_name = 'Census Variable'
         verbose_name_plural = 'Census Variables'
@@ -364,6 +369,10 @@ class CKANVariable(Variable):
         AggregationMethod.MAX: 'MAX',
         AggregationMethod.MIN: 'MIN',
     }
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.sources.all()]
 
     class Meta:
         verbose_name = 'CKAN Variable'

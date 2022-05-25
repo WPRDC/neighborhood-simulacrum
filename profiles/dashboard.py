@@ -101,6 +101,16 @@ class CustomIndexDashboard(Dashboard):
             models=('django.contrib.*',),
         ))
 
+        self.children.append(modules.ModelList(
+            _('🏷 Context'),
+            column=2,
+            collapsible=True,
+            models=(
+                'context.models.Tag',
+                'context.models.ContextItem'
+            )
+        ))
+
         self.children.append(modules.AppList(
             _('All Models'),
             collapsible=True,

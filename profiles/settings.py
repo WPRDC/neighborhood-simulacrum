@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'markdownx',
 
     # local apps
+    'context',
     'indicators',
     'geo',
     'census_data',

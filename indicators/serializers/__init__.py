@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from indicators.models import Domain, Subdomain, Indicator, Taxonomy
+from context.serializers import TagSerializer, ContextItemSerializer
+from indicators.models import Domain, Subdomain, Indicator, Taxonomy, IndicatorDataViz
 from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
 from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
@@ -39,6 +40,10 @@ class HierarchySerializer(serializers.Serializer):
 class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
     data_vizes = DataVizIdentifiersSerializer(many=True)
     hierarchies = HierarchySerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
+    primary_data_vizIDs = serializers.SerializerMethodField()
+    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = Indicator
@@ -55,14 +60,24 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'provenance',
             'data_vizes',
             'hierarchies',
+            'tags',
+            'context',
+            'child_tags',
+            'primary_data_vizIDs',
         )
         extra_kwargs = {
             'url': {'lookup_field': 'slug'}
         }
 
+    def get_primary_data_vizIDs(self, obj: Indicator):
+        primary_vizes = IndicatorDataViz.objects.filter(indicator=obj, primary=True)
+        return [v.id for v in primary_vizes]
+
 
 class SubdomainSerializer(serializers.ModelSerializer):
     indicators = IndicatorSerializer(many=True)
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
 
     class Meta:
         model = Subdomain
@@ -72,6 +87,8 @@ class SubdomainSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'indicators',
+            'tags',
+            'context',
         )
 
 
@@ -86,6 +103,8 @@ class DomainSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'subdomains',
+            'tags',
+            'context',
         )
 
 
@@ -99,5 +118,7 @@ class TaxonomySerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
-            'domains'
+            'domains',
+            'tags',
+            'context',
         )

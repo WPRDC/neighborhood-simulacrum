@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from rest_framework import serializers
 
+from context.serializers import TagSerializer, ContextItemSerializer
 from geo.models import AdminRegion
 from geo.serializers import AdminRegionPolymorphicSerializer
 from . import TimeAxisPolymorphicSerializer
@@ -28,6 +29,9 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
     time_axis = TimeAxisPolymorphicSerializer()
     sources = SourceSerializer(many=True)
     static_options = serializers.SerializerMethodField()
+    tags = TagSerializer(many=True)
+    context = ContextItemSerializer(many=True)
+    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = DataViz
@@ -41,6 +45,9 @@ class DataVizSerializer(serializers.HyperlinkedModelSerializer):
             'sources',
             'time_axis',
             'variables',
+            'tags',
+            'context',
+            'child_tags',
         )
 
     def get_static_options(self, obj: DataViz):

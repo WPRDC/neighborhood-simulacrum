@@ -1,16 +1,12 @@
-from collections import OrderedDict
+import operator
 from datetime import date, timedelta, datetime
-from functools import lru_cache
 from typing import Type, Union
-import operator 
 
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import QuerySet, F, Q
-from django.db.models.expressions import RawSQL
-from django.db.models.functions import Cast, Substr, Length
+from django.db.models import QuerySet, Q
 
 from profiles.abstract_models import DatastoreDataset, Described
 from public_housing.housing_datasets import (
@@ -178,7 +174,6 @@ class ProjectIndex(DatastoreDataset):
         :param lvl:
         :return:
         """
-        l_filter = {}
         if lvl == 'initial':
             # in the initial LIHTC compliance period (years 0-15) from the date or year placed into service
             l_filter = {'lihtc_year_in_service__gte': (TODAY - timedelta(days=365 * 15)).year}
@@ -252,7 +247,7 @@ class ProjectIndex(DatastoreDataset):
         multi_fam_list = []
 
         for item in multi_fam_ordered_objects.values():
-            if item['property_id'] not in prop_ids:
+            if item['property_id'] not in prop_id_set:
                 item['inspection_score'] = int(''.join(filter(str.isdigit, item['inspection_score'])))
                 prop_id_set.add(item['property_id'])
                 multi_fam_list.append(item)

@@ -1,5 +1,9 @@
-from django.db import models
+from typing import List
 
+from django.db import models
+from django.db.models import QuerySet
+
+from context.models import WithContext, WithTags
 from profiles.abstract_models import Described
 from .source import Source, CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource
 from .time import TimeAxis, RelativeTimeAxis, StaticTimeAxis, StaticConsecutiveTimeAxis
@@ -35,7 +39,7 @@ class TaxonomyDomain(models.Model):
         return f'{self.taxonomy.__str__()} ➡ {self.domain.__str__()}'
 
 
-class Taxonomy(Described):
+class Taxonomy(Described, WithTags, WithContext):
     _domains = models.ManyToManyField('Domain', related_name='project', through=TaxonomyDomain)
 
     @property
@@ -47,12 +51,15 @@ class Taxonomy(Described):
         verbose_name_plural = 'Taxonomies'
 
 
-class Domain(Described):
+class Domain(Described, WithTags, WithContext):
     """ Main categories for organizing indicators """
-    pass
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.subdomains.all()]
 
 
-class Subdomain(Described):
+class Subdomain(Described, WithTags, WithContext):
     domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.CASCADE)
     order = models.IntegerField(default=0)
     inds = models.ManyToManyField('Indicator', related_name='subdomains', through='SubdomainIndicator')
@@ -60,6 +67,14 @@ class Subdomain(Described):
     @property
     def indicators(self):
         return self.inds.order_by('indicator_to_subdomain')
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.inds.all()]
+
+    @property
+    def parents(self) -> List[QuerySet]:
+        return [Domain.objects.filter(id=self.domain.id)]
 
     class Meta:
         ordering = ('order',)
@@ -70,6 +85,7 @@ class IndicatorDataViz(models.Model):
     data_viz = models.ForeignKey('DataViz', related_name='dataviz_to_indicator', on_delete=models.CASCADE)
 
     order = models.IntegerField(default=0)
+    primary = models.BooleanField(default=False, help_text='prioritize this data viz for display in the indicator card')
 
     def __str__(self):
         return f'{self.indicator.__str__()} ➡ {self.data_viz.__str__()}'
@@ -79,7 +95,7 @@ class IndicatorDataViz(models.Model):
         unique_together = ('indicator', 'data_viz',)
 
 
-class Indicator(Described):
+class Indicator(Described, WithTags, WithContext):
     LAYOUT_CHOICES = (
         ('A', 'Style A'),
         ('B', 'Style B'),
@@ -124,7 +140,7 @@ class Indicator(Described):
     vizes = models.ManyToManyField('DataViz', related_name='new_indicator', through='IndicatorDataViz')
 
     @property
-    def data_vizes(self):
+    def data_vizes(self) -> QuerySet['DataViz']:
         return self.vizes.order_by('dataviz_to_indicator')
 
     @property
@@ -135,6 +151,14 @@ class Indicator(Described):
             subdomain = subdomainThrough.subdomain
             result.append({'domain': subdomain.domain, 'subdomain': subdomain})
         return result
+
+    @property
+    def children(self) -> List[QuerySet]:
+        return [self.data_vizes]
+
+    @property
+    def parents(self) -> List[QuerySet]:
+        return [self.indicator_to_subdomain.all()]
 
 
 class Value(models.Model):
