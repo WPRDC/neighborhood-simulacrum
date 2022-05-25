@@ -7,12 +7,12 @@ from functools import reduce
 from profiles.abstract_models import Identified
 
 
-def reduce_children_qs_to_tags(t: Set[int], child: 'WithTags'):
+def collapse_tag_ids_from_qs(t: Set[int], child: 'WithTags'):
     return t | recursively_get_child_tag_ids(child)
 
 
-def reduce_list_of_children_qses_to_tags(t: Set[int], children_qs: QuerySet['WithTags']):
-    return t | reduce(reduce_children_qs_to_tags, children_qs, set())
+def collapse_tag_ids_from_qs_list(t: Set[int], children_qs: QuerySet['WithTags']):
+    return t | reduce(collapse_tag_ids_from_qs, children_qs, set())
 
 
 class Tag(Identified):
@@ -23,7 +23,7 @@ def recursively_get_child_tag_ids(obj: 'WithTags') -> Set[int]:
     """ Traverse descendents tree and collect tags """
     # if the object has children, get set of all their tags
     if hasattr(obj, 'children'):
-        t = reduce(reduce_list_of_children_qses_to_tags, obj.children, set())
+        t = reduce(collapse_tag_ids_from_qs_list, obj.children, set())
         return t
     # base cases
     # if not children but tags, return those tags as a set
@@ -87,7 +87,7 @@ class ContextItem(Identified, WithTags):
 
 
 class WithContext(models.Model):
-    context = models.ManyToManyField('context.ContextItem', blank=True, null=True)
+    context = models.ManyToManyField('context.ContextItem', blank=True)
 
     class Meta:
         abstract = True
