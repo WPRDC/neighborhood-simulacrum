@@ -53,11 +53,6 @@ class IndicatorVariable(models.Model):
         ordering = ['order']
 
 
-# todo: Create CompoundIndicator that keeps track of a set of indicators
-#   can allow us to do things like pyramid charts (male pop by age indicator x female pop by age indicator)
-#   maybe this can simply be done by allowing another set of variables
-
-
 class Indicator(WithTags, WithContext, Described):
     """ Base class for all Data Presentations """
 

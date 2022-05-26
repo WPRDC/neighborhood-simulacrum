@@ -86,12 +86,6 @@ class Migration(migrations.Migration):
         migrations.DeleteModel(
             name='Indicator',
         ),
-        migrations.DeleteModel(
-            name='IndicatorDataViz',
-        ),
-        migrations.DeleteModel(
-            name='SubdomainIndicator',
-        ),
         migrations.AddField(
             model_name='topicdataviz',
             name='data_viz',
