@@ -1,27 +1,15 @@
-from typing import Type
-
-from django.core.exceptions import ObjectDoesNotExist
-from django.http import Http404
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, filters
-from rest_framework.exceptions import NotFound
-from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from geo.models import AdminRegion, BlockGroup
-from indicators.models import Domain, Subdomain, Topic, DataViz, Variable, TimeAxis, MiniMap, Taxonomy
+from geo.models import AdminRegion
+from indicators.models import Domain, Subdomain, Topic, Indicator, Variable, TimeAxis, Taxonomy
 from indicators.serializers import DomainSerializer, TopicSerializer, SubdomainSerializer, \
-    TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, DataVizWithDataSerializer, \
-    DataVizSerializer, DataVizBriefSerializer, TaxonomySerializer
-from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel, \
-    get_geog_model
-from maps.models import DataLayer
-from profiles.content_negotiation import GeoJSONContentNegotiation
-from django.conf import settings
+    TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, IndicatorWithDataSerializer, \
+    IndicatorSerializer, IndicatorBriefSerializer, TaxonomySerializer
+from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel
 
 
 class TaxonomyViewSet(viewsets.ModelViewSet):
@@ -76,21 +64,21 @@ class TimeAxisViewSet(viewsets.ModelViewSet):
     search_fields = ['name', ]
 
 
-class DataVizViewSet(viewsets.ModelViewSet):
-    queryset = DataViz.objects.all()
+class IndicatorViewSet(viewsets.ModelViewSet):
+    queryset = Indicator.objects.all()
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
     lookup_field = 'slug'
 
     def get_serializer_class(self):
         if self.action == 'list':
-            return DataVizBriefSerializer
+            return IndicatorBriefSerializer
         if is_geog_data_request(self.request):
-            return DataVizWithDataSerializer
-        return DataVizSerializer
+            return IndicatorWithDataSerializer
+        return IndicatorSerializer
 
     def get_serializer_context(self):
-        context = super(DataVizViewSet, self).get_serializer_context()
+        context = super(IndicatorViewSet, self).get_serializer_context()
         if is_geog_data_request(self.request):
             try:
                 context['geography'] = get_geog_from_request(self.request)
@@ -102,38 +90,6 @@ class DataVizViewSet(viewsets.ModelViewSet):
                 ).as_dict()
         return context
 
-    # Cache requested url for each user for 2 minutes
     @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def retrieve(self, request, *args, **kwargs):
-        return super(DataVizViewSet, self).retrieve(request, *args, **kwargs)
-
-
-class GeoJSONWithDataView(APIView):
-    permission_classes = [AllowAny, ]
-    content_negotiation_class = GeoJSONContentNegotiation
-
-    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
-    def get(self, request: Request, geog_type_id=None, data_viz_id=None, variable_id=None):
-        try:
-            geog_type: Type[AdminRegion] = get_geog_model(geog_type_id)
-            data_viz: MiniMap = DataViz.objects.get(pk=data_viz_id)
-            variable: Variable = Variable.objects.get(pk=variable_id)
-            data_layer: DataLayer = data_viz.layers.all()[0].get_data_layer()
-            geojson = data_layer.as_geojson()
-        except KeyError as e:
-            # when the geog is wrong todo: make 400 malformed with info on available geo types
-            raise NotFound
-        except ObjectDoesNotExist as e:
-            raise NotFound
-
-        if geog_type == BlockGroup:
-            # todo: actually handle this error, then this case
-            return Http404
-
-        if request.query_params.get('download', False):
-            headers = {
-                'Content-Disposition': f'attachment; filename="{data_viz.slug}:{variable.slug}:{geog_type.geog_type}.geojson"'
-            }
-            return Response(geojson, headers=headers, content_type='application/geo+json')
-
-        return Response(geojson)
+        return super(IndicatorViewSet, self).retrieve(request, *args, **kwargs)

@@ -1,18 +1,18 @@
 from django.contrib import admin
+from .indicator import IndicatorAdmin
 from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin, CKANGeomSourceAdmin
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
-from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
-from ..models import Topic, Subdomain, Domain, Value, SubdomainTopic, TopicDataViz, Taxonomy, TaxonomyDomain
+from ..models import Topic, Subdomain, Domain, Value, SubdomainTopic, TopicIndicator, Taxonomy, TaxonomyDomain
 
 
 class SubdomainTopicInline(admin.StackedInline):
     model = SubdomainTopic
 
 
-class TopicDataVizInline(admin.StackedInline):
-    model = TopicDataViz
-    autocomplete_fields = ('data_viz',)
+class TopicIndicatorInline(admin.StackedInline):
+    model = TopicIndicator
+    autocomplete_fields = ('indicator',)
 
 
 @admin.register(Topic)
@@ -22,7 +22,7 @@ class TopicAdmin(admin.ModelAdmin):
         'description',
     )
 
-    inlines = (TopicDataVizInline,)
+    inlines = (TopicIndicatorInline,)
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
 

@@ -5,58 +5,57 @@ from rest_framework import serializers
 from context.serializers import TagSerializer, ContextItemSerializer
 from geo.models import AdminRegion
 from geo.serializers import AdminRegionPolymorphicSerializer
-from . import TimeAxisPolymorphicSerializer
+from .time import TimeAxisPolymorphicSerializer
 from .source import SourceSerializer
-from .variable import VizVariablePolymorphicSerializer
-from ..models.viz import DataViz
+from .variable import IndicatorVariablePolymorphicSerializer
+from ..models.indicator import Indicator
 from ..utils import DataResponse
 
 
-class DataVizBriefSerializer(serializers.HyperlinkedModelSerializer):
+class IndicatorBriefSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
-        model = DataViz
+        model = Indicator
         fields = (
             'id',
             'name',
             'slug',
-            'viz_type',
             'description',
         )
 
 
-class DataVizSerializer(serializers.HyperlinkedModelSerializer):
-    variables = VizVariablePolymorphicSerializer(many=True)
+class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
+    variables = IndicatorVariablePolymorphicSerializer(many=True)
     time_axis = TimeAxisPolymorphicSerializer()
     sources = SourceSerializer(many=True)
-    static_options = serializers.SerializerMethodField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
     child_tags = TagSerializer(many=True)
 
     class Meta:
-        model = DataViz
+        model = Indicator
         fields = (
             'id',
             'name',
             'slug',
-            'viz_type',
             'description',
-            'static_options',
-            'sources',
+            'tags',
+            'child_tags',
+            'context',
+            # axes
             'time_axis',
             'variables',
-            'tags',
-            'context',
-            'child_tags',
+
+            # properties
+            'sources',
+            'options',
+            'dimensionality',
         )
 
-    def get_static_options(self, obj: DataViz):
-        return obj.options
 
-
-class DataVizWithDataSerializer(DataVizSerializer):
+class IndicatorWithDataSerializer(IndicatorSerializer):
     data = serializers.SerializerMethodField()
-    options = serializers.SerializerMethodField()
+    dimensions = serializers.SerializerMethodField()
+    map_options = serializers.SerializerMethodField()
     error = serializers.SerializerMethodField()
     warnings = serializers.SerializerMethodField()
     geogs = serializers.SerializerMethodField()
@@ -64,16 +63,16 @@ class DataVizWithDataSerializer(DataVizSerializer):
     _cached_response = None
 
     class Meta:
-        model = DataViz
-        fields = DataVizSerializer.Meta.fields + ('data', 'options', 'error', 'warnings', 'geogs')
+        model = Indicator
+        fields = IndicatorSerializer.Meta.fields + ('data', 'dimensions', 'map_options', 'error', 'warnings', 'geogs')
 
     @lru_cache
-    def _get_data_response(self, viz: DataViz, geog: AdminRegion) -> DataResponse:
+    def _get_data_response(self, indicator: Indicator, geog: AdminRegion) -> DataResponse:
         if self._cached_response:
             return self._cached_response
-        return viz.get_viz_data(geog)
+        return indicator.get_data(geog)
 
-    def get_data(self, obj: DataViz):
+    def get_data(self, obj: Indicator):
         if 'error' in self.context:
             return []
         data_response: DataResponse = self._get_data_response(obj, self.context['geography'])
@@ -81,18 +80,24 @@ class DataVizWithDataSerializer(DataVizSerializer):
             return [datum.as_dict() for datum in data_response.data]
         return None
 
-    def get_options(self, obj: DataViz):
+    def get_dimensions(self, obj: Indicator):
         if 'error' in self.context:
             return []
         data_response: DataResponse = self._get_data_response(obj, self.context['geography'])
-        return data_response.options
+        return data_response.dimensions
 
-    def get_error(self, obj: DataViz):
+    def get_map_options(self, obj: Indicator):
+        if 'error' in self.context:
+            return []
+        data_response: DataResponse = self._get_data_response(obj, self.context['geography'])
+        return data_response.map_options
+
+    def get_error(self, obj: Indicator):
         if 'error' in self.context:
             return self.context['error']
         return self._get_data_response(obj, self.context['geography']).error.as_dict()
 
-    def get_warnings(self, obj: DataViz):
+    def get_warnings(self, obj: Indicator):
         if 'error' in self.context:
             return self.context['warnings']
         warnings = self._get_data_response(obj, self.context['geography']).warnings
@@ -100,20 +105,5 @@ class DataVizWithDataSerializer(DataVizSerializer):
             return [warning.as_dict() for warning in warnings]
         return None
 
-    def get_geogs(self, obj: DataViz):
+    def get_geogs(self, obj: Indicator):
         return [AdminRegionPolymorphicSerializer(self.context['geography']).data]
-
-
-class DataVizIdentifiersSerializer(serializers.HyperlinkedModelSerializer):
-    """ Bare minimum info necessary for structuring site. """
-    sources = SourceSerializer(many=True)
-
-    class Meta:
-        model = DataViz
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'viz_type',
-            'sources',
-        )

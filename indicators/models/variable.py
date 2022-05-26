@@ -1,8 +1,8 @@
 import logging
+import math
 from datetime import MINYEAR, MAXYEAR
 from typing import Dict, Optional, Type, List
 
-import math
 from django.db import models
 from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery
 from django.utils import timezone

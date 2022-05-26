@@ -1,70 +1,128 @@
 import logging
-import re
 from typing import Optional, TYPE_CHECKING, List
 
 from colorama import Fore, Style
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import QuerySet
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
-from polymorphic.models import PolymorphicModel
+from django.utils.text import slugify
+from markdownx.models import MarkdownxField
 
 from context.models import WithContext, WithTags
+from geo.models import AdminRegion
 from indicators.data import Datum, GeogCollection, GeogRecord
 from indicators.errors import AggregationError, DataRetrievalError
-from indicators.models import Variable, Source
 from indicators.utils import ErrorRecord, DataResponse, ErrorLevel
-
+from maps.util import menu_view_name
 from profiles.abstract_models import Described
-from django.db.models import QuerySet, Manager
-from geo.models import AdminRegion
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
+    from indicators.models.source import Source
+    from maps.models import DataLayer
 
 logger = logging.getLogger(__name__)
 
 
-class VizVariable(models.Model):
-    """ Common fields and methods for all variables attached to data vizes """
+class IndicatorVariable(models.Model):
+    """ Links Indicator to Variable  """
+    indicator = models.ForeignKey(
+        'Indicator',
+        on_delete=models.CASCADE,
+        related_name='indicator_to_variable'
+    )
+    variable = models.ForeignKey(
+        'Variable',
+        on_delete=models.CASCADE,
+        related_name='variable_to_indicator'
+    )
     order = models.IntegerField()
 
+    def get_data_layer(self, geog_collection: 'GeogCollection'):
+        return DataLayer.get_or_create_updated_map(
+            geog_collection,
+            self.indicator.time_axis,
+            self.variable,
+            self.indicator.use_denominators
+        )
+
     class Meta:
-        abstract = True
         ordering = ['order']
 
 
-class DataViz(PolymorphicModel, WithTags, WithContext, Described):
+# todo: Create CompoundIndicator that keeps track of a set of indicators
+#   can allow us to do things like pyramid charts (male pop by age indicator x female pop by age indicator)
+#   maybe this can simply be done by allowing another set of variables
+
+
+class Indicator(WithTags, WithContext, Described):
     """ Base class for all Data Presentations """
-    vars: Manager['Variable']
-    time_axis = models.ForeignKey('TimeAxis', related_name='data_vizes', on_delete=models.CASCADE)
+
+    # Axes
+    time_axis = models.ForeignKey(
+        'TimeAxis',
+        related_name='indicators',
+        on_delete=models.CASCADE
+    )
+    vars = models.ManyToManyField(
+        'Variable',
+        verbose_name='Variables',
+        through='IndicatorVariable'
+    )
+    across_geogs = models.BooleanField(
+        verbose_name='Allow cross-geog vizes',
+        help_text='Leave true in nearly all cases.',
+        default=True)
+
+    # Indicator with same time axis
+    mirror_indicator = models.OneToOneField(
+        'Indicator',
+        help_text='e.g. pop-by-age-male if this indicator is pop-my-age-female would allow a pyramid chart',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    # Metadata
+    note = MarkdownxField(
+        verbose_name='Brief note',
+        blank=True,
+        null=True
+    )
+
+    # Viz Overrides
+    use_columns = models.BooleanField(
+        verbose_name='Prefer column layout in bar charts (if any)',
+        help_text='constraints may require apps and sites to override to bar chart when space is limited.',
+        default=False
+    )
+    use_denominators = models.BooleanField(
+        verbose_name='Use denominators and percents in visualizations',
+        help_text='(Usually left true)',
+        default=True
+    )
+
+    _neighbor_geogs = None
 
     @property
     def variables(self) -> QuerySet['Variable']:
-        """ Public property for accessing the variables int he viz. """
-        variable_to_viz = f'variable_to_{self.ref_name}'
-        if self.vars:
-            return self.vars.order_by(variable_to_viz)
-        raise AttributeError('Subclasses of DataPresentation must provide their own `vars` ManyToManyField')
+        """ Public property for accessing the variables in the indicator. """
+        return self.vars.order_by('variable_to_indicator')
 
     @property
     def options(self) -> dict:
-        return {}
-
-    @property
-    def viz_type(self) -> str:
-        return self.__class__.__qualname__
-
-    @property
-    def ref_name(self) -> str:
-        """ The snake case string used to reference this model in related names. """
-        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', self.__class__.__qualname__)
-        # noinspection RegExpSimplifiable
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+        return {
+            'note': self.note,
+            'use_columns': self.use_columns,
+            'use_denominators': self.use_denominators,
+        }
 
     @property
     def sources(self) -> QuerySet['Source']:
-        """ Queryset representing the set of sources attached to all variables in this viz. """
+        """ Queryset representing the set of sources attached to all variables in this indicator. """
         source_ids = set()
         variable: Variable
         for variable in self.variables:
@@ -78,6 +136,13 @@ class DataViz(PolymorphicModel, WithTags, WithContext, Described):
         from indicators.models import TimeAxis
         return [self.sources, self.variables, TimeAxis.objects.filter(id=self.time_axis.id)]
 
+    @property
+    def dimensionality(self):
+        return [
+            {'id': 'geog', 'many': self.across_geogs},
+            {'id': 'time', 'many': len(self.time_axis.time_parts) > 1},
+            {'id': 'vars', 'many': len(self.variables) > 1},
+        ]
 
     def can_handle_geography(self, geog: 'AdminRegion') -> bool:
         """
@@ -128,16 +193,18 @@ class DataViz(PolymorphicModel, WithTags, WithContext, Described):
         raise AggregationError(f'{self.title} not available for {geog.title}.')
 
     def get_neighbor_geogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
-        """ Generates queryset of all neighbor geographies to be compared with `geog` also includes geog."""
-        return geog.__class__.objects.filter(global_geoid=geog.global_geoid)
+        """ Generates queryset of all neighbor geographies to be compared with `geog` also includes geog. """
+        if self._neighbor_geogs is None:
+            if self.across_geogs:
+                self._neighbor_geogs = geog.__class__.objects.filter(in_extent=True)
+            self._neighbor_geogs = geog.__class__.objects.filter(global_geoid=geog.global_geoid)
+        return self._neighbor_geogs
 
-    def get_viz_data(self, geog: 'AdminRegion') -> DataResponse:
+    def get_data(self, geog: 'AdminRegion') -> DataResponse:
         """
         Returns a `DataResponse` object with the viz's data at `geog`.
 
-        This method is the primary interface to request data. Calls `_get_viz_data` which can be implemented
-        in subclassed models.
-
+        This method is the primary interface to request data.
         Generalized solution
             1. Get full set of geogs necessary for viz
               a. get set of neighbor geogs, including the primary geog, if necessary for the viz
@@ -153,7 +220,8 @@ class DataViz(PolymorphicModel, WithTags, WithContext, Described):
         :return: DataResponse with data and error information
         """
         data: Optional[list[Datum]] = None
-        options: Optional[dict] = None
+        dimensions: Optional[list[dict]] = None
+        map_options: Optional[dict] = None
         error = ErrorRecord(level=ErrorLevel.OK, message='')
         warnings: Optional[list[ErrorRecord]] = None
 
@@ -179,28 +247,26 @@ class DataViz(PolymorphicModel, WithTags, WithContext, Described):
 
             # todo: add information about geographic aggregation if it occureda
             #   - list of subgeogs so we can link to them on Apps and sites
-
             if neighbor_geogs:
-                data, warnings = self._get_viz_data(geog_collection)
-                options = self._get_viz_options(geog_collection)
+                data, warnings = self._get_data(geog_collection)
+                dimensions = self._get_dimensions()
+                map_options = self._get_map_options(geog_collection)
             else:
                 error = ErrorRecord(level=ErrorLevel.EMPTY,
                                     message=f'This visualization is not available for {geog.name}.')
-            return DataResponse(data, options, error, warnings=warnings)
+            return DataResponse(data, dimensions, map_options, error, warnings=warnings)
 
         except DataRetrievalError as e:
             logger.error(str(e))
             error = e.error_response
-            return DataResponse(data, options, error, warnings=warnings)
+            return DataResponse(data, dimensions, map_options, error, warnings=warnings)
 
         except Exception as e:
             logger.exception(str(e))
             print(f'{Fore.RED}Uncaught Error:', e, Style.RESET_ALL)
-            # error = ErrorResponse(ErrorLevel.ERROR, f'Uncaught Error: {e}')
             raise e
-            # return DataResponse(data, options, error)
 
-    def _get_viz_data(self, geog_collection: GeogCollection) -> (list[Datum], list[ErrorRecord]):
+    def _get_data(self, geog_collection: GeogCollection) -> (list[Datum], list[ErrorRecord]):
         """
         Gets a representation of data for the viz.
 
@@ -223,16 +289,66 @@ class DataViz(PolymorphicModel, WithTags, WithContext, Described):
 
         return data, warnings
 
-    def _get_viz_options(self, geog_collection: GeogCollection) -> Optional[dict]:
+    def _get_map_options(self, geog_collection: GeogCollection) -> Optional[dict]:
         """
-        Gets options for the viz.
-
-        Options are particularly class-specific, so you'll need to override in most cases.
-
-        :param geog_collection:
-        :return:
+        Collects and returns the data for this indicator at the `geog` provided
         """
-        return {}
+        sources: [dict] = []
+        layers: [dict] = []
+        interactive_layer_ids: [str] = []
+        legend_options: [dict] = []
+
+        border_base_style = settings.MAP_STYLES
+
+        for var in self.vars.all():
+            layer: 'IndicatorVariable' = self.vars.through.objects.get(variable=var, viz=self)
+            data_layer: DataLayer = layer.get_data_layer(geog_collection)
+            source, tmp_layers, interactive_layer_ids, legend_option = data_layer.get_map_options()
+            sources.append(source)
+            legend_options.append(legend_option)
+            layers += tmp_layers
+
+        primary_geog = geog_collection.primary_geog
+
+        map_options: dict = {
+            'interactive_layer_ids': interactive_layer_ids,
+            'default_viewport': {
+                'longitude': primary_geog.geom.centroid.x,
+                'latitude': primary_geog.geom.centroid.y,
+                'zoom': primary_geog.base_zoom - 1
+            }
+        }
+
+        # for highlighting current geog
+        highlight_id = slugify(primary_geog.name)
+        highlight_source = {
+            'id': f'{highlight_id}',
+            'type': 'vector',
+            'url': f"{settings.MAP_HOST}{menu_view_name(geog_collection.geog_type)}.json",
+        }
+        highlight_layer = {
+            'id': f'{highlight_id}/highlight',
+            'source': f'{highlight_id}',
+            'source-layer': f'{highlight_id}',
+            **border_base_style
+        }
+        sources.append(highlight_source)
+        layers.append(highlight_layer)
+
+        return {
+            'sources': sources,
+            'layers': layers,
+            'legends': legend_options,
+            'map_options': map_options
+        }
+
+    def _get_dimensions(self, neighbor_geogs: QuerySet['AdminRegion']) -> list[dict]:
+        """ Returns dimensions for the data """
+        return [
+            {'id': 'geog', 'columns': [g.slug for g in neighbor_geogs]},
+            {'id': 'time', 'columns': [t.slug for t in self.time_axis.time_parts]},
+            {'id': 'vars', 'columns': [v.slug for v in self.variables]},
+        ]
 
     def __str__(self):
         return f'{self.name} ({self.__class__.__name__})'
@@ -242,8 +358,8 @@ class DataViz(PolymorphicModel, WithTags, WithContext, Described):
         verbose_name_plural = "Data Visualizations"
 
 
-@receiver(m2m_changed, sender=DataViz.variables, dispatch_uid="check_var_timing")
-def check_var_timing(_, instance: DataViz, **kwargs):
+@receiver(m2m_changed, sender=Indicator.variables, dispatch_uid="check_var_timing")
+def check_var_timing(_, instance: Indicator, **kwargs):
     for var in instance.vars.all():
         var: 'Variable'
         for time_part in instance.time_axis.time_parts:

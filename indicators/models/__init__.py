@@ -5,10 +5,10 @@ from django.db.models import QuerySet
 
 from context.models import WithContext, WithTags
 from profiles.abstract_models import Described
+from .indicator import Indicator, IndicatorVariable
 from .source import Source, CensusSource, CKANSource, CKANGeomSource, CKANRegionalSource
 from .time import TimeAxis, RelativeTimeAxis, StaticTimeAxis, StaticConsecutiveTimeAxis
 from .variable import Variable, CensusVariable, CKANVariable, CensusVariableSource
-from .viz import DataViz, Table, Chart, MiniMap, VizVariable
 
 
 class SubdomainTopic(models.Model):
@@ -80,19 +80,19 @@ class Subdomain(Described, WithTags, WithContext):
         ordering = ('order',)
 
 
-class TopicDataViz(models.Model):
-    topic = models.ForeignKey('Topic', related_name='topic_to_dataviz', on_delete=models.CASCADE)
-    data_viz = models.ForeignKey('DataViz', related_name='dataviz_to_topic', on_delete=models.CASCADE)
+class TopicIndicator(models.Model):
+    topic = models.ForeignKey('Topic', related_name='topic_to_indicator', on_delete=models.CASCADE)
+    indicator = models.ForeignKey('Indicator', related_name='indicator_to_topic', on_delete=models.CASCADE)
 
     order = models.IntegerField(default=0)
-    primary = models.BooleanField(default=False, help_text='prioritize this data viz for display in the topic card')
+    primary = models.BooleanField(default=False, help_text='prioritize this indicator for display in the topic card')
 
     def __str__(self):
-        return f'{self.topic.__str__()} ➡ {self.data_viz.__str__()}'
+        return f'{self.topic.__str__()} ➡ {self.indicator.__str__()}'
 
     class Meta:
         ordering = ('order',)
-        unique_together = ('topic', 'data_viz',)
+        unique_together = ('topic', 'indicator',)
 
 
 class Topic(Described, WithTags, WithContext):
@@ -135,11 +135,11 @@ class Topic(Described, WithTags, WithContext):
         null=True,
     )
 
-    vizes = models.ManyToManyField('DataViz', related_name='topic', through='TopicDataViz')
+    inds = models.ManyToManyField('Indicator', related_name='topic', through='TopicIndicator')
 
     @property
-    def data_vizes(self) -> QuerySet['DataViz']:
-        return self.vizes.order_by('dataviz_to_topic')
+    def indicators(self) -> QuerySet['Indicator']:
+        return self.inds.order_by('Indicator_to_topic')
 
     @property
     def hierarchies(self):
@@ -152,7 +152,7 @@ class Topic(Described, WithTags, WithContext):
 
     @property
     def children(self) -> List[QuerySet]:
-        return [self.data_vizes]
+        return [self.indicators]
 
     @property
     def parents(self) -> List[QuerySet]:

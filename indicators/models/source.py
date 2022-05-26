@@ -1,5 +1,3 @@
-# noinspection SqlResolve
-
 import datetime
 import logging
 from dataclasses import dataclass

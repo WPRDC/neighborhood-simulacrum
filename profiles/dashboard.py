@@ -27,7 +27,7 @@ class CustomIndexDashboard(Dashboard):
             column=1,
             models=(
                 'indicators.models.Topic',
-                'indicators.models.viz.DataViz',
+                'indicators.models.indicator.Indicator',
             ),
             # hack to quickly make the links not burn your eyes out
             pre_content="""
@@ -53,10 +53,10 @@ class CustomIndexDashboard(Dashboard):
         ))
 
         self.children.append(modules.ModelList(
-            title='📊 Data Visualization',
+            title='📊 Indicator',
             column=1,
             models=(
-                'indicators.models.viz.DataViz',
+                'indicators.models.indicator.Indicator',
                 'indicators.models.variable.Variable',
                 'indicators.models.time.TimeAxis',
             )

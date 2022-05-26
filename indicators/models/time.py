@@ -91,7 +91,7 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
         return []
 
     @property
-    def time_parts(self):
+    def time_parts(self) -> list[TimePart]:
         if self._time_parts:
             return self._time_parts
         self._time_parts = [

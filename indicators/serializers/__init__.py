@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
 from context.serializers import TagSerializer, ContextItemSerializer
-from indicators.models import Domain, Subdomain, Topic, Taxonomy, TopicDataViz
-from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
+from indicators.models import Domain, Subdomain, Topic, Taxonomy, TopicIndicator
+from .indicator import IndicatorSerializer, IndicatorWithDataSerializer, IndicatorBriefSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
+from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
-from .viz import DataVizSerializer, DataVizWithDataSerializer, DataVizIdentifiersSerializer, DataVizBriefSerializer
 
 
 class TaxonomyBriefSerializer(serializers.ModelSerializer):
@@ -38,11 +38,11 @@ class HierarchySerializer(serializers.Serializer):
 
 
 class TopicSerializer(serializers.HyperlinkedModelSerializer):
-    data_vizes = DataVizIdentifiersSerializer(many=True)
+    indicators = IndicatorBriefSerializer(many=True)
     hierarchies = HierarchySerializer(many=True, read_only=True)
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
-    primary_data_vizIDs = serializers.SerializerMethodField()
+    primary_indicatorIDs = serializers.SerializerMethodField()
     child_tags = TagSerializer(many=True)
 
     class Meta:
@@ -52,26 +52,28 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
             'name',
             'slug',
             'description',
+            'tags',
+            'child_tags',
+            'context',
+            # details
             'long_description',
             'full_description',
             'limitations',
             'importance',
             'source',
             'provenance',
-            'data_vizes',
+            # relations
+            'indicators',
             'hierarchies',
-            'tags',
-            'context',
-            'child_tags',
-            'primary_data_vizIDs',
+            'primary_indicatorIDs',
         )
         extra_kwargs = {
             'url': {'lookup_field': 'slug'}
         }
 
-    def get_primary_data_vizIDs(self, obj: Topic):
-        primary_vizes = TopicDataViz.objects.filter(topic=obj, primary=True)
-        return [v.id for v in primary_vizes]
+    def get_primary_indicatorIDs(self, obj: Topic):
+        primary_indicators = TopicIndicator.objects.filter(topic=obj, primary=True)
+        return [v.id for v in primary_indicators]
 
 
 class SubdomainSerializer(serializers.ModelSerializer):
