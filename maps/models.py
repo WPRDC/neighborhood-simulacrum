@@ -1,4 +1,5 @@
 import itertools
+import typing
 import uuid
 from typing import List
 
@@ -10,9 +11,13 @@ from jenkspy import jenks_breaks
 from geo.models import AdminRegion
 from indicators.data import GeogCollection
 from indicators.errors import NotAvailableForGeogError
-from indicators.models import Variable, TimeAxis
 from maps.util import store_map_data
 from profiles.abstract_models import Described, TimeStamped
+
+if typing.TYPE_CHECKING:
+    from indicators.models.variable import Variable
+    from indicators.models.time import TimeAxis
+
 
 DEFAULT_CHOROPLETH_COLORS = ['#FFF7FB', '#ECE7F2', '#D0D1E6', '#A6BDDB', '#74A9CF',
                              '#3690C0', '#0570B0', '#045A8D', '#023858']
@@ -27,8 +32,8 @@ class DataLayer(Described, TimeStamped):
     label = models.CharField(max_length=200)
     geog_type_id = models.CharField(max_length=100)  # geog_type_id
     geog_content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    variable = models.ForeignKey(Variable, on_delete=models.CASCADE)
-    time_axis = models.ForeignKey(TimeAxis, on_delete=models.CASCADE)
+    variable = models.ForeignKey('indicators.Variable', on_delete=models.CASCADE)
+    time_axis = models.ForeignKey('indicators.TimeAxis', on_delete=models.CASCADE)
     number_format_options = models.JSONField(default=dict)
     use_percent = models.BooleanField(default=False)
 

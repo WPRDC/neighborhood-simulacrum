@@ -48,7 +48,7 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             # properties
             'sources',
             'options',
-            'dimensionality',
+            'multidimensional',
         )
 
 

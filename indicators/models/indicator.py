@@ -18,11 +18,11 @@ from indicators.errors import AggregationError, DataRetrievalError
 from indicators.utils import ErrorRecord, DataResponse, ErrorLevel
 from maps.util import menu_view_name
 from profiles.abstract_models import Described
+from indicators.models.source import Source
+from maps.models import DataLayer
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
-    from indicators.models.source import Source
-    from maps.models import DataLayer
 
 logger = logging.getLogger(__name__)
 
@@ -132,12 +132,21 @@ class Indicator(WithTags, WithContext, Described):
         return [self.sources, self.variables, TimeAxis.objects.filter(id=self.time_axis.id)]
 
     @property
-    def dimensionality(self):
-        return [
-            {'id': 'geog', 'many': self.across_geogs},
-            {'id': 'time', 'many': len(self.time_axis.time_parts) > 1},
-            {'id': 'vars', 'many': len(self.variables) > 1},
-        ]
+    def multidimensional(self):
+        return {
+            'geog': self.across_geogs,
+            'time': len(self.time_axis.time_parts) > 1,
+            'vars': len(self.variables) > 1,
+        }
+
+    @property
+    def is_mappable(self):
+        """ Currently only mapping cross-geog with one time and one var """
+        return (
+                self.multidimensional['geog']
+                and not self.multidimensional['time']
+                and not self.multidimensional['vars']
+        )
 
     def can_handle_geography(self, geog: 'AdminRegion') -> bool:
         """
@@ -244,8 +253,9 @@ class Indicator(WithTags, WithContext, Described):
             #   - list of subgeogs so we can link to them on Apps and sites
             if neighbor_geogs:
                 data, warnings = self._get_data(geog_collection)
-                dimensions = self._get_dimensions()
-                map_options = self._get_map_options(geog_collection)
+                dimensions = self._get_dimensions(neighbor_geogs)
+                if self.is_mappable:
+                    map_options = self._get_map_options(geog_collection)
             else:
                 error = ErrorRecord(level=ErrorLevel.EMPTY,
                                     message=f'This visualization is not available for {geog.name}.')
@@ -296,7 +306,7 @@ class Indicator(WithTags, WithContext, Described):
         border_base_style = settings.MAP_STYLES
 
         for var in self.vars.all():
-            layer: 'IndicatorVariable' = self.vars.through.objects.get(variable=var, viz=self)
+            layer: 'IndicatorVariable' = self.vars.through.objects.get(variable=var, indicator=self)
             data_layer: DataLayer = layer.get_data_layer(geog_collection)
             source, tmp_layers, interactive_layer_ids, legend_option = data_layer.get_map_options()
             sources.append(source)
