@@ -139,7 +139,7 @@ class Topic(Described, WithTags, WithContext):
 
     @property
     def indicators(self) -> QuerySet['Indicator']:
-        return self.inds.order_by('Indicator_to_topic')
+        return self.inds.order_by('indicator_to_topic')
 
     @property
     def hierarchies(self):
