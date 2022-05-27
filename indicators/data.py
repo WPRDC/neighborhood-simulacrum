@@ -65,10 +65,14 @@ class GeogCollection:
 class GeogRecord:
     """
     Dataclass for organizing data when finding and calculating
-    values for a variable at a geography across a time_axis
+    values for a variable at a geography across a time_axis.
+
+    This organizes a geography with its relevant (at time of use) sub-geographies
+    in order to make it easier to aggregate geographically.
     """
     # the primary geography being examined
     geog: 'AdminRegion'
+
     # contained geographies of a specific, smaller type whose values can be used in aggregate to describe `geog`
     subgeogs: QuerySet['AdminRegion']
 
@@ -165,6 +169,10 @@ class Datum:
         if self.denom and self.value:
             self.percent = self.value / self.denom
 
+    @property
+    def data(self):
+        return {'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
+
     @staticmethod
     def from_census_response_datum(variable: 'CensusVariable', census_datum) -> 'Datum':
         return Datum(
@@ -210,6 +218,3 @@ class Datum:
     def as_dict(self) -> dict:
         return {'variable': self.variable, 'geog': self.geog, 'time': self.time,
                 'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
-
-    def as_value_dict(self):
-        return {'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}

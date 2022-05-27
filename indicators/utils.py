@@ -11,6 +11,7 @@ from geo.models import Tract, County, BlockGroup, CountySubdivision, AdminRegion
 
 if TYPE_CHECKING:
     from indicators.data import Datum
+    from indicators.models import Indicator
 
 # Constants
 # =-=-=-=-=
@@ -55,7 +56,7 @@ class ErrorRecord:
 @dataclass
 class DataResponse:
     data: Optional[Union[list['Datum'], dict]]
-    dimensions: Optional[list[dict]]
+    dimensions: Optional['Indicator.Dimensions']
     map_options: dict = field(default_factory=dict)
     error: ErrorRecord = ErrorRecord(ErrorLevel.OK)
     warnings: Optional[list[ErrorRecord]] = None
@@ -63,6 +64,7 @@ class DataResponse:
     def as_dict(self):
         return {
             'data': [datum.as_dict() for datum in self.data],
+            'dimensions': self.dimensions.response_dict,
             'options': self.map_options,
             'error': self.error.as_dict(),
             'warnings': self.warnings

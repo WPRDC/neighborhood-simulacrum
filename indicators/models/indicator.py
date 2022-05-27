@@ -1,5 +1,6 @@
+import dataclasses
 import logging
-from typing import Optional, TYPE_CHECKING, List
+from typing import Optional, TYPE_CHECKING, List, TypedDict
 
 from colorama import Fore, Style
 from django.conf import settings
@@ -23,6 +24,7 @@ from maps.models import DataLayer
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
+    from indicators.models.time import TimeAxis
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,25 @@ class IndicatorVariable(models.Model):
 
 class Indicator(WithTags, WithContext, Described):
     """ Base class for all Data Presentations """
+
+    @dataclasses.dataclass()
+    class Dimensions:
+        class ResponseDict(TypedDict):
+            geog: list[str]
+            time: list[str]
+            vars: list[str]
+
+        geog: QuerySet['AdminRegion'] = dataclasses.field(default_factory=list)
+        time: list['TimeAxis.TimePart'] = dataclasses.field(default_factory=list)
+        vars: QuerySet['Variable'] = dataclasses.field(default_factory=list)
+
+        @property
+        def response_dict(self) -> ResponseDict:
+            return {
+                'geog': [x.slug for x in self.geog],
+                'time': [x.slug for x in self.time],
+                'vars': [x.slug for x in self.vars],
+            }
 
     # Axes
     time_axis = models.ForeignKey(
@@ -99,6 +120,8 @@ class Indicator(WithTags, WithContext, Described):
         help_text='(Usually left true)',
         default=True
     )
+
+    dimension_order = ['geog', 'time', 'var']
 
     _neighbor_geogs = None
 
@@ -223,8 +246,8 @@ class Indicator(WithTags, WithContext, Described):
         :param geog: the geography being examined
         :return: DataResponse with data and error information
         """
-        data: Optional[list[Datum]] = None
-        dimensions: Optional[list[dict]] = None
+        data: Optional[list[list[list[dict]]]] = None
+        dimensions: Indicator.Dimensions = Indicator.Dimensions()
         map_options: Optional[dict] = None
         error = ErrorRecord(level=ErrorLevel.OK, message='')
         warnings: Optional[list[ErrorRecord]] = None
@@ -252,8 +275,8 @@ class Indicator(WithTags, WithContext, Described):
             # todo: add information about geographic aggregation if it occureda
             #   - list of subgeogs so we can link to them on Apps and sites
             if neighbor_geogs:
-                data, warnings = self._get_data(geog_collection)
                 dimensions = self._get_dimensions(neighbor_geogs)
+                data, warnings = self._get_data(geog_collection, dimensions)
                 if self.is_mappable:
                     map_options = self._get_map_options(geog_collection)
             else:
@@ -271,7 +294,11 @@ class Indicator(WithTags, WithContext, Described):
             print(f'{Fore.RED}Uncaught Error:', e, Style.RESET_ALL)
             raise e
 
-    def _get_data(self, geog_collection: GeogCollection) -> (list[Datum], list[ErrorRecord]):
+    def _get_data(
+            self,
+            geog_collection: GeogCollection,
+            dimensions: 'Indicator.Dimensions'
+    ) -> (list[list[list[dict]]], list[ErrorRecord]):
         """
         Gets a representation of data for the viz.
 
@@ -284,15 +311,31 @@ class Indicator(WithTags, WithContext, Described):
         If representing the data as a list of records doesn't make sense for the visualization (e.g. maps),
         this method can be overridden.
         """
-        data: list[Datum] = []
+        data: dict[str, Datum] = {}
         warnings: list[ErrorRecord] = []
+        message_dupes = set()
 
         for variable in self.variables:
             var_data, var_warnings = variable.get_values(geog_collection, self.time_axis)
-            data += var_data
-            warnings += var_warnings
+            for item in var_data:
+                data[f'{item.geog}:{item.time}:{item.variable}'] = item
+            for warning in var_warnings:
+                if warning.message not in message_dupes:
+                    message_dupes.add(warning.message)
+                    warnings.append(warning)
 
-        return data, warnings
+        # place results in a 3d array following the order in `dimensions`
+        results: list[list[list[dict]]] = []
+        for geog in dimensions.geog:
+            g_list: list[list[dict]] = []
+            for time_part in dimensions.time:
+                t_list: list[dict] = []
+                for var in dimensions.vars:
+                    t_list.append(data[f'{geog.global_geoid}:{time_part.slug}:{var.slug}'].data)
+                g_list.append(t_list)
+            results.append(g_list)
+
+        return results, warnings
 
     def _get_map_options(self, geog_collection: GeogCollection) -> Optional[dict]:
         """
@@ -347,13 +390,13 @@ class Indicator(WithTags, WithContext, Described):
             'map_options': map_options
         }
 
-    def _get_dimensions(self, neighbor_geogs: QuerySet['AdminRegion']) -> list[dict]:
+    def _get_dimensions(self, neighbor_geogs: QuerySet['AdminRegion']) -> Dimensions:
         """ Returns dimensions for the data """
-        return [
-            {'id': 'geog', 'columns': [g.slug for g in neighbor_geogs]},
-            {'id': 'time', 'columns': [t.slug for t in self.time_axis.time_parts]},
-            {'id': 'vars', 'columns': [v.slug for v in self.variables]},
-        ]
+        return Indicator.Dimensions(
+            geog=neighbor_geogs,
+            time=self.time_axis.time_parts,
+            vars=self.variables,
+        )
 
     def __str__(self):
         return f'{self.name} ({self.__class__.__name__})'

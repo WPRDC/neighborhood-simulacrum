@@ -76,15 +76,13 @@ class IndicatorWithDataSerializer(IndicatorSerializer):
         if 'error' in self.context:
             return []
         data_response: DataResponse = self._get_data_response(obj, self.context['geography'])
-        if data_response.data:
-            return [datum.as_dict() for datum in data_response.data]
-        return None
+        return data_response.data
 
     def get_dimensions(self, obj: Indicator):
         if 'error' in self.context:
             return []
         data_response: DataResponse = self._get_data_response(obj, self.context['geography'])
-        return data_response.dimensions
+        return data_response.dimensions.response_dict
 
     def get_map_options(self, obj: Indicator):
         if 'error' in self.context:
