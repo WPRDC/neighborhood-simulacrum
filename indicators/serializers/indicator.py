@@ -23,13 +23,24 @@ class IndicatorBriefSerializer(serializers.HyperlinkedModelSerializer):
         )
 
 
+class IndicatorWithOptionsSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Indicator
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'description',
+            'options',
+        )
+
+
 class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
     variables = IndicatorVariablePolymorphicSerializer(many=True)
     time_axis = TimeAxisPolymorphicSerializer()
     sources = SourceSerializer(many=True)
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
-    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = Indicator
@@ -39,7 +50,6 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             'slug',
             'description',
             'tags',
-            'child_tags',
             'context',
             # axes
             'time_axis',
@@ -48,7 +58,6 @@ class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
             # properties
             'sources',
             'options',
-            'multidimensional',
         )
 
 

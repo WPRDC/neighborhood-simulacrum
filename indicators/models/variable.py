@@ -74,7 +74,7 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
         return self.percent_label_text if self.percent_label_text else f'% of {self.name}'
 
     @property
-    def locale_options(self):
+    def number_format_options(self):
         if self.units:
             if self.units[0] == '$':
                 return {'style': 'currency', 'currency': 'USD', 'minimumFractionDigits': 0}

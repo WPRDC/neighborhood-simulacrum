@@ -11,20 +11,6 @@ from .time import TimeAxis, RelativeTimeAxis, StaticTimeAxis, StaticConsecutiveT
 from .variable import Variable, CensusVariable, CKANVariable, CensusVariableSource
 
 
-class SubdomainTopic(models.Model):
-    subdomain = models.ForeignKey('Subdomain', on_delete=models.CASCADE, related_name='subdomain_to_topic')
-    topic = models.ForeignKey('Topic', on_delete=models.CASCADE, related_name='topic_to_subdomain')
-
-    order = models.IntegerField(default=0)
-
-    class Meta:
-        unique_together = ('subdomain', 'topic',)
-        ordering = ('order',)
-
-    def __str__(self):
-        return f'{self.subdomain.__str__()} ➡ {self.topic.__str__()}'
-
-
 class TaxonomyDomain(models.Model):
     taxonomy = models.ForeignKey('Taxonomy', on_delete=models.CASCADE, related_name='taxonomy_to_domain')
     domain = models.ForeignKey('Domain', on_delete=models.CASCADE, related_name='domain_to_taxonomy')
@@ -51,33 +37,28 @@ class Taxonomy(Described, WithTags, WithContext):
         verbose_name_plural = 'Taxonomies'
 
 
+class DomainTopic(models.Model):
+    domain = models.ForeignKey('Domain', on_delete=models.CASCADE, related_name='domain_to_topic')
+    topic = models.ForeignKey('Topic', on_delete=models.CASCADE, related_name='topic_to_domain')
+
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ('domain', 'topic',)
+        ordering = ('order',)
+
+    def __str__(self):
+        return f'{self.domain.__str__()} ➡ {self.topic.__str__()}'
+
+
 class Domain(Described, WithTags, WithContext):
     """ Main categories for organizing indicators """
 
-    @property
-    def children(self) -> List[QuerySet]:
-        return [self.subdomains.all()]
-
-
-class Subdomain(Described, WithTags, WithContext):
-    domain = models.ForeignKey('Domain', related_name='subdomains', on_delete=models.CASCADE)
-    order = models.IntegerField(default=0)
-    inds = models.ManyToManyField('Topic', related_name='subdomains', through='SubdomainTopic')
-
-    @property
-    def topics(self):
-        return self.inds.order_by('topic_to_subdomain')
+    topics = models.ManyToManyField('Topic', related_name='domains', through=DomainTopic)
 
     @property
     def children(self) -> List[QuerySet]:
-        return [self.inds.all()]
-
-    @property
-    def parents(self) -> List[QuerySet]:
-        return [Domain.objects.filter(id=self.domain.id)]
-
-    class Meta:
-        ordering = ('order',)
+        return [self.topics.all()]
 
 
 class TopicIndicator(models.Model):
@@ -145,9 +126,9 @@ class Topic(Described, WithTags, WithContext):
     def hierarchies(self):
         """ Collect possible hierarchies. """
         result = []
-        for subdomainThrough in SubdomainTopic.objects.filter(topic=self):
-            subdomain = subdomainThrough.subdomain
-            result.append({'domain': subdomain.domain, 'subdomain': subdomain})
+        for domainThrough in DomainTopic.objects.filter(topic=self):
+            domain = domainThrough.domain
+            result.append({'domain': domain})
         return result
 
     @property
@@ -156,7 +137,7 @@ class Topic(Described, WithTags, WithContext):
 
     @property
     def parents(self) -> List[QuerySet]:
-        return [self.topic_to_subdomain.all()]
+        return [self.topic_to_domain.all()]
 
 
 class Value(models.Model):

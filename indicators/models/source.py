@@ -34,10 +34,16 @@ if TYPE_CHECKING:
 class Source(PolymorphicModel, Described, WithTags, WithContext):
     """ Base class that defines data sources """
     time_coverage_start = models.DateTimeField()
-    time_coverage_end = models.DateTimeField(help_text='Leave blank for indefinite', blank=True, null=True)
+    time_coverage_end = models.DateTimeField(
+        help_text='Leave blank for indefinite',
+        blank=True,
+        null=True
+    )
 
-    time_granularity = models.IntegerField(help_text='Select the smallest unit of time this source can aggregate to',
-                                           choices=TimeAxis.UNIT_CHOICES)
+    time_granularity = models.IntegerField(
+        help_text='Select the smallest unit of time this source can aggregate to',
+        choices=TimeAxis.UNIT_CHOICES
+    )
 
     @property
     def info_link(self):

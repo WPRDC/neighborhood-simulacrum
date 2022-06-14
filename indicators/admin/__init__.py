@@ -3,11 +3,9 @@ from .indicator import IndicatorAdmin
 from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin, CKANGeomSourceAdmin
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
-from ..models import Topic, Subdomain, Domain, Value, SubdomainTopic, TopicIndicator, Taxonomy, TaxonomyDomain
+from ..models import Topic, Domain, Value, TopicIndicator, Taxonomy, TaxonomyDomain, \
+    DomainTopic
 
-
-class SubdomainTopicInline(admin.StackedInline):
-    model = SubdomainTopic
 
 
 class TopicIndicatorInline(admin.StackedInline):
@@ -27,16 +25,8 @@ class TopicAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
 
 
-@admin.register(Subdomain)
-class SubdomainAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
-    search_fields = ('name',)
-    prepopulated_fields = {"slug": ("name",)}
-    inlines = (SubdomainTopicInline,)
-
-
-class SubdomainInline(admin.TabularInline):
-    model = Subdomain
+class DomainTopicInline(admin.TabularInline):
+    model = DomainTopic
 
 
 @admin.register(Domain)
@@ -45,7 +35,7 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
 
-    inlines = (SubdomainInline,)
+    inlines = (DomainTopicInline,)
 
 
 class TaxonomyDomainInline(admin.TabularInline):

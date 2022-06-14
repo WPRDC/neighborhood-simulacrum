@@ -47,7 +47,6 @@ class CustomIndexDashboard(Dashboard):
             models=(
                 'indicators.models.Taxonomy',
                 'indicators.models.Domain',
-                'indicators.models.Subdomain',
                 'indicators.models.Topic',
             )
         ))

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class DenominatorSerializer(serializers.ModelSerializer):
-    locale_options = serializers.JSONField()
+    number_format_options = serializers.JSONField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
 
@@ -25,7 +25,7 @@ class DenominatorSerializer(serializers.ModelSerializer):
             'depth',
             'percent_label',
             'short_name',
-            'locale_options',
+            'number_format_options',
             'tags',
             'context',
         )
@@ -33,10 +33,9 @@ class DenominatorSerializer(serializers.ModelSerializer):
 
 class VariableSerializer(serializers.ModelSerializer):
     denominators = DenominatorSerializer(many=True)
-    locale_options = serializers.JSONField()
+    number_format_options = serializers.JSONField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
-    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = Variable
@@ -53,10 +52,9 @@ class VariableSerializer(serializers.ModelSerializer):
             'depth',
             'display_name',
             'percent_label',
-            'locale_options',
+            'number_format_options',
             'tags',
             'context',
-            'child_tags',
         )
 
 

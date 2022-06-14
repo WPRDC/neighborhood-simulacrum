@@ -136,6 +136,9 @@ class Indicator(WithTags, WithContext, Described):
             'note': self.note,
             'use_columns': self.use_columns,
             'use_denominators': self.use_denominators,
+            'is_single_value': self.is_singleton['time'] and self.is_singleton['vars'],
+            'is_singleton': self.is_singleton,
+            'is_mappable': self.is_mappable,
         }
 
     @property
@@ -155,20 +158,21 @@ class Indicator(WithTags, WithContext, Described):
         return [self.sources, self.variables, TimeAxis.objects.filter(id=self.time_axis.id)]
 
     @property
-    def multidimensional(self):
+    def is_singleton(self):
+        """ Returns a mapping of dimension ids to whether or not the respective dimension has only one value."""
         return {
-            'geog': self.across_geogs,
-            'time': len(self.time_axis.time_parts) > 1,
-            'vars': len(self.variables) > 1,
+            'geog': not self.across_geogs,
+            'time': len(self.time_axis.time_parts) == 1,
+            'vars': len(self.variables) == 1,
         }
 
     @property
-    def is_mappable(self):
+    def is_mappable(self) -> bool:
         """ Currently only mapping cross-geog with one time and one var """
         return (
-                self.multidimensional['geog']
-                and not self.multidimensional['time']
-                and not self.multidimensional['vars']
+                self.is_singleton['time']
+                and self.is_singleton['vars']
+                and not self.is_singleton['geog']
         )
 
     def can_handle_geography(self, geog: 'AdminRegion') -> bool:
@@ -243,7 +247,7 @@ class Indicator(WithTags, WithContext, Described):
               b. aggregate those values up to the set of neighbor geogs
             3. Use data on set of neighbor geogs to populate response
 
-        :param geog: the geography being examined
+        :param geog - the geography being examined
         :return: DataResponse with data and error information
         """
         data: Optional[list[list[list[dict]]]] = None

@@ -5,10 +5,11 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from geo.models import AdminRegion
-from indicators.models import Domain, Subdomain, Topic, Indicator, Variable, TimeAxis, Taxonomy
-from indicators.serializers import DomainSerializer, TopicSerializer, SubdomainSerializer, \
+from indicators.models import Domain, Topic, Indicator, Variable, TimeAxis, Taxonomy
+from indicators.serializers import DomainSerializer, TopicSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, IndicatorWithDataSerializer, \
-    IndicatorSerializer, IndicatorBriefSerializer, TaxonomySerializer
+    IndicatorSerializer, IndicatorBriefSerializer, TaxonomySerializer, TopicBriefSerializer, TaxonomyBriefSerializer, \
+    DomainBriefSerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel
 
 
@@ -20,6 +21,11 @@ class TaxonomyViewSet(viewsets.ModelViewSet):
     search_fields = ['name', ]
     lookup_field = 'slug'
 
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return TaxonomyBriefSerializer
+        return TaxonomySerializer
+
 
 class DomainViewSet(viewsets.ModelViewSet):
     queryset = Domain.objects.all()
@@ -29,14 +35,10 @@ class DomainViewSet(viewsets.ModelViewSet):
     search_fields = ['name', ]
     lookup_field = 'slug'
 
-
-class SubdomainViewSet(viewsets.ModelViewSet):
-    queryset = Subdomain.objects.all()
-    serializer_class = SubdomainSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['name', ]
-    lookup_field = 'slug'
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return DomainBriefSerializer
+        return DomainSerializer
 
 
 class TopicViewSet(viewsets.ModelViewSet):
@@ -46,6 +48,11 @@ class TopicViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', ]
     lookup_field = 'slug'
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return TopicBriefSerializer
+        return TopicSerializer
 
 
 class VariableViewSet(viewsets.ModelViewSet):
@@ -86,7 +93,7 @@ class IndicatorViewSet(viewsets.ModelViewSet):
                 print(e)  # todo: figure out how we should log stuff
                 context['error'] = ErrorRecord(
                     ErrorLevel.ERROR,
-                    f'Can\'t find "{self.request.geog}".'
+                    f'Can\'t find "{self.request.query_params.get("geog")}".'
                 ).as_dict()
         return context
 

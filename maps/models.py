@@ -89,7 +89,7 @@ class DataLayer(Described, TimeStamped):
         legend_items = [{'label': breaks[i],
                          'marker': DEFAULT_CHOROPLETH_COLORS[i]} for i in range(len(breaks))]
         return {'label': self.label,
-                'locale_options': self.number_format_options,  # fixme: remove when we can
+                'number_format_options': self.number_format_options,  # fixme: remove when we can
                 'number_format_options': {'style': 'percent'} if self.use_percent else self.number_format_options,
                 'variant': legend_variant,
                 'scale': legend_items}
@@ -202,7 +202,7 @@ class DataLayer(Described, TimeStamped):
                 geog_content_type=geog_ctype,
                 variable=variable,
                 use_percent=use_percent,
-                number_format_options=variable.locale_options
+                number_format_options=variable.number_format_options
             )
 
     def get_map_options(self):
