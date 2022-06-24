@@ -14,6 +14,7 @@ class DomainBriefSerializer(serializers.ModelSerializer):
         model = Domain
         fields = ('id', 'slug', 'name')
 
+
 class HierarchySerializer(serializers.Serializer):
     def create(self, validated_data):
         pass
@@ -23,10 +24,11 @@ class HierarchySerializer(serializers.Serializer):
 
     domain = DomainBriefSerializer(read_only=True)
 
+
 class TopicBriefSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
-        fields = ('id', 'slug', 'name')
+        fields = ('id', 'slug', 'name', 'description')
 
 
 class TopicSerializer(serializers.HyperlinkedModelSerializer):
@@ -66,9 +68,8 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
         return [v.id for v in primary_indicators]
 
 
-
 class DomainSerializer(serializers.ModelSerializer):
-    topics = TopicSerializer(many=True)
+    topics = TopicBriefSerializer(many=True)
 
     class Meta:
         model = Domain

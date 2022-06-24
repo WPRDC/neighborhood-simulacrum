@@ -40,6 +40,11 @@ class DomainViewSet(viewsets.ModelViewSet):
             return DomainBriefSerializer
         return DomainSerializer
 
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
+    def retrieve(self, request, *args, **kwargs):
+        return super(DomainViewSet, self).retrieve(request, *args, **kwargs)
+
+
 
 class TopicViewSet(viewsets.ModelViewSet):
     queryset = Topic.objects.all()
@@ -53,6 +58,10 @@ class TopicViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return TopicBriefSerializer
         return TopicSerializer
+
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
+    def retrieve(self, request, *args, **kwargs):
+        return super(TopicViewSet, self).retrieve(request, *args, **kwargs)
 
 
 class VariableViewSet(viewsets.ModelViewSet):
