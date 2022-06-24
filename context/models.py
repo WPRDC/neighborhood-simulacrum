@@ -42,14 +42,6 @@ class WithTags(models.Model):
     class Meta:
         abstract = True
 
-    @property
-    def child_tags(self) -> QuerySet['Tag']:
-        """ Set of all tags from descendent model instances. """
-        if self._child_tag_ids is None:
-            tag_ids = recursively_get_child_tag_ids(self)
-            self._child_tag_ids = tag_ids
-        return Tag.objects.filter(id__in=self._child_tag_ids)
-
 
 class Link(Identified):
     """ A link to a URL """

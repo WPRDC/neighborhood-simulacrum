@@ -1,26 +1,15 @@
 from rest_framework import serializers
 
 from context.serializers import TagSerializer, ContextItemSerializer
-from indicators.models import Domain, Subdomain, Indicator, Taxonomy, IndicatorDataViz
-from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
+from indicators.models import Domain, Topic, Taxonomy, TopicIndicator
+from .indicator import IndicatorSerializer, IndicatorWithDataSerializer, IndicatorBriefSerializer, \
+    IndicatorWithOptionsSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
+from .time import TimeAxisPolymorphicSerializer, StaticTimeAxisSerializer, TimeAxisSerializer
 from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, CKANVariableSerializer
-from .viz import DataVizSerializer, DataVizWithDataSerializer, DataVizIdentifiersSerializer, DataVizBriefSerializer
-
-
-class TaxonomyBriefSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Taxonomy
-        fields = ('id', 'slug', 'name')
 
 
 class DomainBriefSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Domain
-        fields = ('id', 'slug', 'name')
-
-
-class SubdomainBriefSerializer(serializers.ModelSerializer):
     class Meta:
         model = Domain
         fields = ('id', 'slug', 'name')
@@ -34,66 +23,53 @@ class HierarchySerializer(serializers.Serializer):
         pass
 
     domain = DomainBriefSerializer(read_only=True)
-    subdomain = SubdomainBriefSerializer(read_only=True)
 
 
-class IndicatorSerializer(serializers.HyperlinkedModelSerializer):
-    data_vizes = DataVizIdentifiersSerializer(many=True)
+class TopicBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Topic
+        fields = ('id', 'slug', 'name', 'description')
+
+
+class TopicSerializer(serializers.HyperlinkedModelSerializer):
+    indicators = IndicatorWithOptionsSerializer(many=True)
     hierarchies = HierarchySerializer(many=True, read_only=True)
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
-    primary_data_vizIDs = serializers.SerializerMethodField()
-    child_tags = TagSerializer(many=True)
+    primary_indicatorIDs = serializers.SerializerMethodField()
 
     class Meta:
-        model = Indicator
+        model = Topic
         fields = (
             'id',
             'name',
             'slug',
             'description',
+            'tags',
+            'context',
+            # details
             'long_description',
             'full_description',
             'limitations',
             'importance',
             'source',
             'provenance',
-            'data_vizes',
+            # relations
+            'indicators',
             'hierarchies',
-            'tags',
-            'context',
-            'child_tags',
-            'primary_data_vizIDs',
+            'primary_indicatorIDs',
         )
         extra_kwargs = {
             'url': {'lookup_field': 'slug'}
         }
 
-    def get_primary_data_vizIDs(self, obj: Indicator):
-        primary_vizes = IndicatorDataViz.objects.filter(indicator=obj, primary=True)
-        return [v.id for v in primary_vizes]
-
-
-class SubdomainSerializer(serializers.ModelSerializer):
-    indicators = IndicatorSerializer(many=True)
-    tags = TagSerializer(many=True)
-    context = ContextItemSerializer(many=True)
-
-    class Meta:
-        model = Subdomain
-        fields = (
-            'id',
-            'name',
-            'slug',
-            'description',
-            'indicators',
-            'tags',
-            'context',
-        )
+    def get_primary_indicatorIDs(self, obj: Topic):
+        primary_indicators = TopicIndicator.objects.filter(topic=obj, primary=True)
+        return [v.id for v in primary_indicators]
 
 
 class DomainSerializer(serializers.ModelSerializer):
-    subdomains = SubdomainSerializer(many=True)
+    topics = TopicBriefSerializer(many=True)
 
     class Meta:
         model = Domain
@@ -102,14 +78,14 @@ class DomainSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
-            'subdomains',
+            'topics',
             'tags',
             'context',
         )
 
 
 class TaxonomySerializer(serializers.ModelSerializer):
-    domains = DomainSerializer(many=True)
+    domains = DomainBriefSerializer(many=True)
 
     class Meta:
         model = Taxonomy
@@ -121,4 +97,16 @@ class TaxonomySerializer(serializers.ModelSerializer):
             'domains',
             'tags',
             'context',
+        )
+
+
+class TaxonomyBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Taxonomy
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'description',
+            'tags',
         )

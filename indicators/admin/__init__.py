@@ -1,42 +1,32 @@
 from django.contrib import admin
+from .indicator import IndicatorAdmin
 from .source import CensusSourceAdmin, CKANSourceAdmin, CKANRegionalSourceAdmin, CKANGeomSourceAdmin
 from .time import StaticTimeAxisAdmin, StaticConsecutiveTimeAxisAdmin, RelativeTimeAxisAdmin
 from .variable import VariableAdmin, CensusVariableAdmin, CKANVariableAdmin
-from .viz import DataVizInline, DataVizAdmin, MiniMapAdmin, TableAdmin
-from ..models import Indicator, Subdomain, Domain, Value, SubdomainIndicator, IndicatorDataViz, Taxonomy, TaxonomyDomain
+from ..models import Topic, Domain, Value, TopicIndicator, Taxonomy, TaxonomyDomain, \
+    DomainTopic
 
 
-class SubdomainIndicatorInline(admin.StackedInline):
-    model = SubdomainIndicator
+
+class TopicIndicatorInline(admin.StackedInline):
+    model = TopicIndicator
+    autocomplete_fields = ('indicator',)
 
 
-class IndicatorDataVizInline(admin.StackedInline):
-    model = IndicatorDataViz
-    autocomplete_fields = ('data_viz',)
-
-
-@admin.register(Indicator)
-class IndicatorAdmin(admin.ModelAdmin):
+@admin.register(Topic)
+class TopicAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'description',
     )
 
-    inlines = (IndicatorDataVizInline,)
+    inlines = (TopicIndicatorInline,)
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
 
 
-@admin.register(Subdomain)
-class SubdomainAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
-    search_fields = ('name',)
-    prepopulated_fields = {"slug": ("name",)}
-    inlines = (SubdomainIndicatorInline,)
-
-
-class SubdomainInline(admin.TabularInline):
-    model = Subdomain
+class DomainTopicInline(admin.TabularInline):
+    model = DomainTopic
 
 
 @admin.register(Domain)
@@ -45,7 +35,7 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
 
-    inlines = (SubdomainInline,)
+    inlines = (DomainTopicInline,)
 
 
 class TaxonomyDomainInline(admin.TabularInline):

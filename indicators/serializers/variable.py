@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class DenominatorSerializer(serializers.ModelSerializer):
-    locale_options = serializers.JSONField()
+    number_format_options = serializers.JSONField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
 
@@ -25,7 +25,7 @@ class DenominatorSerializer(serializers.ModelSerializer):
             'depth',
             'percent_label',
             'short_name',
-            'locale_options',
+            'number_format_options',
             'tags',
             'context',
         )
@@ -33,10 +33,9 @@ class DenominatorSerializer(serializers.ModelSerializer):
 
 class VariableSerializer(serializers.ModelSerializer):
     denominators = DenominatorSerializer(many=True)
-    locale_options = serializers.JSONField()
+    number_format_options = serializers.JSONField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
-    child_tags = TagSerializer(many=True)
 
     class Meta:
         model = Variable
@@ -53,10 +52,9 @@ class VariableSerializer(serializers.ModelSerializer):
             'depth',
             'display_name',
             'percent_label',
-            'locale_options',
+            'number_format_options',
             'tags',
             'context',
-            'child_tags',
         )
 
 
@@ -132,8 +130,8 @@ class BriefVariablePolymorphicSerializer(PolymorphicSerializer):
     }
 
 
-# With Viz
-class CensusVizVariableSerializer(VariableSerializer):
+# Attached to Indicator
+class CensusIndicatorVariableSerializer(VariableSerializer):
     denominators = DenominatorSerializer(many=True)
 
     class Meta:
@@ -141,7 +139,7 @@ class CensusVizVariableSerializer(VariableSerializer):
         fields = VariableSerializer.Meta.fields + ('sources',)
 
 
-class CKANVizVariableSerializer(VariableSerializer):
+class CKANIndicatorVariableSerializer(VariableSerializer):
     denominators = DenominatorSerializer(many=True)
 
     class Meta:
@@ -149,8 +147,8 @@ class CKANVizVariableSerializer(VariableSerializer):
         fields = VariableSerializer.Meta.fields + ('sources', )
 
 
-class VizVariablePolymorphicSerializer(PolymorphicSerializer):
+class IndicatorVariablePolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
-        CensusVariable: CensusVizVariableSerializer,
-        CKANVariable: CKANVizVariableSerializer,
+        CensusVariable: CensusIndicatorVariableSerializer,
+        CKANVariable: CKANIndicatorVariableSerializer,
     }

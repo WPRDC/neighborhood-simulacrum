@@ -26,8 +26,8 @@ class CustomIndexDashboard(Dashboard):
             title='❇️ Most Used',
             column=1,
             models=(
-                'indicators.models.Indicator',
-                'indicators.models.viz.DataViz',
+                'indicators.models.Topic',
+                'indicators.models.indicator.Indicator',
             ),
             # hack to quickly make the links not burn your eyes out
             pre_content="""
@@ -47,16 +47,15 @@ class CustomIndexDashboard(Dashboard):
             models=(
                 'indicators.models.Taxonomy',
                 'indicators.models.Domain',
-                'indicators.models.Subdomain',
-                'indicators.models.Indicator',
+                'indicators.models.Topic',
             )
         ))
 
         self.children.append(modules.ModelList(
-            title='📊 Data Visualization',
+            title='📊 Indicator',
             column=1,
             models=(
-                'indicators.models.viz.DataViz',
+                'indicators.models.indicator.Indicator',
                 'indicators.models.variable.Variable',
                 'indicators.models.time.TimeAxis',
             )

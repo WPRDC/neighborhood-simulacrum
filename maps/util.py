@@ -54,7 +54,7 @@ def store_map_data(
     view_name = f'maps.v_{map_slug}'
 
     data, warnings = variable.get_values(geog_collection, time_axis)
-    number_format_options = {'style': 'percent'} if use_percent else variable.locale_options
+    number_format_options = {'style': 'percent'} if use_percent else variable.number_format_options
     with connection.cursor() as cursor:
         cursor.execute(f"""DROP VIEW IF EXISTS {view_name}""")
         cursor.execute(f"""DROP TABLE IF EXISTS {table_name}""")

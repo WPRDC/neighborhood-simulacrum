@@ -91,7 +91,7 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
         return []
 
     @property
-    def time_parts(self):
+    def time_parts(self) -> list[TimePart]:
         if self._time_parts:
             return self._time_parts
         self._time_parts = [
@@ -197,7 +197,8 @@ class RelativeTimeAxis(TimeAxis):
     start_offset = models.IntegerField(
         help_text='start time will be <this value> * <units> offset from the day its accessed; '
                   'negative to go back in time (e.g. if unit is weeks, use -2 for axis to start '
-                  '2 weeks prior to moment of viewing')
+                  '2 weeks prior to moment of viewing'
+    )
     ticks = models.IntegerField(help_text='number of units')
     direction = models.IntegerField(choices=DIRECTIONS, default=-1)
 
