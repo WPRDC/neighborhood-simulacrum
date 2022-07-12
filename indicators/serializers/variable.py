@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 
 from context.serializers import TagSerializer, ContextItemSerializer
-from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource
+from indicators.models import Variable, CensusVariable, CKANVariable, CensusVariableSource, IndicatorVariable
 from indicators.serializers.source import CKANSourceSerializer
 
 if TYPE_CHECKING:
@@ -133,18 +133,32 @@ class BriefVariablePolymorphicSerializer(PolymorphicSerializer):
 # Attached to Indicator
 class CensusIndicatorVariableSerializer(VariableSerializer):
     denominators = DenominatorSerializer(many=True)
+    total = serializers.SerializerMethodField()
 
     class Meta:
         model = CensusVariable
-        fields = VariableSerializer.Meta.fields + ('sources',)
+        fields = VariableSerializer.Meta.fields + ('sources', 'total')
+
+    def get_total(self, obj: 'Variable'):
+        return IndicatorVariable.objects.get(
+            indicator=self.context['indicator'],
+            variable=obj
+        ).total
 
 
 class CKANIndicatorVariableSerializer(VariableSerializer):
     denominators = DenominatorSerializer(many=True)
+    total = serializers.SerializerMethodField()
 
     class Meta:
         model = CKANVariable
-        fields = VariableSerializer.Meta.fields + ('sources', )
+        fields = VariableSerializer.Meta.fields + ('sources', 'total')
+
+    def get_total(self, obj: 'Variable'):
+        return IndicatorVariable.objects.get(
+            indicator=self.context['indicator'],
+            variable=obj
+        ).total
 
 
 class IndicatorVariablePolymorphicSerializer(PolymorphicSerializer):

@@ -89,7 +89,6 @@ class DataLayer(Described, TimeStamped):
         legend_items = [{'label': breaks[i],
                          'marker': DEFAULT_CHOROPLETH_COLORS[i]} for i in range(len(breaks))]
         return {'label': self.label,
-                'number_format_options': self.number_format_options,  # fixme: remove when we can
                 'number_format_options': {'style': 'percent'} if self.use_percent else self.number_format_options,
                 'variant': legend_variant,
                 'scale': legend_items}
@@ -162,7 +161,6 @@ class DataLayer(Described, TimeStamped):
         #             'map_value',
         #             'number_format_options'
 
-        print(query)
         with connection.cursor() as cursor:
             cursor.execute(query)
             return cursor.fetchone()[0]
@@ -177,7 +175,11 @@ class DataLayer(Described, TimeStamped):
 
         If a Map isn't already registered, the data is collected and a new map is created and returned.
         If it exists but the data is out of date, new data will be collected and an updated map is returned.
-        Otherwise the existing map is returned.
+        Otherwise, the existing map is returned.
+
+        TODO:  have this get the full collection if only one record is sent.
+        TODO: cache the data returned so we can use it for the histogram.
+
         """
         geog_ctype: ContentType = ContentType.objects.get_for_model(geog_collection.geog_type)
         try:

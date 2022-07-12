@@ -14,6 +14,7 @@ from markdownx.models import MarkdownxField
 
 from context.models import WithContext, WithTags
 from geo.models import AdminRegion
+from geo.util import all_geogs_in_extent
 from indicators.data import Datum, GeogCollection, GeogRecord
 from indicators.errors import AggregationError, DataRetrievalError
 from indicators.utils import ErrorRecord, DataResponse, ErrorLevel
@@ -42,6 +43,7 @@ class IndicatorVariable(models.Model):
         related_name='variable_to_indicator'
     )
     order = models.IntegerField()
+    total = models.BooleanField(help_text="total's will be hidden from certain charts", default=False)
 
     def get_data_layer(self, geog_collection: 'GeogCollection'):
         return DataLayer.get_or_create_updated_map(
@@ -223,15 +225,16 @@ class Indicator(WithTags, WithContext, Described):
         # if it required aggregation but no suitable subgeogs were found
         raise AggregationError(f'{self.title} not available for {geog.title}.')
 
-    def get_neighbor_geogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
+    def get_neighbor_geogs(self, geog: 'AdminRegion', across: bool = False) -> QuerySet['AdminRegion']:
         """ Generates queryset of all neighbor geographies to be compared with `geog` also includes geog. """
         if self._neighbor_geogs is None:
-            if self.across_geogs:
+            if across and self.across_geogs:
                 self._neighbor_geogs = geog.__class__.objects.filter(in_extent=True)
-            self._neighbor_geogs = geog.__class__.objects.filter(global_geoid=geog.global_geoid)
+            else:
+                self._neighbor_geogs = geog.__class__.objects.filter(global_geoid=geog.global_geoid)
         return self._neighbor_geogs
 
-    def get_data(self, geog: 'AdminRegion') -> DataResponse:
+    def get_data(self, geog: 'AdminRegion', across_geogs=False) -> DataResponse:
         """
         Returns a `DataResponse` object with the viz's data at `geog`.
 
@@ -247,6 +250,7 @@ class Indicator(WithTags, WithContext, Described):
               b. aggregate those values up to the set of neighbor geogs
             3. Use data on set of neighbor geogs to populate response
 
+        :param across_geogs:
         :param geog - the geography being examined
         :return: DataResponse with data and error information
         """
@@ -259,7 +263,7 @@ class Indicator(WithTags, WithContext, Described):
         try:
             # 1. Get full set of geogs necessary for viz
             #   a. get set of neighbor geogs including the primary geog if necessary for teh viz
-            neighbor_geogs = self.get_neighbor_geogs(geog)
+            neighbor_geogs = self.get_neighbor_geogs(geog, across=across_geogs)
 
             #   b. for each geog in the set, find the set of subgeogs that work for the source.
             #         if no subgeogs are necessary, the subgeog set will just be [geog]
@@ -281,7 +285,7 @@ class Indicator(WithTags, WithContext, Described):
             if neighbor_geogs:
                 dimensions = self._get_dimensions(neighbor_geogs)
                 data, warnings = self._get_data(geog_collection, dimensions)
-                if self.is_mappable:
+                if self.is_mappable and across_geogs:
                     map_options = self._get_map_options(geog_collection)
             else:
                 error = ErrorRecord(level=ErrorLevel.EMPTY,
@@ -319,6 +323,9 @@ class Indicator(WithTags, WithContext, Described):
         warnings: list[ErrorRecord] = []
         message_dupes = set()
 
+
+        # todo: we somehow need to provide cross-geog data for this
+
         for variable in self.variables:
             var_data, var_warnings = variable.get_values(geog_collection, self.time_axis)
             for item in var_data:
@@ -349,7 +356,6 @@ class Indicator(WithTags, WithContext, Described):
         layers: [dict] = []
         interactive_layer_ids: [str] = []
         legend_options: [dict] = []
-
         border_base_style = settings.MAP_STYLES
 
         for var in self.vars.all():
@@ -362,14 +368,6 @@ class Indicator(WithTags, WithContext, Described):
 
         primary_geog = geog_collection.primary_geog
 
-        map_options: dict = {
-            'interactive_layer_ids': interactive_layer_ids,
-            'default_viewport': {
-                'longitude': primary_geog.geom.centroid.x,
-                'latitude': primary_geog.geom.centroid.y,
-                'zoom': primary_geog.base_zoom - 1
-            }
-        }
 
         # for highlighting current geog
         highlight_id = slugify(primary_geog.name)
@@ -381,6 +379,7 @@ class Indicator(WithTags, WithContext, Described):
         highlight_layer = {
             'id': f'{highlight_id}/highlight',
             'source': f'{highlight_id}',
+            'type': 'fill',
             'source-layer': f'{highlight_id}',
             **border_base_style
         }
@@ -391,7 +390,12 @@ class Indicator(WithTags, WithContext, Described):
             'sources': sources,
             'layers': layers,
             'legends': legend_options,
-            'map_options': map_options
+            'interactive_layer_ids': interactive_layer_ids,
+            'default_viewport': {
+                'longitude': primary_geog.geom.centroid.x,
+                'latitude': primary_geog.geom.centroid.y,
+                'zoom': primary_geog.base_zoom - 1
+            }
         }
 
     def _get_dimensions(self, neighbor_geogs: QuerySet['AdminRegion']) -> Dimensions:

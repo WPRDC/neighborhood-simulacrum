@@ -33,8 +33,6 @@ class Command(BaseCommand):
             ) source_table
         """.lstrip())
 
-        print(view_query)
-
         with connection.cursor() as cursor:
             cursor.execute(f"""DROP MATERIALIZED VIEW IF EXISTS {view_name}""")
             cursor.execute(f"""CREATE MATERIALIZED VIEW {view_name} AS {view_query}""")

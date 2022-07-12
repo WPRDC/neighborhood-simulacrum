@@ -312,7 +312,7 @@ class County(AdminRegion, CensusGeography):
 
     type_description = "Largest subdivision of a state."
     ckan_resource = "8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"
-    base_zoom = 9
+    base_zoom = 7
 
     geoid = models.CharField(max_length=12, primary_key=True)
     statefp = models.CharField(max_length=2)

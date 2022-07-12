@@ -31,7 +31,7 @@ class GeoLevelView(views.APIView):
         for admin_region in [Tract, CountySubdivision, County, Neighborhood, BlockGroup, ZipCodeTabulationArea]:
             results.append({
                 'id': admin_region.geog_type_id,
-                'slug': admin_region.geog_type_id,
+                'slug': admin_region.geog_type_slug,
                 'name': admin_region.geog_type_title,
                 'description': admin_region.type_description,
             })

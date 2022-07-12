@@ -195,7 +195,7 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = False
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 
@@ -233,7 +233,7 @@ DENOM_DKEY = '__denom__'
 CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
 DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
-VIEW_CACHE_TTL = 5 * 60  # 60 mins
+VIEW_CACHE_TTL = 0  # 60 mins
 
 LONG_TERM_CACHE_TTL = 0  # 60 * 60 * 24  # 24 hours
 

@@ -94,7 +94,13 @@ class IndicatorViewSet(viewsets.ModelViewSet):
         return IndicatorSerializer
 
     def get_serializer_context(self):
+        """
+        Context for indicators current used for
+        `geog`: the geography data will be collected for
+        `across_geogs`: set to True if the request should collect data for neighbor geogs too
+        """
         context = super(IndicatorViewSet, self).get_serializer_context()
+
         if is_geog_data_request(self.request):
             try:
                 context['geography'] = get_geog_from_request(self.request)
@@ -104,6 +110,9 @@ class IndicatorViewSet(viewsets.ModelViewSet):
                     ErrorLevel.ERROR,
                     f'Can\'t find "{self.request.query_params.get("geog")}".'
                 ).as_dict()
+
+        context['across_geogs'] = self.request.query_params.get('acrossGeogs', False)
+
         return context
 
     @method_decorator(cache_page(settings.VIEW_CACHE_TTL))

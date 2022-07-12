@@ -67,15 +67,28 @@ def store_map_data(
         cursor.execute(
             f"""CREATE VIEW {view_name} AS
                     SELECT 
-                        geo.name as geo_name,
-                        geo.geom as the_geom,
-                        geo.geom_webmercator as the_geom_webmercator, 
-                        %(title)s as title,
-                        dat.value::float as value, 
-                        %(number_format_options)s as number_format_options
+                        geo.slug as "geog",
+                        geo.name as "geogLabel",
+                        %(time_slug)s as "time",
+                        %(time_name)s as "timeLabel",
+                        %(var_slug)s as "variable",
+                        %(var_name)s as "variableLabel",
+                        %(var_abbr)s as "variableAbbr",
+                        %(number_format_options)s as "numberFormatOptions",
+                        geo.geom as "the_geom", 
+                        geo.geom_webmercator as "the_geom_webmercator", 
+                        dat.value::float as "value"
                     FROM {table_name} dat
                     JOIN ({base_geography_subquery}) geo ON dat.geoid = geo.global_geoid""",
-            {'title': variable.name, 'number_format_options': json.dumps(number_format_options)}
+            {
+                'title': variable.name,
+                'time_slug': time_axis.time_parts[0].slug,
+                'time_name': time_axis.time_parts[0].name,
+                'var_slug': variable.slug,
+                'var_name': variable.name,
+                'var_abbr': variable.short_name,
+                'number_format_options': json.dumps(number_format_options),
+            }
         )
 
         refresh_tile_index()
@@ -96,5 +109,3 @@ def store_menu_layer(geog_type: Type['AdminRegion']):
     print('Menu view added.')
 
     refresh_tile_index()
-
-
