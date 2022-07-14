@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from context.serializers import TagSerializer, ContextItemSerializer
-from indicators.models import Domain, Topic, Taxonomy, TopicIndicator
+from indicators.models import Domain, Topic, Taxonomy, TopicIndicator, Subdomain
 from .indicator import IndicatorSerializer, IndicatorWithDataSerializer, IndicatorBriefSerializer, \
     IndicatorWithOptionsSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
@@ -12,6 +12,12 @@ from .variable import VariablePolymorphicSerializer, CensusVariableSerializer, C
 class DomainBriefSerializer(serializers.ModelSerializer):
     class Meta:
         model = Domain
+        fields = ('id', 'slug', 'name')
+
+
+class SubdomainBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subdomain
         fields = ('id', 'slug', 'name')
 
 
@@ -69,10 +75,27 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class DomainSerializer(serializers.ModelSerializer):
+    subdomains = SubdomainBriefSerializer(many=True)
     topics = TopicBriefSerializer(many=True)
 
     class Meta:
         model = Domain
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'description',
+            'topics',
+            'tags',
+            'context',
+        )
+
+
+class SubdomainSerializer(serializers.ModelSerializer):
+    topics = TopicBriefSerializer(many=True)
+
+    class Meta:
+        model = Subdomain
         fields = (
             'id',
             'name',

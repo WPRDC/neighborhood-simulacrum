@@ -5,11 +5,11 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from geo.models import AdminRegion
-from indicators.models import Domain, Topic, Indicator, Variable, TimeAxis, Taxonomy
+from indicators.models import Domain, Topic, Indicator, Variable, TimeAxis, Taxonomy, Subdomain
 from indicators.serializers import DomainSerializer, TopicSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, IndicatorWithDataSerializer, \
     IndicatorSerializer, IndicatorBriefSerializer, TaxonomySerializer, TopicBriefSerializer, TaxonomyBriefSerializer, \
-    DomainBriefSerializer
+    DomainBriefSerializer, SubdomainSerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel
 
 
@@ -44,6 +44,23 @@ class DomainViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         return super(DomainViewSet, self).retrieve(request, *args, **kwargs)
 
+
+class SubdomainViewSet(viewsets.ModelViewSet):
+    queryset = Subdomain.objects.all()
+    serializer_class = SubdomainSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', ]
+    lookup_field = 'slug'
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return DomainBriefSerializer
+        return DomainSerializer
+
+    @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
+    def retrieve(self, request, *args, **kwargs):
+        return super(SubdomainViewSet, self).retrieve(request, *args, **kwargs)
 
 
 class TopicViewSet(viewsets.ModelViewSet):

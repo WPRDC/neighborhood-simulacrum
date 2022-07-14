@@ -47,12 +47,13 @@ class CustomIndexDashboard(Dashboard):
             models=(
                 'indicators.models.Taxonomy',
                 'indicators.models.Domain',
+                'indicators.models.Subdomain',
                 'indicators.models.Topic',
             )
         ))
 
         self.children.append(modules.ModelList(
-            title='📊 Indicator',
+            title='📊 Indicators',
             column=1,
             models=(
                 'indicators.models.indicator.Indicator',

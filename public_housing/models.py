@@ -237,7 +237,7 @@ class ProjectIndex(DatastoreDataset):
             score = max_score
 
         if min_score is not None:
-            compare_op = operator.ge 
+            compare_op = operator.ge
             score = min_score
             d_filter_args = {**{'inspection_score__gte': min_score}, **d_filter_args}
 
@@ -251,8 +251,8 @@ class ProjectIndex(DatastoreDataset):
                 item['inspection_score'] = int(''.join(filter(str.isdigit, item['inspection_score'])))
                 prop_id_set.add(item['property_id'])
                 multi_fam_list.append(item)
-        
-        multi_fam_list_filtered = [item for item in multi_fam_list if compare_op(item['inspection_score'],score)]
+
+        multi_fam_list_filtered = [item for item in multi_fam_list if compare_op(item['inspection_score'], score)]
         insp_id = [item['inspection_id'] for item in multi_fam_list_filtered]
         multi_fam_records = HUDMultifamilyInspectionScores.objects.filter(inspection_id__in=insp_id)
 
@@ -303,6 +303,10 @@ class ProjectIndex(DatastoreDataset):
             queryset = queryset.filter(funding_category__contains='|')
 
         return queryset
+
+    @staticmethod
+    def filter_by_status(queryset: QuerySet['ProjectIndex'], val: str):
+        return queryset.filter(status__iexact=val)
 
     def get_data_for_std_field(self, std_field: str) -> list[dict]:
         """ Takes a standardized field name and searches for records containing it in the connected datasets """

@@ -3,8 +3,6 @@ from typing import Union
 from django.conf import settings
 from django.contrib.gis.db.models.functions import Centroid
 from django.db.models import QuerySet
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import views, viewsets, filters
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +30,7 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
     reac_score = request.query_params.get('reac-score')
     last_inspection = request.query_params.get('last-inspection')
     funding_category = request.query_params.get('funding-category')
+    status = request.query_params.get('status')
 
     # run all the filters
     if watchlist:
@@ -47,7 +46,8 @@ def get_filtered_project_indices(request: Request) -> QuerySet[ProjectIndex]:
         queryset = ProjectIndex.filter_by_last_inspection(queryset, lvl=last_inspection)
     if funding_category:
         queryset = ProjectIndex.filter_by_funding_category(queryset, lvl=funding_category)
-
+    if status:
+        queryset = ProjectIndex.filter_by_status(queryset, val=status)
     return queryset
 
 
@@ -110,13 +110,12 @@ def kebab(string: str) -> str:
 
 
 class ProjectVectorTileViewSet(views.APIView):
-    permission_classes = [IsAuthenticated]
-
     """
     Provides necessary settings to render a mapbox-gl map plus additional settings for use with
       [@wprdc-widgets/map](https://github.com/WPRDC/frontend-libraries/tree/main/packages/%40wprdc-widgets/map)
       React component
     """
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self) -> QuerySet[ProjectIndex]:
         return get_filtered_project_indices(self.request)
@@ -156,6 +155,12 @@ class ProjectVectorTileViewSet(views.APIView):
                     'HUD Multifamily|LIHTC|Public Housing', '#F2B701',
                     'gray',
                 ],
+                'circle-stroke-color': [
+                    'match',
+                    ['to-string', ['get', 'status']],
+                    'Closed', 'red',
+                    'black'
+                ]
             }
         }
 

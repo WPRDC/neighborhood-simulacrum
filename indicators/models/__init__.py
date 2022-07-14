@@ -51,9 +51,41 @@ class DomainTopic(models.Model):
         return f'{self.domain.__str__()} ➡ {self.topic.__str__()}'
 
 
+class SubdomainTopic(models.Model):
+    subdomain = models.ForeignKey('Subdomain', on_delete=models.CASCADE, related_name='subdomain_to_topic')
+    topic = models.ForeignKey('Topic', on_delete=models.CASCADE, related_name='topic_to_subdomain')
+
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ('subdomain', 'topic',)
+        ordering = ('order',)
+
+    def __str__(self):
+        return f'{self.subdomain.__str__()}-{self.topic.__str__()}'
+
+
+class DomainSubdomain(models.Model):
+    domain = models.ForeignKey('Domain', on_delete=models.CASCADE, related_name='domain_to_subdomain')
+    subdomain = models.ForeignKey('Subdomain', on_delete=models.CASCADE, related_name='subdomain_to_domain')
+
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ('domain', 'subdomain',)
+        ordering = ('order',)
+
+    def __str__(self):
+        return f'{self.domain.__str__()} ➡ {self.subdomain.__str__()}'
+
+
+class Subdomain(Described, WithTags, WithContext):
+    topics = models.ManyToManyField('Topic', related_name='subdomains', through=SubdomainTopic)
+
+
 class Domain(Described, WithTags, WithContext):
     """ Main categories for organizing indicators """
-
+    subdomains = models.ManyToManyField('Subdomain', related_name='subdomains', through=DomainSubdomain)
     topics = models.ManyToManyField('Topic', related_name='domains', through=DomainTopic)
 
     @property

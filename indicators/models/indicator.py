@@ -410,8 +410,8 @@ class Indicator(WithTags, WithContext, Described):
         return f'{self.name} ({self.__class__.__name__})'
 
     class Meta:
-        verbose_name = "Data Visualization"
-        verbose_name_plural = "Data Visualizations"
+        verbose_name = "Indicator"
+        verbose_name_plural = "Indicators"
 
 
 @receiver(m2m_changed, sender=Indicator.variables, dispatch_uid="check_var_timing")
