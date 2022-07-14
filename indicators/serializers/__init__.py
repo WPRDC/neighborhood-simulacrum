@@ -85,6 +85,7 @@ class DomainSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'description',
+            'subdomains',
             'topics',
             'tags',
             'context',
