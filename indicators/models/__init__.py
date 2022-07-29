@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import List
 
 from django.db import models
@@ -92,6 +93,10 @@ class Domain(Described, WithTags, WithContext):
     def children(self) -> List[QuerySet]:
         return [self.topics.all()]
 
+    @property
+    def ordered_subdomains(self):
+        return self.subdomains.order_by('subdomain_to_domain')
+
 
 class TopicIndicator(models.Model):
     topic = models.ForeignKey('Topic', related_name='topic_to_indicator', on_delete=models.CASCADE)
@@ -155,13 +160,27 @@ class Topic(Described, WithTags, WithContext):
         return self.inds.order_by('indicator_to_topic')
 
     @property
-    def hierarchies(self):
+    def hierarchies(self) -> list[list]:
         """ Collect possible hierarchies. """
-        result = []
-        for domainThrough in DomainTopic.objects.filter(topic=self):
-            domain = domainThrough.domain
-            result.append({'domain': domain})
-        return result
+        results = []
+        taxonomy: Taxonomy
+
+        possible_subdomains = Subdomain.objects.filter(
+            subdomain_to_topic__in=SubdomainTopic.objects.filter(topic=self)
+        )
+        possible_domains = Domain.objects.filter(
+            domain_to_subdomain__in=DomainSubdomain.objects.filter(subdomain__in=possible_subdomains)
+        )
+
+        for taxonomy in Taxonomy.objects.all():
+            try:
+                domain = taxonomy.domains.filter(id__in=[rcd['id'] for rcd in possible_domains.values('id')])[0]
+                subdomain = domain.subdomains.filter(id__in=[rcd['id'] for rcd in possible_subdomains.values('id')])[0]
+                results.append([taxonomy, domain, subdomain])
+            except IndexError:
+                pass
+
+        return results
 
     @property
     def children(self) -> List[QuerySet]:

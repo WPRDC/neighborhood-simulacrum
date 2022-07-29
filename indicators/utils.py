@@ -11,6 +11,7 @@ from geo.models import Tract, County, BlockGroup, CountySubdivision, AdminRegion
 
 if TYPE_CHECKING:
     from indicators.data import Datum
+
     from indicators.models import Indicator
 
 # Constants
@@ -107,3 +108,5 @@ def tile_bbox(z, x, y, srid=3857):
     if srid != 3857:
         bbox.transform(srid)
     return bbox
+
+

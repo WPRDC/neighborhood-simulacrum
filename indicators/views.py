@@ -9,7 +9,7 @@ from indicators.models import Domain, Topic, Indicator, Variable, TimeAxis, Taxo
 from indicators.serializers import DomainSerializer, TopicSerializer, \
     TimeAxisPolymorphicSerializer, VariablePolymorphicSerializer, IndicatorWithDataSerializer, \
     IndicatorSerializer, IndicatorBriefSerializer, TaxonomySerializer, TopicBriefSerializer, TaxonomyBriefSerializer, \
-    DomainBriefSerializer, SubdomainSerializer
+    DomainBriefSerializer, SubdomainSerializer, SubdomainBriefSerializer
 from indicators.utils import is_geog_data_request, get_geog_from_request, ErrorRecord, ErrorLevel
 
 
@@ -55,8 +55,8 @@ class SubdomainViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.action == 'list':
-            return DomainBriefSerializer
-        return DomainSerializer
+            return SubdomainBriefSerializer
+        return SubdomainSerializer
 
     @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def retrieve(self, request, *args, **kwargs):
@@ -135,3 +135,4 @@ class IndicatorViewSet(viewsets.ModelViewSet):
     @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def retrieve(self, request, *args, **kwargs):
         return super(IndicatorViewSet, self).retrieve(request, *args, **kwargs)
+

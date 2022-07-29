@@ -1,3 +1,4 @@
+import itertools
 import logging
 import math
 from datetime import MINYEAR, MAXYEAR
@@ -13,6 +14,7 @@ from context.models import WithContext, WithTags
 from geo.models import AdminRegion
 from indicators.data import Datum, GeogRecord, GeogCollection, AggregationMethod
 from indicators.errors import AggregationError, MissingSourceError, EmptyResultsError
+from indicators.models.data import CachedIndicatorData
 from indicators.models.source import Source, CensusSource, CKANSource, CKANRegionalSource
 from indicators.models.time import TimeAxis
 from indicators.utils import ErrorLevel, ErrorRecord
@@ -119,18 +121,57 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
             print("!! `use_denom` set but there are no denominators !!")
             using_denom = False
 
-        # get subclass-specific aggregation method
-        agg_method = self.source_agg_method
-        data: list[Datum] = self._get_values(
-            geog_collection,
-            time_axis,
-            use_denom=using_denom,
-            agg_method=agg_method,
+        # since time_points can be kinda ephemeral, they'll be referenced via hash instead of id
+        time_part_hash_lookup: dict[str, 'TimeAxis.TimePart'] = {tp.storage_hash: tp for tp in time_axis.time_parts}
+        time_part_hashes = list(time_part_hash_lookup.keys())
+
+        # query indicator datastore for
+        cached_data = CachedIndicatorData.objects.filter(
+            variable=self.slug,
+            geog__in=[sg.global_geoid for sg in geog_collection.all_subgeogs],
+            time_part_hash__in=time_part_hashes,
         )
 
+        result_data: list[Datum] = Variable._datums_from_indicator_caches(cached_data, time_part_hash_lookup)
+
+        # find out what data are missing
+        # fixme: this will eventually result in some redundant data collection
+        combos = itertools.product(geog_collection.all_subgeogs, time_axis.time_parts)
+        missing_subgeogs: list['AdminRegion'] = []
+        missing_time_parts: list['TimeAxis.TimePart'] = []
+        g: 'AdminRegion'
+        t: 'TimeAxis.TimePart'
+        for g, t in combos:
+            if not cached_data.filter(geog=g.global_geoid, time_part_hash=t.storage_hash):
+                missing_subgeogs.append(g)
+                missing_time_parts.append(t)
+
+        if missing_subgeogs:
+            # generate temporary geog_collection and time_axis for the missing data
+            # to send to source-specific value getter
+            temp_geog_collection = GeogCollection(
+                geog_type=geog_collection.geog_type,
+                primary_geog=geog_collection.primary_geog
+            )
+            temp_geog_collection.records = geog_collection.filter_records_by_subgeog_ownership(missing_subgeogs)
+
+            temp_time_axis = TimeAxis.from_time_parts(missing_time_parts)
+
+            # get missing data using source specific queries
+            missing_data: list[Datum] = self._get_values(
+                temp_geog_collection,
+                temp_time_axis,
+                use_denom=using_denom,
+                agg_method=self.source_agg_method,
+            )
+            # load the missing data into the store for future reuse
+            CachedIndicatorData.save_records(missing_data)
+            # combine cached and recently-collected data to final result
+            result_data += missing_data
+
         # check data will raise any exception if there are any errors
-        warnings = self._check_values(data) + self._warnings
-        return data, warnings
+        warnings = self._check_values(result_data) + self._warnings
+        return result_data, warnings
 
     def _get_values(
             self,
@@ -169,6 +210,21 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
             raise EmptyResultsError('No values returned.')
 
         return warnings
+
+    @staticmethod
+    def _datums_from_indicator_caches(
+        cache_items: QuerySet['CachedIndicatorData'],
+        time_part_lookup: dict[str, 'TimeAxis.TimePart']
+    ) -> list['Datum']:
+        return [Datum(
+            variable=Variable.objects.get(slug=item.variable),
+            geog=AdminRegion.objects.get(global_geoid=item.geog),
+            time=time_part_lookup[item.time_part_hash],
+            value=item.value,
+            moe=item.moe,
+            denom=item.denom,
+        ) for item in cache_items]
+
 
     def _generate_cache_key(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
                             agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None):
@@ -251,7 +307,7 @@ class CensusVariable(Variable):
                 )
             # 2b. aggregate those values up to the set of neighbor geogs
             # and add the Datums to the final flat list of results
-            results += list(geog_record.get_aggregate_data(self, use_denom).values())
+            results += list(geog_record.get_aggregate_data(self, time_axis, use_denom).values())
 
         return results
 
@@ -264,7 +320,8 @@ class CensusVariable(Variable):
         :returns dict that maps time_part slugs to the data at that time
         """
         # get the census/acs tables for the points in time_axis
-        census_table_records_by_year = self.get_census_table_records_for_time_axis(time_axis)
+        census_table_records_by_year: Dict[
+            str, QuerySet[CensusTableRecord]] = self.get_census_table_records_for_time_axis(time_axis)
         denom_census_table_records_by_year: Dict[str, QuerySet[CensusTableRecord]] = {}
 
         if use_denom:
@@ -274,7 +331,8 @@ class CensusVariable(Variable):
 
         # extract and compute the values at each point in time_axis
         results: dict[str, Datum] = {}
-        for time_part_slug, records in census_table_records_by_year.items():
+        time_part_hash: str
+        for time_part_hash, records in census_table_records_by_year.items():
             # extract IDs
             value_ids, moe_ids = CensusTableRecord.get_table_uids(records)
             val = CensusValue.objects.filter(
@@ -305,8 +363,8 @@ class CensusVariable(Variable):
 
             # if denom is being used, look up the corresponding record and get its value
             denom, percent = None, None
-            if use_denom and time_part_slug in denom_census_table_records_by_year:
-                denom_record = denom_census_table_records_by_year[time_part_slug]
+            if use_denom and time_part_hash in denom_census_table_records_by_year:
+                denom_record = denom_census_table_records_by_year[time_part_hash]
                 denom_ids, _ = CensusTableRecord.get_table_uids(denom_record)
                 denom = CensusValue.objects.filter(
                     geog_uid=geog.affgeoid,
@@ -315,10 +373,10 @@ class CensusVariable(Variable):
                 if denom and denom > 0:
                     percent = val / denom
 
-            results[time_part_slug] = Datum(variable=self.slug, time=time_part_slug, geog=geog.global_geoid,
+            results[time_part_hash] = Datum(variable=self, time=time_axis.time_part_lookup[time_part_hash], geog=geog,
                                             value=val, moe=moe, denom=denom, percent=percent)
 
-        # return dict that maps time_part slugs to the data at that time
+        # return dict that maps time_part hashes to the data at that time
         return results
 
     # Utils
@@ -343,9 +401,9 @@ class CensusVariable(Variable):
         """
         Return a dict mapping time_parts, by slug, to the queryset of CensusTableRecords associated with that time_part.
         """
-        data = {}
+        data: dict[str, QuerySet['CensusTableRecord']] = {}
         for time_part in time_axis.time_parts:
-            data[time_part.slug] = self._get_census_table_record_for_time_part(time_part)
+            data[time_part.storage_hash] = self._get_census_table_record_for_time_part(time_part)
         return data
 
 
@@ -390,9 +448,9 @@ class CKANVariable(Variable):
         :returns a flat list of Datums of length len(time_axis) * len(geog_collection)
         """
         results: list[Datum] = []
+        parent_geog_lvl: Type['AdminRegion'] = geog_collection.geog_type
+        geogs: QuerySet['AdminRegion'] = geog_collection.all_subgeogs
 
-        parent_geog_lvl = geog_collection.geog_type
-        geogs = geog_collection.all_subgeogs
         for time_part in time_axis.time_parts:
             source: CKANSource = self._get_source_for_time_part(time_part)
             denom_select, denom_data = self._get_denom_data(source, geogs, time_part) if use_denom else (None, None)
@@ -408,7 +466,8 @@ class CKANVariable(Variable):
 
             # get data from ckan and wrap it in our Datum class
             raw_data: list[dict] = source.query_datastore(query)
-            var_data: list[Datum] = Datum.from_ckan_response_data(self, raw_data)
+            var_data: list[Datum] = Datum.from_ckan_response_data(self, raw_data, time_axis.time_part_lookup)
+
             # for regional sources, we need to aggregate here for now todo: debug whats up with ckan's SQL API
             if parent_geog_lvl and type(source) == CKANRegionalSource:
                 var_data = self._aggregate_data(var_data, type(geogs[0]), parent_geog_lvl)
@@ -482,7 +541,7 @@ class CKANVariable(Variable):
                     value = sum(values)
                     denom = sum(denoms) if len(denoms) and None not in denoms else None
 
-                results.append(Datum(variable=self.slug, geog=geog, time=time, value=value, denom=denom))
+                results.append(Datum(variable=self, geog=geog, time=time, value=value, denom=denom))
         return results
 
     def _get_source_for_time_part(self, time_part: TimeAxis.TimePart) -> Optional[CKANSource]:
@@ -503,6 +562,7 @@ class CKANVariable(Variable):
         denom_var: 'CKANVariable' = self.primary_denominator
         denom_select = None
         denom_data: list[Datum] = []
+        time_part_lookup: dict[str, time_part] = {time_part.storage_hash: time_part}
         if denom_var:
             if len(denom_var.sources.filter(pk=source.pk)):
                 # if denom uses the same source we can simply pass its field select
@@ -511,7 +571,11 @@ class CKANVariable(Variable):
                 # if not, keep the denom select null , but fire off a call to collect
                 denom_source = denom_var._get_source_for_time_part(time_part)
                 denom_query = denom_source.get_data_query(denom_var, geogs, time_part)
-                denom_data = Datum.from_ckan_response_data(denom_var, source.query_datastore(denom_query))
+                denom_data = Datum.from_ckan_response_data(
+                    denom_var,
+                    source.query_datastore(denom_query),
+                    time_part_lookup
+                )
 
         return denom_select, denom_data
 

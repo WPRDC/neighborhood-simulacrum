@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from context.serializers import TagSerializer, ContextItemSerializer
 from indicators.models import Domain, Topic, Taxonomy, TopicIndicator, Subdomain
+from profiles.abstract_models import Described
 from .indicator import IndicatorSerializer, IndicatorWithDataSerializer, IndicatorBriefSerializer, \
     IndicatorWithOptionsSerializer
 from .source import CensusSourceSerializer, CKANSourceSerializer, CKANRegionalSourceSerializer, CKANGeomSourceSerializer
@@ -21,25 +22,44 @@ class SubdomainBriefSerializer(serializers.ModelSerializer):
         fields = ('id', 'slug', 'name')
 
 
-class HierarchySerializer(serializers.Serializer):
-    def create(self, validated_data):
+class HierarchyListSerializer(serializers.ListSerializer):
+    def update(self, instance, validated_data):
         pass
+
+
+class HierarchySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField(max_length=200)
+    slug = serializers.CharField(max_length=200)
 
     def update(self, instance, validated_data):
         pass
 
-    domain = DomainBriefSerializer(read_only=True)
+    def create(self, validated_data):
+        pass
+
+    class Meta:
+        list_serializer_class = HierarchyListSerializer
 
 
 class TopicBriefSerializer(serializers.ModelSerializer):
+    hierarchies = serializers.SerializerMethodField()
+
     class Meta:
         model = Topic
-        fields = ('id', 'slug', 'name', 'description')
+        fields = ('id', 'slug', 'name', 'description', 'hierarchies',)
+
+    def get_hierarchies(self, obj: Topic):
+        hierarchies = [HierarchySerializer(item, many=True).data for item in obj.hierarchies]
+        serialized = {
+            item[0]['slug']: item[1:] for item in hierarchies
+        }
+        return serialized
 
 
 class TopicSerializer(serializers.HyperlinkedModelSerializer):
     indicators = IndicatorWithOptionsSerializer(many=True)
-    hierarchies = HierarchySerializer(many=True, read_only=True)
+    hierarchies = serializers.SerializerMethodField()
     tags = TagSerializer(many=True)
     context = ContextItemSerializer(many=True)
     primary_indicatorIDs = serializers.SerializerMethodField()
@@ -73,10 +93,16 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
         primary_indicators = TopicIndicator.objects.filter(topic=obj, primary=True)
         return [v.id for v in primary_indicators]
 
+    def get_hierarchies(self, obj: Topic):
+        hierarchies = [HierarchySerializer(item, many=True).data for item in obj.hierarchies]
+        serialized = {
+            item[0]['slug']: item[1:] for item in hierarchies
+        }
+        return serialized
+
 
 class DomainSerializer(serializers.ModelSerializer):
-    subdomains = SubdomainBriefSerializer(many=True)
-    topics = TopicBriefSerializer(many=True)
+    subdomains = serializers.SerializerMethodField()
 
     class Meta:
         model = Domain
@@ -86,10 +112,12 @@ class DomainSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'subdomains',
-            'topics',
             'tags',
             'context',
         )
+
+    def get_subdomains(self, obj: Domain):
+        return SubdomainBriefSerializer(obj.ordered_subdomains, many=True).data
 
 
 class SubdomainSerializer(serializers.ModelSerializer):

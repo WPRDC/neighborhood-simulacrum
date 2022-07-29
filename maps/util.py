@@ -59,7 +59,7 @@ def store_map_data(
         cursor.execute(f"""DROP VIEW IF EXISTS {view_name}""")
         cursor.execute(f"""DROP TABLE IF EXISTS {table_name}""")
         cursor.execute(f"""CREATE TABLE {table_name} (geoid varchar(63), value numeric)""")
-        sql_rows = [f"""('{datum.geog}', {datum.percent if use_percent else datum.value})""" for datum in data]
+        sql_rows = [f"""('{datum.geog}', {datum.percent if use_percent else datum.value})""" for datum in data if data.value is not None]
         cursor.execute(f"""INSERT INTO  {table_name} (geoid, value) VALUES """ + ", ".join(sql_rows))
 
         base_geography_subquery = as_geometry_query(geog_collection.geog_type.objects.filter(in_extent=True).query)

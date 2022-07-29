@@ -11,6 +11,8 @@ from profiles.abstract_models import Described
 from dataclasses import dataclass
 from dateutil.relativedelta import relativedelta
 
+import hashlib
+
 MAX_COUNT = 100  # stupid large number for steps on an axis.  anything near this size would be impractical.
 
 
@@ -46,8 +48,9 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
             trunc_field = self.unit_str
             return f""" date_trunc('{trunc_field}', '{self.time_point.isoformat(sep=' ')}'::timestamp) """
 
-        def __hash__(self):
-            return hash((self.slug, self.time_point, self.time_unit))
+        @property
+        def storage_hash(self) -> str:
+            return f"{TimeAxis.UNIT_FIELDS[self.time_unit]}{self.time_point.strftime('%Y%m%d%H%M%S')}"
 
     # If another time unit is added somehow, make sure its value reflects its relative specificity
     # By comparing specificity, we can tell which units can be rolled up into other, larger ones.
@@ -59,6 +62,7 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
     QUARTER = 6
     YEAR = 7
 
+    # !! limit new unit field names to 10 characters
     UNIT_FIELDS = {
         MINUTE: 'minute',
         HOUR: 'hour',
@@ -86,6 +90,8 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
 
     _time_parts: Optional[list[TimePart]] = None
 
+    _time_part_lookup: Optional[dict[str, TimePart]] = None
+
     @property
     def time_points(self) -> List[timezone.datetime]:
         return []
@@ -103,6 +109,12 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
             for time_point in self.time_points
         ]
         return self._time_parts
+
+    @property
+    def time_part_lookup(self) -> dict[str, TimePart]:
+        if self._time_part_lookup:
+            return self._time_part_lookup
+        return {tp.storage_hash: tp for tp in self.time_parts}
 
     def get_part(self, time_part_slug: str) -> Optional['TimeAxis.TimePart']:
         for time_part in self.time_parts:
@@ -146,7 +158,7 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
             # no quarters option, but 3 calendar months should suffice if not work 100% of the time
             return ref_date + relativedelta(months=displacement * 3)
         if period in [self.MONTH, self.YEAR]:
-            # `relativedelta` follows calendar conventions so we don't have to worry about skipping over a month
+            # `relativedelta` follows calendar conventions, so we don't have to worry about skipping over a month
             return ref_date + relativedelta(**{self.resolution: displacement})
         else:
             # return the date that is `displacement` resolutions (e.g. -3 weeks) away from our reference date

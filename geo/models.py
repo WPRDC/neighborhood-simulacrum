@@ -208,7 +208,7 @@ class BlockGroup(AdminRegion, CensusGeography):
 
     type_description = 'Smallest geographical unit w/ ACS sample data.'
     ckan_resource = "b5f5480c-548d-46d8-b623-40a226d87517"
-    base_zoom = 12
+    base_zoom = 7
 
     statefp = models.CharField(max_length=2)
     countyfp = models.CharField(max_length=3)
@@ -245,7 +245,7 @@ class Tract(AdminRegion, CensusGeography):
 
     type_description = "Drawn to encompass ~2500-8000 people"
     ckan_resource = "bb9a7972-981c-4026-8483-df8bdd1801c2"
-    base_zoom = 10
+    base_zoom = 7
 
     statefp = models.CharField(max_length=2)
     countyfp = models.CharField(max_length=3)
@@ -278,7 +278,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
     type_description = "Townships, municipalities, boroughs and cities."
     ckan_resource = "8a5fc9dc-5eb9-4fe3-b60a-0366ad9b813b"
-    base_zoom = 9
+    base_zoom = 7
 
     statefp = models.CharField(max_length=2)
     countyfp = models.CharField(max_length=3)
@@ -403,7 +403,7 @@ class Neighborhood(AdminRegion):
     geog_type_id = AdminRegion.NEIGHBORHOOD
     geog_type_slug = 'neighborhood'
     geog_type_title = 'Neighborhood'
-    base_zoom = 12
+    base_zoom = 7
 
     type_description = 'Official City of Pittsburgh neighborhood boundaries'
 

@@ -17,6 +17,8 @@ from profiles.abstract_models import Described
 from profiles.local_settings import DATASTORE_NAME, DATASTORE_HOST, DATASTORE_USER, DATASTORE_PASSWORD, DATASTORE_PORT
 from profiles.settings import SQ_ALIAS, GEO_ALIAS, DENOM_DKEY
 
+from profiles.settings import DENOM_DKEY, VALUE_DKEY, GEOG_DKEY, TIME_DKEY
+
 logger = logging.getLogger(__name__)
 
 datastore_settings = {
@@ -159,9 +161,9 @@ class CKANSource(Source, PolymorphicModel):
 
         query = f"""
         SELECT 
-            {geog_select}                   as __geog__, 
-            '{time_part.slug}'              as __time__,
-            {agg_str}({value_select})       as __value__
+            {geog_select}                   as {GEOG_DKEY}, 
+            '{time_part.storage_hash}'      as {TIME_DKEY},
+            {agg_str}({value_select})       as {VALUE_DKEY}
             {denom_select_and_alias}
         FROM {from_subq} AS {SQ_ALIAS}
         WHERE {geog_filter} AND {time_filter} 

@@ -16,7 +16,7 @@ class DatastoreDataset(models.Model):
 
 class Identified(models.Model):
     name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=200, unique=True)
+    slug = models.SlugField(max_length=128, unique=True)
 
     @property
     def title(self):

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, replace
-from typing import Type, List, Optional, TYPE_CHECKING, Collection
+from typing import Type, List, Optional, TYPE_CHECKING, Collection, Iterable, Union
 
 from django.db.models import QuerySet, TextChoices
 from django.utils.translation import gettext_lazy as _
@@ -9,7 +9,8 @@ from indicators.errors import AggregationError
 from profiles.settings import DENOM_DKEY, VALUE_DKEY, GEOG_DKEY, TIME_DKEY
 
 if TYPE_CHECKING:
-    from indicators.models import CensusVariable, CKANVariable, Variable
+    from indicators.models import CKANVariable, Variable, TimeAxis
+    from indicators.models.data import CachedIndicatorData
 
 
 class AggregationMethod(TextChoices):
@@ -60,6 +61,16 @@ class GeogCollection:
 
         return self._divided
 
+    def filter_records_by_subgeog_ownership(self, subgeogs: Iterable['AdminRegion']) -> dict[str, 'GeogRecord']:
+        """ Returns `self.records` filtered to those records with at least one subgeog in `subgeogs` """
+        record: 'GeogRecord'
+        return {
+            geoid: record
+            for (geoid, record)
+            in self.records.items()
+            if record.share_subgeogs(subgeogs)
+        }
+
 
 @dataclass
 class GeogRecord:
@@ -106,7 +117,12 @@ class GeogRecord:
     def is_divided(self) -> bool:
         return self.geog_class != self.subgeog_class
 
-    def get_aggregate_data(self, variable: 'Variable', use_denom: bool) -> dict[str, 'Datum']:
+    def get_aggregate_data(
+            self,
+            variable: 'Variable',
+            time_part_lookup: dict[str, 'TimeAxis.TimePart'],
+            use_denom: bool
+    ) -> dict[str, 'Datum']:
         """
         Generates a representation of the data in this record aggregated across geography so that
         it describes the primary geography `geog` across whatever TimeParts were used to find data for this record.
@@ -120,20 +136,20 @@ class GeogRecord:
         # if we need to perform agg_method
         agg_method: AggregationMethod = variable.aggregation_method
         results: dict[str, 'Datum'] = {}
-        for time_part_slug, subgeog_record in self.data_by_time_part.items():
+        for time_part_hash, subgeog_record in self.data_by_time_part.items():
             # aggregate values and save them
             data = subgeog_record.values()
-            results[time_part_slug] = Datum(
-                variable=variable.slug,
-                geog=self.geog.global_geoid,
-                time=time_part_slug,
+            results[time_part_hash] = Datum(
+                variable=variable,
+                geog=self.geog,
+                time=time_part_lookup[time_part_hash],
                 value=aggregate_data([datum.value for datum in data], agg_method),
                 # todo: figure out margin of error
                 denom=aggregate_data([datum.denom for datum in data], agg_method) if use_denom else None,
             )
         return results
 
-    def add_time_part_records(self, subgeog: AdminRegion, records: dict[str, 'Datum']) -> int:
+    def add_time_part_records(self, subgeog: 'AdminRegion', records: dict[str, 'Datum']) -> int:
         """
         Generates and adds TimePart records a dict mapping time_part slugs to data.
         :returns: number of records added.
@@ -152,12 +168,18 @@ class GeogRecord:
             count += 1
         return count
 
+    def share_subgeogs(self, test_subgeogs: Iterable['AdminRegion']):
+        """ Returns `true` if the set of subgeogs provided is a superset of those in `self.subgeogs` """
+        test_global_geoids: set[str] = {sg.global_geoid for sg in test_subgeogs}
+        record_global_geoids: set[str] = {sg.global_geoid for sg in self.subgeogs}
+        return not test_global_geoids.isdisjoint(record_global_geoids)
+
 
 @dataclass
 class Datum:
-    variable: str
-    geog: str
-    time: str
+    variable: 'Variable'
+    geog: 'AdminRegion'
+    time: 'TimeAxis.TimePart'
 
     value: Optional[float] = None
     moe: Optional[float] = None
@@ -174,38 +196,28 @@ class Datum:
         return {'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
 
     @staticmethod
-    def from_census_response_datum(variable: 'CensusVariable', census_datum) -> 'Datum':
-        return Datum(
-            variable=variable.slug,
-            geog=census_datum.get('geog'),
-            time=census_datum.get('time'),
-            value=census_datum.get('value'),
-            moe=census_datum.get('moe'),
-            denom=census_datum.get('denom'),
-            percent=census_datum.get('percent'), )
-
-    @staticmethod
-    def from_census_response_data(variable: 'CensusVariable', census_data: list[dict]) -> List['Datum']:
-        return [Datum.from_census_response_datum(variable, census_datum) for census_datum in census_data]
-
-    @staticmethod
-    def from_ckan_response_datum(variable: 'CKANVariable', ckan_datum) -> 'Datum':
+    def from_ckan_response_datum(
+            variable: 'CKANVariable',
+            ckan_datum: dict[str, Union[str, int]],
+            time_part_lookup: dict[str, 'TimeAxis.TimePart']
+    ) -> 'Datum':
         denom, percent = None, None
         if DENOM_DKEY in ckan_datum:
             denom = ckan_datum[DENOM_DKEY]
             if ckan_datum[VALUE_DKEY] is not None and ckan_datum[DENOM_DKEY]:
                 percent = (ckan_datum[VALUE_DKEY] / ckan_datum[DENOM_DKEY])
 
-        return Datum(variable=variable.slug,
-                     geog=ckan_datum[GEOG_DKEY],
-                     time=ckan_datum[TIME_DKEY],
+        return Datum(variable=variable,
+                     geog=AdminRegion.objects.get(ckan_datum[GEOG_DKEY]),
+                     time=time_part_lookup[ckan_datum[TIME_DKEY]],
                      value=ckan_datum[VALUE_DKEY],
                      denom=denom,
                      percent=percent)
 
     @staticmethod
-    def from_ckan_response_data(variable: 'CKANVariable', ckan_data: list[dict]) -> List['Datum']:
-        return [Datum.from_ckan_response_datum(variable, ckan_datum) for ckan_datum in ckan_data]
+    def from_ckan_response_data(variable: 'CKANVariable', ckan_data: list[dict],
+                                time_part_lookup: dict[str, 'TimeAxis.TimePart']) -> List['Datum']:
+        return [Datum.from_ckan_response_datum(variable, ckan_datum, time_part_lookup) for ckan_datum in ckan_data]
 
     def update(self, **kwargs):
         """ Creates new Datum similar to the instance with new values from kwargs """
@@ -216,5 +228,5 @@ class Datum:
         return replace(self, denom=denom_val, percent=(self.value / denom_val))
 
     def as_dict(self) -> dict:
-        return {'variable': self.variable, 'geog': self.geog, 'time': self.time,
+        return {'variable': self.variable.slug, 'geog': self.geog.slug, 'time': self.time.slug,
                 'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}

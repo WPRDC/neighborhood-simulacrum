@@ -7,7 +7,7 @@ from ..models import Topic, Domain, Value, TopicIndicator, Taxonomy, TaxonomyDom
     DomainTopic, Subdomain, DomainSubdomain, SubdomainTopic
 
 
-class TopicIndicatorInline(admin.StackedInline):
+class TopicIndicatorInline(admin.TabularInline):
     model = TopicIndicator
     autocomplete_fields = ('indicator',)
 
@@ -16,6 +16,7 @@ class TopicIndicatorInline(admin.StackedInline):
 class TopicAdmin(admin.ModelAdmin):
     list_display = (
         'name',
+        'slug',
         'description',
     )
 
@@ -39,7 +40,7 @@ class DomainSubdomainInline(admin.TabularInline):
 
 @admin.register(Subdomain)
 class SubdomainAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
+    list_display = ('name', 'slug', 'description')
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
 
@@ -48,7 +49,7 @@ class SubdomainAdmin(admin.ModelAdmin):
 
 @admin.register(Domain)
 class DomainAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
+    list_display = ('name', 'slug', 'description')
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
 

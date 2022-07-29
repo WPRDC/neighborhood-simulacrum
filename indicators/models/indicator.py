@@ -207,7 +207,7 @@ class Indicator(WithTags, WithContext, Described):
         :raises AggregationError: if aggregation isn't possible
         :return: Queryset of geographies to for which data can be aggregated to represent `geog`; None if an emtpy set.
         """
-        # does it work directly for the goeg?
+        # does it work directly for the goeg, then just return it
         if self.can_handle_geography(geog):
             return type(geog).objects.filter(global_geoid=geog.global_geoid)
 
@@ -224,15 +224,6 @@ class Indicator(WithTags, WithContext, Described):
 
         # if it required aggregation but no suitable subgeogs were found
         raise AggregationError(f'{self.title} not available for {geog.title}.')
-
-    def get_neighbor_geogs(self, geog: 'AdminRegion', across: bool = False) -> QuerySet['AdminRegion']:
-        """ Generates queryset of all neighbor geographies to be compared with `geog` also includes geog. """
-        if self._neighbor_geogs is None:
-            if across and self.across_geogs:
-                self._neighbor_geogs = geog.__class__.objects.filter(in_extent=True)
-            else:
-                self._neighbor_geogs = geog.__class__.objects.filter(global_geoid=geog.global_geoid)
-        return self._neighbor_geogs
 
     def get_data(self, geog: 'AdminRegion', across_geogs=False) -> DataResponse:
         """
@@ -254,38 +245,67 @@ class Indicator(WithTags, WithContext, Described):
         :param geog - the geography being examined
         :return: DataResponse with data and error information
         """
-        data: Optional[list[list[list[dict]]]] = None
+        data: Optional[list[list[list[dict]]]] = []
         dimensions: Indicator.Dimensions = Indicator.Dimensions()
         map_options: Optional[dict] = None
         error = ErrorRecord(level=ErrorLevel.OK, message='')
         warnings: Optional[list[ErrorRecord]] = None
+        making_map = self.is_mappable and across_geogs
 
         try:
-            # 1. Get full set of geogs necessary for viz
-            #   a. get set of neighbor geogs including the primary geog if necessary for teh viz
-            neighbor_geogs = self.get_neighbor_geogs(geog, across=across_geogs)
+            # create set of geographies to pull data on
+            if making_map:
+                neighbor_geogs = geog.__class__.objects.filter(in_extent=True)
+            else:
+                neighbor_geogs = geog.__class__.objects.filter(global_geoid=geog.global_geoid)
 
-            #   b. for each geog in the set, find the set of subgeogs that work for the source.
-            #         if no subgeogs are necessary, the subgeog set will just be [geog]
-            geog_collection = GeogCollection(geog_type=type(geog), primary_geog=geog)
-            for neighbor_geog in neighbor_geogs:
-                geog_collection.records[neighbor_geog.global_geoid] = GeogRecord(
-                    geog=neighbor_geog,
-                    subgeogs=self.get_subgeogs(neighbor_geog),
+            if neighbor_geogs:
+                # wrap all geographies in a GeogCollection which handles aggregation details
+                geog_collection = GeogCollection(geog_type=type(geog), primary_geog=geog)
+                for neighbor_geog in neighbor_geogs:
+                    geog_collection.records[neighbor_geog.global_geoid] = GeogRecord(
+                        geog=neighbor_geog,
+                        subgeogs=self.get_subgeogs(neighbor_geog),
+                    )
+
+                dimensions = Indicator.Dimensions(
+                    geog=neighbor_geogs,
+                    time=self.time_axis.time_parts,
+                    vars=self.variables,
                 )
 
-            # 2. For each variable in the data viz,
-            #   a. get values for full set of subgeogs
-            #   b. aggregate those values up to the set of neighbor geogs
-            # this is done in the private method which may be overridden to
-            # handle difference cases for difference visualizations
+                temp_data: dict[str, Datum] = {}
+                warnings: list[ErrorRecord] = []
+                message_dupes = set()
 
-            # todo: add information about geographic aggregation if it occureda
-            #   - list of subgeogs so we can link to them on Apps and sites
-            if neighbor_geogs:
-                dimensions = self._get_dimensions(neighbor_geogs)
-                data, warnings = self._get_data(geog_collection, dimensions)
-                if self.is_mappable and across_geogs:
+                # get the data for each variable
+                for variable in self.variables:
+                    var_data, var_warnings = variable.get_values(geog_collection, self.time_axis)
+
+                    for item in var_data:
+                        temp_data[f'{item.geog.global_geoid}:{item.time.storage_hash}:{item.variable.slug}'] = item
+
+                    for warning in var_warnings:
+                        if warning.message not in message_dupes:
+                            message_dupes.add(warning.message)
+                            warnings.append(warning)
+
+                # place results in a 3d array following the order in `dimensions`
+                for geog in dimensions.geog:
+                    g_list: list[list[dict]] = []
+                    for time_part in dimensions.time:
+                        t_list: list[dict] = []
+                        for var in dimensions.vars:
+                            raw_datum = temp_data.get(f'{geog.global_geoid}:{time_part.storage_hash}:{var.slug}', None)
+                            if raw_datum is not None:
+                                datum = raw_datum.data
+                            else:
+                                datum = None
+                            t_list.append(datum)
+                        g_list.append(t_list)
+                    data.append(g_list)
+
+                if making_map:
                     map_options = self._get_map_options(geog_collection)
             else:
                 error = ErrorRecord(level=ErrorLevel.EMPTY,
@@ -301,52 +321,6 @@ class Indicator(WithTags, WithContext, Described):
             logger.exception(str(e))
             print(f'{Fore.RED}Uncaught Error:', e, Style.RESET_ALL)
             raise e
-
-    def _get_data(
-            self,
-            geog_collection: GeogCollection,
-            dimensions: 'Indicator.Dimensions'
-    ) -> (list[list[list[dict]]], list[ErrorRecord]):
-        """
-        Gets a representation of data for the viz.
-
-        All the nitty-gritty work of spatial, temporal and categorical harmonization happens here. Any inability to
-        harmonize should return an empty dataset and an error response explaining what went wrong (e.g. not available
-        for 'geog' because of privacy reasons)
-
-        Override when necessary.
-
-        If representing the data as a list of records doesn't make sense for the visualization (e.g. maps),
-        this method can be overridden.
-        """
-        data: dict[str, Datum] = {}
-        warnings: list[ErrorRecord] = []
-        message_dupes = set()
-
-
-        # todo: we somehow need to provide cross-geog data for this
-
-        for variable in self.variables:
-            var_data, var_warnings = variable.get_values(geog_collection, self.time_axis)
-            for item in var_data:
-                data[f'{item.geog}:{item.time}:{item.variable}'] = item
-            for warning in var_warnings:
-                if warning.message not in message_dupes:
-                    message_dupes.add(warning.message)
-                    warnings.append(warning)
-
-        # place results in a 3d array following the order in `dimensions`
-        results: list[list[list[dict]]] = []
-        for geog in dimensions.geog:
-            g_list: list[list[dict]] = []
-            for time_part in dimensions.time:
-                t_list: list[dict] = []
-                for var in dimensions.vars:
-                    t_list.append(data[f'{geog.global_geoid}:{time_part.slug}:{var.slug}'].data)
-                g_list.append(t_list)
-            results.append(g_list)
-
-        return results, warnings
 
     def _get_map_options(self, geog_collection: GeogCollection) -> Optional[dict]:
         """
@@ -367,7 +341,6 @@ class Indicator(WithTags, WithContext, Described):
             layers += tmp_layers
 
         primary_geog = geog_collection.primary_geog
-
 
         # for highlighting current geog
         highlight_id = slugify(primary_geog.name)
@@ -397,14 +370,6 @@ class Indicator(WithTags, WithContext, Described):
                 'zoom': primary_geog.base_zoom - 1
             }
         }
-
-    def _get_dimensions(self, neighbor_geogs: QuerySet['AdminRegion']) -> Dimensions:
-        """ Returns dimensions for the data """
-        return Indicator.Dimensions(
-            geog=neighbor_geogs,
-            time=self.time_axis.time_parts,
-            vars=self.variables,
-        )
 
     def __str__(self):
         return f'{self.name} ({self.__class__.__name__})'
