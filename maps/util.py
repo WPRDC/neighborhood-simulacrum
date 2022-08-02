@@ -51,11 +51,9 @@ def store_map_data(
         variable: 'Variable',
         use_percent: bool
 ):
-    view_name = f'maps."{map_slug}"'
-
     number_format_options = {'style': 'percent'} if use_percent else variable.number_format_options
     with connection.cursor() as cursor:
-        cursor.execute(f"""DROP VIEW IF EXISTS {view_name} """)
+        cursor.execute(f"""DROP VIEW IF EXISTS maps."{map_slug}" """)
 
         base_geography_subquery = as_geometry_query(geog_collection.geog_type.objects.filter(in_extent=True).query)
         time_hashes = ','.join([f"'{tp.storage_hash}'" for tp in time_axis.time_parts])
@@ -63,37 +61,37 @@ def store_map_data(
 
         # query for data
         indicator_cache_query = f"""
-        SELECT 
-            geog as geog_global_geoid,
-            variable as varaible_slug,
-            time_part_hash,
-            value, moe, denom
-        FROM {CachedIndicatorData._meta.db_table} 
-        WHERE variable = '{variable.slug}'
-            AND time_part_hash IN ({time_hashes})
-            AND geog IN ({subgeogs})
+
         """
 
         cursor.execute(
-            f"""CREATE VIEW {view_name} AS
-                    SELECT 
-                        geo.slug as "geog",
-                        geo.name as "geogLabel",
-                        
-                        %(time_slug)s as "time",
-                        %(time_name)s as "timeLabel",
-                        
-                        %(var_slug)s as "variable",
-                        %(var_name)s as "variableLabel",
-                        %(var_abbr)s as "variableAbbr",
-                        
-                        %(number_format_options)s as "numberFormatOptions",
-                        
-                        geo.geom as "the_geom", 
-                        geo.geom_webmercator as "the_geom_webmercator", 
-                        dat.value::float as "value"
-                    FROM ({indicator_cache_query}) dat
-                    JOIN ({base_geography_subquery}) geo ON dat.geog_global_geoid = geo.global_geoid""",
+            f"""
+            CREATE VIEW maps."{map_slug}" AS
+            SELECT geo.slug                  as "geog",
+                   geo.name                  as "geogLabel",
+            
+                   %(time_slug)s             as "time",
+                   %(time_name)s             as "timeLabel",
+            
+                   %(var_slug)s              as "variable",
+                   %(var_name)s              as "variableLabel",
+                   %(var_abbr)s              as "variableAbbr",
+            
+                   %(number_format_options)s as "numberFormatOptions",
+            
+                   geo.geom as "the_geom", 
+                   geo.geom_webmercator      as "the_geom_webmercator", 
+                   dat.the_value::float      as "value"
+            FROM (SELECT cid.geog          as geog_global_geoid,
+                         cid.variable      as varaible_slug,
+                         cid.time_part_hash,
+                         {'(cid."value" / cid."denom")' if use_percent else '(cid."value")'} as "the_value"
+                  FROM {CachedIndicatorData._meta.db_table} cid
+                  WHERE variable = '{variable.slug}'
+                    AND time_part_hash IN ({time_hashes})
+                    AND geog IN ({subgeogs})) dat
+                     JOIN ({base_geography_subquery}) geo ON dat.geog_global_geoid = geo.global_geoid
+            """,
             {
                 'title': variable.name,
                 'time_slug': time_axis.time_parts[0].slug,
