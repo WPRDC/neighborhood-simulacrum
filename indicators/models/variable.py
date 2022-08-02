@@ -2,7 +2,7 @@ import itertools
 import logging
 import math
 from datetime import MINYEAR, MAXYEAR
-from typing import Dict, Optional, Type, List
+from typing import Dict, Optional, Type, List, Iterable, Union
 
 from django.db import models
 from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery
@@ -21,6 +21,36 @@ from indicators.utils import ErrorLevel, ErrorRecord
 from profiles.abstract_models import Described
 
 logger = logging.getLogger(__name__)
+
+
+def find_missing_geogs_and_time_parts(
+        records: Union[QuerySet['CachedIndicatorData'], list['Datum']],
+        geog_collection: GeogCollection,
+        time_axis: TimeAxis
+) -> ['AdminRegion', 'TimeAxis.TimePart']:
+    cached_combos: dict[str, dict[str, bool]] = {}
+    missing_subgeogs: set['AdminRegion'] = set()
+    missing_time_parts: set['TimeAxis.TimePart'] = set()
+
+    using_datum = type(records) == list
+
+    for record in records:
+        g_key = record.geog.global_geoid if using_datum else record.geog
+        t_key = record.time.storage_hash if using_datum else record.time_part_hash
+        if g_key not in cached_combos:
+            cached_combos[g_key] = {t_key: True}
+        else:
+            cached_combos[g_key][t_key] = True
+
+    # enumerate possible combinations and check status in trie
+    for combo in itertools.product(geog_collection.all_subgeogs, time_axis.time_parts):
+        g: 'AdminRegion' = combo[0]
+        t: 'TimeAxis.TimePart' = combo[1]
+        if g.global_geoid not in cached_combos or not cached_combos[g.global_geoid][t.storage_hash]:
+            missing_subgeogs.add(g)
+            missing_time_parts.add(t)
+
+    return missing_subgeogs, missing_time_parts
 
 
 class Variable(PolymorphicModel, Described, WithTags, WithContext):
@@ -134,17 +164,8 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
 
         result_data: list[Datum] = Variable._datums_from_indicator_caches(cached_data, time_part_hash_lookup)
 
-        # find out what data are missing
-        # fixme: this will eventually result in some redundant data collection
-        combos = itertools.product(geog_collection.all_subgeogs, time_axis.time_parts)
-        missing_subgeogs: list['AdminRegion'] = []
-        missing_time_parts: list['TimeAxis.TimePart'] = []
-        g: 'AdminRegion'
-        t: 'TimeAxis.TimePart'
-        for g, t in combos:
-            if not cached_data.filter(geog=g.global_geoid, time_part_hash=t.storage_hash):
-                missing_subgeogs.append(g)
-                missing_time_parts.append(t)
+        missing_subgeogs, missing_time_parts = find_missing_geogs_and_time_parts(cached_data, geog_collection,
+                                                                                 time_axis)
 
         if missing_subgeogs:
             # generate temporary geog_collection and time_axis for the missing data
@@ -155,19 +176,20 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
             )
             temp_geog_collection.records = geog_collection.filter_records_by_subgeog_ownership(missing_subgeogs)
 
-            temp_time_axis = TimeAxis.from_time_parts(missing_time_parts)
+            temp_time_axis = TimeAxis.from_time_parts(list(missing_time_parts))
 
             # get missing data using source specific queries
-            missing_data: list[Datum] = self._get_values(
+            found_data: list[Datum] = self._get_values(
                 temp_geog_collection,
                 temp_time_axis,
                 use_denom=using_denom,
                 agg_method=self.source_agg_method,
             )
+
             # load the missing data into the store for future reuse
-            CachedIndicatorData.save_records(missing_data)
+            CachedIndicatorData.save_records(found_data)
             # combine cached and recently-collected data to final result
-            result_data += missing_data
+            result_data += found_data
 
         # check data will raise any exception if there are any errors
         warnings = self._check_values(result_data) + self._warnings
@@ -203,7 +225,7 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
                 warnings.append(ErrorRecord(
                     level=ErrorLevel.WARNING,
                     message='Record found with null value',
-                    record=datum.as_dict()
+                    record=datum.as_json_dict()
                 ))
 
         if not found_any:
@@ -213,18 +235,25 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
 
     @staticmethod
     def _datums_from_indicator_caches(
-        cache_items: QuerySet['CachedIndicatorData'],
-        time_part_lookup: dict[str, 'TimeAxis.TimePart']
+            cache_items: QuerySet['CachedIndicatorData'],
+            time_part_lookup: dict[str, 'TimeAxis.TimePart']
     ) -> list['Datum']:
+        variable_slugs: list[str] = []
+        geog_global_geoids: list[str] = []
+        for item in cache_items:
+            variable_slugs.append(item.variable)
+            geog_global_geoids.append(item.geog)
+
+        variable_lookup = {v.slug: v for v in Variable.objects.filter(slug__in=variable_slugs)}
+        geog_lookup = {g.global_geoid: g for g in AdminRegion.objects.filter(global_geoid__in=geog_global_geoids)}
         return [Datum(
-            variable=Variable.objects.get(slug=item.variable),
-            geog=AdminRegion.objects.get(global_geoid=item.geog),
+            variable=variable_lookup[item.variable],
+            geog=geog_lookup[item.geog],
             time=time_part_lookup[item.time_part_hash],
             value=item.value,
             moe=item.moe,
             denom=item.denom,
         ) for item in cache_items]
-
 
     def _generate_cache_key(self, geogs: QuerySet['AdminRegion'], time_axis: 'TimeAxis', use_denom=True,
                             agg_method=None, parent_geog_lvl: Optional[Type['AdminRegion']] = None):
@@ -468,7 +497,7 @@ class CKANVariable(Variable):
             raw_data: list[dict] = source.query_datastore(query)
             var_data: list[Datum] = Datum.from_ckan_response_data(self, raw_data, time_axis.time_part_lookup)
 
-            # for regional sources, we need to aggregate here for now todo: debug whats up with ckan's SQL API
+            # for regional sources, we need to aggregate here for now
             if parent_geog_lvl and type(source) == CKANRegionalSource:
                 var_data = self._aggregate_data(var_data, type(geogs[0]), parent_geog_lvl)
                 if denom_data:
@@ -480,6 +509,11 @@ class CKANVariable(Variable):
             else:
                 # either no denom at all, or denom was in same source, and captured using `denom_select`
                 results += var_data
+
+            # add blank Datums for records that weren't found.
+            missing_geogs, missing_time_parts = find_missing_geogs_and_time_parts(var_data, geog_collection, time_axis)
+            results += [Datum(geog=g, time=t, variable=self, value=None)
+                        for (g, t) in itertools.product(missing_geogs, missing_time_parts)]
 
         return results
 
@@ -501,25 +535,31 @@ class CKANVariable(Variable):
         parent_sq = Subquery(parent_geog_lvl.objects.filter(geom__covers=OuterRef('geom')).values('global_geoid'))
         # filter to geoids found in data
         lookup_geogs: QuerySet[AdminRegion] = base_geog_lvl.objects.filter(
-            global_geoid__in=[d.geog for d in data]
-        ).annotate(parent_geoid=parent_sq)
+            global_geoid__in=[d.geog.global_geoid for d in data]
+        ).annotate(parent_global_geoid=parent_sq)
         # make lookup dict from queryset
-        lookup = {geog.global_geoid: geog.parent_geoid for geog in lookup_geogs}
+        parent_geog_lookup = {geog.global_geoid: AdminRegion.objects.get(global_geoid=geog.parent_global_geoid) for geog
+                              in lookup_geogs}
         # using lookup, replace each datum's geog with the parent one
-        joined_data = [datum.update(geog=lookup[datum.geog]) for datum in data]
+        joined_data = [datum.update(geog=parent_geog_lookup[datum.geog.global_geoid]) for datum in data]
 
         # split data by parent_geog
         parent_data = {}
         for datum in joined_data:
-            if datum.geog not in parent_data:
-                parent_data[datum.geog] = {datum.time: [datum]}
+            geog_key = datum.geog
+            time_key = datum.time
+
+            if geog_key not in parent_data:
+                parent_data[geog_key] = {time_key: [datum]}
             else:
-                if datum.time in parent_data[datum.geog]:
-                    parent_data[datum.geog][datum.time] += [datum]
+                if time_key in parent_data[geog_key]:
+                    parent_data[geog_key][time_key] += [datum]
                 else:
-                    parent_data[datum.geog][datum.time] = [datum]
+                    parent_data[geog_key][time_key] = [datum]
 
         results: list[Datum] = []
+        geog: 'AdminRegion'
+        time_record: dict[TimeAxis.TimePart, list['Datum']]
         for geog, time_record in parent_data.items():
             for time, data in time_record.items():
                 values = [d.value for d in data]
@@ -530,12 +570,12 @@ class CKANVariable(Variable):
                 else:
                     if None in values:
                         raise AggregationError(
-                            f"Cannot aggregate data for '{geog}' since data is not available for all of "
+                            f"Cannot aggregate data for '{geog.name}' since data is not available for all of "
                             f"its constituent '{base_geog_lvl.geog_type}'s.")
                     if None in denoms:
                         self._add_warning(ErrorRecord(
                             level=ErrorLevel.WARNING,
-                            message=f"Cannot aggregate denominator data for '{geog}' at '{time}' "
+                            message=f"Cannot aggregate denominator data for '{geog.name}' at '{time}' "
                                     f"since data is not available for "
                                     f"all of its constituent '{base_geog_lvl.geog_type_title}'s"))
                     value = sum(values)
@@ -563,6 +603,7 @@ class CKANVariable(Variable):
         denom_select = None
         denom_data: list[Datum] = []
         time_part_lookup: dict[str, time_part] = {time_part.storage_hash: time_part}
+
         if denom_var:
             if len(denom_var.sources.filter(pk=source.pk)):
                 # if denom uses the same source we can simply pass its field select

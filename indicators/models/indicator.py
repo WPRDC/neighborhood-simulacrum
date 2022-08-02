@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import Optional, TYPE_CHECKING, List, TypedDict
+from typing import Optional, TYPE_CHECKING, List, TypedDict, Iterable
 
 from colorama import Fore, Style
 from django.conf import settings
@@ -196,34 +196,39 @@ class Indicator(WithTags, WithContext, Described):
                 return False
         return True
 
-    def get_subgeogs(self, geog: 'AdminRegion') -> QuerySet['AdminRegion']:
+    def get_subgeogs(self, geogs: QuerySet['AdminRegion']) -> dict[str, list['AdminRegion']]:
         """
         Returns a queryset representing the minimum set of geographies to for which data can be
         aggregated to represent `geog` and a bool representing whether child geogs are used.
 
         `None` is returned if no such non-empty set exists.
 
-        :param geog: the geography being examined
+        :param geogs: the geographies being examined
         :raises AggregationError: if aggregation isn't possible
         :return: Queryset of geographies to for which data can be aggregated to represent `geog`; None if an emtpy set.
         """
-        # does it work directly for the goeg, then just return it
-        if self.can_handle_geography(geog):
-            return type(geog).objects.filter(global_geoid=geog.global_geoid)
+        # does it work directly for the geog type
+        test_geog = geogs.all()[0]
+        if self.can_handle_geography(test_geog):
+            return {g.global_geoid: [g] for g in geogs}
 
-        # does it work as an aggregate over a smaller geog?
-        for subgeog_type_id in AdminRegion.SUBGEOG_TYPE_ORDER:
-            if subgeog_type_id in geog.subregions:
-                subgeog_model = AdminRegion.find_subclass(subgeog_type_id)
-                subgeog_global_geoids = geog.subregions[subgeog_type_id]
-                sub_geogs: QuerySet['AdminRegion'] = subgeog_model.objects.filter(
-                    global_geoid__in=subgeog_global_geoids)
+        result: dict[str, list['AdminRegion']] = {}
+        geog: 'AdminRegion'
+        for geog in geogs.all():
+            # does it work as an aggregate over a smaller geog?
+            for subgeog_type_id in AdminRegion.SUBGEOG_TYPE_ORDER:
+                if subgeog_type_id in geog.subregions:
+                    subgeog_model = AdminRegion.find_subclass(subgeog_type_id)
+                    subgeog_global_geoids = geog.subregions[subgeog_type_id]
+                    sub_geogs: QuerySet['AdminRegion'] = subgeog_model.objects.filter(
+                        global_geoid__in=subgeog_global_geoids)
+                    if self.can_handle_geographies(sub_geogs):
+                        result[geog.global_geoid] = list(sub_geogs)
 
-                if self.can_handle_geographies(sub_geogs):
-                    return sub_geogs
-
+        if result:
+            return result
         # if it required aggregation but no suitable subgeogs were found
-        raise AggregationError(f'{self.title} not available for {geog.title}.')
+        raise AggregationError(f'{self.title} not available for {type(geogs)}.')
 
     def get_data(self, geog: 'AdminRegion', across_geogs=False) -> DataResponse:
         """
@@ -262,10 +267,11 @@ class Indicator(WithTags, WithContext, Described):
             if neighbor_geogs:
                 # wrap all geographies in a GeogCollection which handles aggregation details
                 geog_collection = GeogCollection(geog_type=type(geog), primary_geog=geog)
+                subgeog_mapping: dict[str, list['AdminRegion']] = self.get_subgeogs(neighbor_geogs)
                 for neighbor_geog in neighbor_geogs:
                     geog_collection.records[neighbor_geog.global_geoid] = GeogRecord(
                         geog=neighbor_geog,
-                        subgeogs=self.get_subgeogs(neighbor_geog),
+                        subgeogs=subgeog_mapping[neighbor_geog.global_geoid]
                     )
 
                 dimensions = Indicator.Dimensions(
@@ -334,6 +340,8 @@ class Indicator(WithTags, WithContext, Described):
 
         for var in self.vars.all():
             layer: 'IndicatorVariable' = self.vars.through.objects.get(variable=var, indicator=self)
+            # todo: pass the data from get_data to this function
+            #  then have layer.get_data_layer() use that data
             data_layer: DataLayer = layer.get_data_layer(geog_collection)
             source, tmp_layers, interactive_layer_ids, legend_option = data_layer.get_map_options()
             sources.append(source)

@@ -43,22 +43,8 @@ class DataLayer(Described, TimeStamped):
         unique_together = ('geog_content_type', 'variable', 'time_axis')
 
     @property
-    def database_data_table(self) -> str:
-        return f'maps.t_{self.slug}'
-
-    @property
     def database_map_view(self) -> str:
-        return f'maps.v_{self.slug}'
-
-    @property
-    def values(self) -> List[dict]:
-        with connection.cursor() as cursor:
-            cursor.execute(f"SELECT * FROM {self.database_data_table}")
-            headers = ['geoid', 'value']
-            return [
-                dict(zip(headers, row))
-                for row in cursor.fetchall()
-            ]
+        return f'maps."{self.slug}"'
 
     @property
     def source(self):

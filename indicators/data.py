@@ -61,7 +61,7 @@ class GeogCollection:
 
         return self._divided
 
-    def filter_records_by_subgeog_ownership(self, subgeogs: Iterable['AdminRegion']) -> dict[str, 'GeogRecord']:
+    def filter_records_by_subgeog_ownership(self, subgeogs: set['AdminRegion']) -> dict[str, 'GeogRecord']:
         """ Returns `self.records` filtered to those records with at least one subgeog in `subgeogs` """
         record: 'GeogRecord'
         return {
@@ -85,7 +85,7 @@ class GeogRecord:
     geog: 'AdminRegion'
 
     # contained geographies of a specific, smaller type whose values can be used in aggregate to describe `geog`
-    subgeogs: QuerySet['AdminRegion']
+    subgeogs: list['AdminRegion']
 
     # a dict mapping subgeog slugs to time_part records time_part slugs to the data for ge
     data_by_subgeog: dict[str, dict[str, 'Datum']] = field(default_factory=dict)
@@ -101,16 +101,14 @@ class GeogRecord:
 
     @property
     def subgeog_type(self) -> Optional[str]:
-        subgeogs = self.subgeogs.all()
-        if len(subgeogs):
-            return subgeogs[0].geog_type
+        if len(self.subgeogs):
+            return self.subgeogs[0].geog_type
         return None
 
     @property
     def subgeog_class(self) -> Optional[Type['AdminRegion']]:
-        subgeogs = self.subgeogs.all()
-        if len(subgeogs):
-            return subgeogs[0].__class__
+        if len(self.subgeogs):
+            return self.subgeogs[0].__class__
         return None
 
     @property
@@ -168,7 +166,7 @@ class GeogRecord:
             count += 1
         return count
 
-    def share_subgeogs(self, test_subgeogs: Iterable['AdminRegion']):
+    def share_subgeogs(self, test_subgeogs: set['AdminRegion']):
         """ Returns `true` if the set of subgeogs provided is a superset of those in `self.subgeogs` """
         test_global_geoids: set[str] = {sg.global_geoid for sg in test_subgeogs}
         record_global_geoids: set[str] = {sg.global_geoid for sg in self.subgeogs}
@@ -208,7 +206,7 @@ class Datum:
                 percent = (ckan_datum[VALUE_DKEY] / ckan_datum[DENOM_DKEY])
 
         return Datum(variable=variable,
-                     geog=AdminRegion.objects.get(ckan_datum[GEOG_DKEY]),
+                     geog=AdminRegion.objects.get(global_geoid=ckan_datum[GEOG_DKEY]),
                      time=time_part_lookup[ckan_datum[TIME_DKEY]],
                      value=ckan_datum[VALUE_DKEY],
                      denom=denom,
@@ -228,5 +226,10 @@ class Datum:
         return replace(self, denom=denom_val, percent=(self.value / denom_val))
 
     def as_dict(self) -> dict:
+        return {'variable': self.variable, 'geog': self.geog, 'time': self.time,
+                'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}
+
+    def as_json_dict(self) -> dict:
+        """ Same as `as_dict` but with complex datatypes represented by slug """
         return {'variable': self.variable.slug, 'geog': self.geog.slug, 'time': self.time.slug,
                 'value': self.value, 'moe': self.moe, 'percent': self.percent, 'denom': self.denom}

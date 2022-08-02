@@ -64,7 +64,7 @@ class DataResponse:
 
     def as_dict(self):
         return {
-            'data': [datum.as_dict() for datum in self.data],
+            'data': [datum.as_json_dict() for datum in self.data],
             'dimensions': self.dimensions.response_dict,
             'options': self.map_options,
             'error': self.error.as_dict(),

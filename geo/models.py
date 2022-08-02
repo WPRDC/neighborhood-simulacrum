@@ -5,7 +5,7 @@ from typing import List, Type, Optional
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models.functions import Centroid
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Index
 from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
@@ -109,9 +109,14 @@ class AdminRegion(PolymorphicModel, Geography):
     display_name = models.CharField(max_length=200, null=True, blank=True)
 
     # A unique geoid.  `geoid` for census geographies.
-    global_geoid = models.CharField(max_length=21, null=True, blank=True, db_index=True)
+    global_geoid = models.CharField(max_length=21, null=True, blank=True, unique=True)
 
     subregions = models.JSONField(default=dict)
+
+    class Meta:
+        indexes = [
+            Index(fields=['global_geoid'])
+        ]
 
     @property
     def geog_path(self) -> str:

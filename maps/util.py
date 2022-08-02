@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db import connection
 
 from indicators.data import GeogCollection
+from indicators.models.data import CachedIndicatorData
 
 if TYPE_CHECKING:
     from django.db.models.sql import Query
@@ -39,7 +40,7 @@ def as_geometry_query(query: 'Query'):
 
 
 def menu_view_name(geog_type: Type['AdminRegion']):
-    return f'maps.v_{geog_type.geog_type_id.lower()}'
+    return f'maps.{geog_type.geog_type_id.lower()}'
 
 
 # noinspection SqlAmbiguousColumn ,SqlResolve
@@ -50,36 +51,49 @@ def store_map_data(
         variable: 'Variable',
         use_percent: bool
 ):
-    table_name = f'maps.t_{map_slug}'
-    view_name = f'maps.v_{map_slug}'
+    view_name = f'maps."{map_slug}"'
 
-    data, warnings = variable.get_values(geog_collection, time_axis)
     number_format_options = {'style': 'percent'} if use_percent else variable.number_format_options
     with connection.cursor() as cursor:
-        cursor.execute(f"""DROP VIEW IF EXISTS {view_name}""")
-        cursor.execute(f"""DROP TABLE IF EXISTS {table_name}""")
-        cursor.execute(f"""CREATE TABLE {table_name} (geoid varchar(63), value numeric)""")
-        sql_rows = [f"""('{datum.geog}', {datum.percent if use_percent else datum.value})""" for datum in data if data.value is not None]
-        cursor.execute(f"""INSERT INTO  {table_name} (geoid, value) VALUES """ + ", ".join(sql_rows))
+        cursor.execute(f"""DROP VIEW IF EXISTS {view_name} """)
 
         base_geography_subquery = as_geometry_query(geog_collection.geog_type.objects.filter(in_extent=True).query)
+        time_hashes = ','.join([f"'{tp.storage_hash}'" for tp in time_axis.time_parts])
+        subgeogs = ','.join([f"'{sg.global_geoid}'" for sg in geog_collection.all_subgeogs.all()])
+
+        # query for data
+        indicator_cache_query = f"""
+        SELECT 
+            geog as geog_global_geoid,
+            variable as varaible_slug,
+            time_part_hash,
+            value, moe, denom
+        FROM {CachedIndicatorData._meta.db_table} 
+        WHERE variable = '{variable.slug}'
+            AND time_part_hash IN ({time_hashes})
+            AND geog IN ({subgeogs})
+        """
 
         cursor.execute(
             f"""CREATE VIEW {view_name} AS
                     SELECT 
                         geo.slug as "geog",
                         geo.name as "geogLabel",
+                        
                         %(time_slug)s as "time",
                         %(time_name)s as "timeLabel",
+                        
                         %(var_slug)s as "variable",
                         %(var_name)s as "variableLabel",
                         %(var_abbr)s as "variableAbbr",
+                        
                         %(number_format_options)s as "numberFormatOptions",
+                        
                         geo.geom as "the_geom", 
                         geo.geom_webmercator as "the_geom_webmercator", 
                         dat.value::float as "value"
-                    FROM {table_name} dat
-                    JOIN ({base_geography_subquery}) geo ON dat.geoid = geo.global_geoid""",
+                    FROM ({indicator_cache_query}) dat
+                    JOIN ({base_geography_subquery}) geo ON dat.geog_global_geoid = geo.global_geoid""",
             {
                 'title': variable.name,
                 'time_slug': time_axis.time_parts[0].slug,

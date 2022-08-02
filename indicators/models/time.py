@@ -52,6 +52,9 @@ class TimeAxis(PolymorphicModel, Described, WithTags, WithContext):
         def storage_hash(self) -> str:
             return f"{TimeAxis.UNIT_FIELDS[self.time_unit]}{self.time_point.strftime('%Y%m%d%H%M%S')}"
 
+        def __hash__(self):
+            return hash(self.storage_hash)
+
     # If another time unit is added somehow, make sure its value reflects its relative specificity
     # By comparing specificity, we can tell which units can be rolled up into other, larger ones.
     MINUTE = 1
