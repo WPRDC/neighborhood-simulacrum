@@ -21,7 +21,7 @@ from indicators.utils import ErrorRecord, DataResponse, ErrorLevel
 from maps.util import menu_view_name
 from profiles.abstract_models import Described
 from indicators.models.source import Source
-from maps.models import DataLayer
+from maps.models import IndicatorLayer
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
@@ -46,7 +46,7 @@ class IndicatorVariable(models.Model):
     total = models.BooleanField(help_text="total's will be hidden from certain charts", default=False)
 
     def get_data_layer(self, geog_collection: 'GeogCollection'):
-        return DataLayer.get_or_create_updated_map(
+        return IndicatorLayer.get_or_create_updated_map(
             geog_collection,
             self.indicator.time_axis,
             self.variable,
@@ -342,7 +342,7 @@ class Indicator(WithTags, WithContext, Described):
             layer: 'IndicatorVariable' = self.vars.through.objects.get(variable=var, indicator=self)
             # todo: pass the data from get_data to this function
             #  then have layer.get_data_layer() use that data
-            data_layer: DataLayer = layer.get_data_layer(geog_collection)
+            data_layer: IndicatorLayer = layer.get_data_layer(geog_collection)
             source, tmp_layers, interactive_layer_ids, legend_option = data_layer.get_map_options()
             sources.append(source)
             legend_options.append(legend_option)

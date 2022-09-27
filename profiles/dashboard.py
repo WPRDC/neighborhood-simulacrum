@@ -31,13 +31,13 @@ class CustomIndexDashboard(Dashboard):
             ),
             # hack to quickly make the links not burn your eyes out
             pre_content="""
-            <style>
-                        .grp-link-external {
-                        color: #309bbf !important;
-                        font-weight: 600; 
-                        text-decoration: underline !important;
-                        }
-                     </style>
+                <style>
+                    .grp-link-external {
+                    color: #309bbf !important;
+                    font-weight: 600; 
+                    text-decoration: underline !important;
+                    }
+                </style>
             """,
         ))
 
@@ -68,6 +68,14 @@ class CustomIndexDashboard(Dashboard):
             models=(
                 'indicators.models.source.CKANSource',
                 'indicators.models.source.CensusSource',
+            )
+        ))
+
+        self.children.append(modules.ModelList(
+            title='🗺 Maps',
+            column=1,
+            models=(
+                'maps.models.MapLayer',
             )
         ))
 

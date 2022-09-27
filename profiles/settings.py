@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import sys
 
 from .local_settings import LOCAL_SECRET_KEY, DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD, LOCAL_DEBUG, \
     DATASTORE_HOST, DATASTORE_NAME, DATASTORE_PASSWORD, DATASTORE_PORT, DATASTORE_USER
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
     'django_filters',
     'nested_admin',
     'markdownx',
+    'colorfield',
 
     # local apps
     'context',
@@ -56,7 +58,9 @@ INSTALLED_APPS = [
     'geo',
     'census_data',
     'maps',
+    'parcels',
     'public_housing',
+
 
     'drf_spectacular',
 ]
@@ -173,6 +177,11 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
     ],
 
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+
     'DEFAULT_RENDERER_CLASSES': (
         'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
         'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
@@ -194,8 +203,6 @@ REST_FRAMEWORK = {
 
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
-
-CORS_ORIGIN_ALLOW_ALL = True
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 
@@ -221,17 +228,14 @@ AVAILABLE_GEOG_TYPES = (
     'zcta',
 )
 
-# todo: make it so these values are the defaults and any entries in settings replace them
 SQ_ALIAS = 'dt'
 GEO_ALIAS = '"GEO"'
 
+ID_DKEY = '__id__'
 GEOG_DKEY = '__geog__'
 TIME_DKEY = '__time__'
 VALUE_DKEY = '__value__'
 DENOM_DKEY = '__denom__'
-
-CKAN_API_BASE_URL = 'https://data.wprdc.org/api/3/'
-DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 
 VIEW_CACHE_TTL = 0  # 60 mins
 
@@ -272,3 +276,58 @@ MAP_STYLES = {
         },
     }
 }
+
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{asctime} {module} {process:d} {thread:d} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '[{asctime}] {levelname} {message} ({name})',
+#             'style': '{',
+#         },
+#         'request': {
+#             'format': '{asctime}|{levelname}|{message}',
+#             'style': '{',
+#             'datefmt': '%Y-%m-%d %H:%M:%S',
+#         }
+#     },
+#     'handlers': {
+#     },
+#     'loggers': {
+#         'public_housing': {
+#             'handlers': ['console', 'public_housing_file'],
+#             'level': 'INFO',
+#         },
+#     },
+#
+# }
+
+CKAN_HOST = 'https://data.wprdc.org'
+
+CKAN_API_BASE_URL = os.path.join(CKAN_HOST, 'api', '3')
+
+CKAN_DEFAULT_GEOM_FIELD = '_geom'
+CKAN_DEFAULT_GEOM_WEBMERCATOR_FIELD = '_the_geom_webmercator'
+CKAN_DEFAULT_ID_FIELD = '_id'
+CKAN_DEFAULT_IMAGE_FIELD = 'image'
+
+VERSION = '0.0.1'
+
+USER_AGENT = f'wprdcprofiles/{VERSION} (+https://profiles.wprdc.org)'
+
+DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
+
+TILE_SERVER_URL = 'https://api.profiles.wprdc.org/tiles'
+MAPS_SCHEMA = 'maps'
+
+CORS_ALLOWED_ORIGINS = [
+    'https://profiles.wprdc.org'
+]
+
+CORS_ALLOW_CREDENTIALS = True

@@ -90,7 +90,8 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
         }
 
     def get_primary_indicatorIDs(self, obj: Topic):
-        primary_indicators = TopicIndicator.objects.filter(topic=obj, primary=True)
+        primary_topic_indicators = TopicIndicator.objects.filter(topic=obj, primary=True)
+        primary_indicators = [ti.indicator for ti in primary_topic_indicators]
         return [v.id for v in primary_indicators]
 
     def get_hierarchies(self, obj: Topic):

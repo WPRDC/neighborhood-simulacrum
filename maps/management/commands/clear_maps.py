@@ -3,7 +3,7 @@ import typing
 import psycopg2.extras
 from django.core.management.base import BaseCommand
 
-from maps.models import DataLayer
+from maps.models import IndicatorLayer
 from django.db import connection
 
 if typing.TYPE_CHECKING:
@@ -18,7 +18,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         print('Deleting all DataLayers')
-        num, counts = DataLayer.objects.all().delete()
+        num, counts = IndicatorLayer.objects.all().delete()
         if num:
             print(counts['maps.DataLayer'], 'DataLayers deleted.')
 

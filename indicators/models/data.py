@@ -27,6 +27,7 @@ class CachedIndicatorData(models.Model):
 
     @staticmethod
     def save_records(records: Iterable['Datum'], expiration=None) -> list['CachedIndicatorData']:
+        print(records)
         new_records = [CachedIndicatorData(
             geog=datum.geog.global_geoid,
             variable=datum.variable.slug,

@@ -7,8 +7,8 @@ ALTER USER profiles_maps_user WITH PASSWORD '';
 GRANT CONNECT ON DATABASE profiles_backend TO profiles_maps_user;
 GRANT USAGE ON SCHEMA maps TO profiles_maps_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA maps TO profiles_maps_user;
-GRANT USAGE ON SCHEMA datastore to profiles_maps_user;  -- todo: maybe undo this
-GRANT SELECT ON ALL TABLES IN SCHEMA datastore TO profiles_maps_user;  -- todo: maybe undo this
+GRANT USAGE ON SCHEMA datastore to profiles_maps_user;
+GRANT SELECT ON ALL TABLES IN SCHEMA datastore TO profiles_maps_user;
 GRANT EXECUTE ON ALL ROUTINES IN SCHEMA maps to profiles_maps_user;
 
 -- grant permission to django user

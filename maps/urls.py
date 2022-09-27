@@ -4,6 +4,7 @@ from . import views
 
 router = routers.SimpleRouter()
 router.register(r'data-layers', views.DataLayerViewSet)
+router.register(r'map-layers', views.MapLayerViewSet)
 
 urlpatterns = router.urls + [
     path('geojson/<slug:map_slug>.geojson',

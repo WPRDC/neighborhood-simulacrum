@@ -28,4 +28,4 @@ static/
 
 community_explorer
 
-parcels/
+logs/**/*.log

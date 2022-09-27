@@ -44,6 +44,10 @@ class GeogCollection:
     _divided: Optional[bool] = None
 
     @property
+    def all_geogs(self) -> QuerySet['AdminRegion']:
+        return AdminRegion.objects.filter(global_geoid__in=self.records.keys())
+
+    @property
     def all_subgeogs(self) -> QuerySet['AdminRegion']:
         all_subgeog_geoids = []
         for geog_record in self.records.values():
@@ -187,7 +191,7 @@ class Datum:
 
     def __post_init__(self):
         if self.denom and self.value:
-            self.percent = self.value / self.denom
+            self.percent = float(self.value) / float(self.denom)
 
     @property
     def data(self):

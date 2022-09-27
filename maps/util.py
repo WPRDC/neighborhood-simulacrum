@@ -60,10 +60,6 @@ def store_map_data(
         subgeogs = ','.join([f"'{sg.global_geoid}'" for sg in geog_collection.all_subgeogs.all()])
 
         # query for data
-        indicator_cache_query = f"""
-
-        """
-
         cursor.execute(
             f"""
             CREATE VIEW maps."{map_slug}" AS
@@ -121,3 +117,30 @@ def store_menu_layer(geog_type: Type['AdminRegion']):
     print('Menu view added.')
 
     refresh_tile_index()
+
+
+def point_symbology(primary_color):
+    return [{
+        'type': 'circle',
+        'paint': {
+            'circle-opacity': 0.8,
+            'circle-stroke-width': 1,
+            'circle-radius': [
+                "interpolate",
+                ["exponential", 1.11],
+                ["zoom"],
+                9,
+                1,
+                22,
+                12
+            ],
+            'circle-color': primary_color,
+            'circle-stroke-color': '#000000'
+        }
+    }]
+
+
+def polygon_symbology(primary_color):
+    return {
+        'type': 'fill'
+    }

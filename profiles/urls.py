@@ -9,6 +9,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('geo/', include('geo.urls')),
     path('maps/', include('maps.urls')),
+    path('parcels/', include('parcels.urls')),
     path('public-housing/', include('public_housing.urls')),
     path('', include('indicators.urls')),
     path('schema/', SpectacularAPIView.as_view(api_version='0.0.1'), name='schema'),

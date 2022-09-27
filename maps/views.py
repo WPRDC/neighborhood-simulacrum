@@ -11,8 +11,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from maps.models import DataLayer
-from maps.serializers import DataLayerSerializer, DataLayerDetailsSerializer
+from maps.models import IndicatorLayer, MapLayer
+from maps.serializers import DataLayerSerializer, IndicatorLayerDetailsSerializer, MapLayerSerializer, \
+    MapLayerBriefSerializer
 from profiles.content_negotiation import GeoJSONContentNegotiation
 
 from django.conf import settings
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class DataLayerViewSet(viewsets.ModelViewSet):
-    queryset = DataLayer.objects.all()
+    queryset = IndicatorLayer.objects.all()
     serializer_class = DataLayerSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ]
     filter_backends = [filters.SearchFilter, ]
@@ -30,7 +31,7 @@ class DataLayerViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'list':
             return DataLayerSerializer
-        return DataLayerDetailsSerializer
+        return IndicatorLayerDetailsSerializer
 
     media_type = 'application/geo+json'
     format = 'geojson'
@@ -47,7 +48,7 @@ class GeoJSONDataLayerView(APIView):
     @method_decorator(cache_page(settings.VIEW_CACHE_TTL))
     def get(self, request: Request, map_slug=None):
         try:
-            data_layer: DataLayer = DataLayer.objects.get(slug=map_slug)
+            data_layer: IndicatorLayer = IndicatorLayer.objects.get(slug=map_slug)
             geojson = data_layer.as_geojson()
         except KeyError as e:
             # when the geog is wrong todo: make 400 malformed with info on available geo types
@@ -62,3 +63,15 @@ class GeoJSONDataLayerView(APIView):
             return Response(geojson, headers=headers, content_type='application/geo+json')
 
         return Response(geojson)
+
+
+class MapLayerViewSet(viewsets.ModelViewSet):
+    queryset = MapLayer.objects.all()
+    permission_classes = [IsAuthenticatedOrReadOnly, ]
+    filter_backends = [filters.SearchFilter, ]
+    lookup_field = 'slug'
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return MapLayerBriefSerializer
+        return MapLayerSerializer

@@ -1,6 +1,7 @@
 import itertools
 import logging
 import math
+import statistics
 from datetime import MINYEAR, MAXYEAR
 from typing import Dict, Optional, Type, List, Iterable, Union
 
@@ -29,7 +30,7 @@ def find_missing_geogs_and_time_parts(
         time_axis: TimeAxis
 ) -> ['AdminRegion', 'TimeAxis.TimePart']:
     cached_combos: dict[str, dict[str, bool]] = {}
-    missing_subgeogs: set['AdminRegion'] = set()
+    missing_geogs: set['AdminRegion'] = set()
     missing_time_parts: set['TimeAxis.TimePart'] = set()
 
     using_datum = type(records) == list
@@ -43,14 +44,14 @@ def find_missing_geogs_and_time_parts(
             cached_combos[g_key][t_key] = True
 
     # enumerate possible combinations and check status in trie
-    for combo in itertools.product(geog_collection.all_subgeogs, time_axis.time_parts):
+    for combo in itertools.product(geog_collection.all_geogs, time_axis.time_parts):
         g: 'AdminRegion' = combo[0]
         t: 'TimeAxis.TimePart' = combo[1]
         if g.global_geoid not in cached_combos or not cached_combos[g.global_geoid][t.storage_hash]:
-            missing_subgeogs.add(g)
+            missing_geogs.add(g)
             missing_time_parts.add(t)
 
-    return missing_subgeogs, missing_time_parts
+    return missing_geogs, missing_time_parts
 
 
 class Variable(PolymorphicModel, Described, WithTags, WithContext):
@@ -126,6 +127,17 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
         }.get(self.aggregation_method, models.Sum)
 
     @property
+    def aggregation_method_fn(self):
+        return {
+            AggregationMethod.NONE: sum,
+            AggregationMethod.COUNT: len,
+            AggregationMethod.SUM: sum,
+            AggregationMethod.MEAN: statistics.mean,
+            AggregationMethod.MAX: min,
+            AggregationMethod.MIN: max
+        }.get(self.aggregation_method, models.Sum)
+
+    @property
     def source_agg_method(self):
         """ Uses instances subclass's `_agg_methods` to determine what to return. """
         return self._agg_methods[self.aggregation_method]
@@ -155,26 +167,30 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
         time_part_hash_lookup: dict[str, 'TimeAxis.TimePart'] = {tp.storage_hash: tp for tp in time_axis.time_parts}
         time_part_hashes = list(time_part_hash_lookup.keys())
 
-        # query indicator datastore for
+        # query indicator datastore for any cached results
         cached_data = CachedIndicatorData.objects.filter(
             variable=self.slug,
-            geog__in=[sg.global_geoid for sg in geog_collection.all_subgeogs],
+            geog__in=[sg.global_geoid for sg in geog_collection.all_geogs],
             time_part_hash__in=time_part_hashes,
         )
-
         result_data: list[Datum] = Variable._datums_from_indicator_caches(cached_data, time_part_hash_lookup)
 
-        missing_subgeogs, missing_time_parts = find_missing_geogs_and_time_parts(cached_data, geog_collection,
-                                                                                 time_axis)
+        # find out if any of the geogs we need data for
+        missing_geogs, missing_time_parts = find_missing_geogs_and_time_parts(
+            cached_data,
+            geog_collection,
+            time_axis
+        )
 
-        if missing_subgeogs:
+        if missing_geogs:
             # generate temporary geog_collection and time_axis for the missing data
             # to send to source-specific value getter
             temp_geog_collection = GeogCollection(
                 geog_type=geog_collection.geog_type,
                 primary_geog=geog_collection.primary_geog
             )
-            temp_geog_collection.records = geog_collection.filter_records_by_subgeog_ownership(missing_subgeogs)
+            # add records to geog collection by finding subgeogs
+            temp_geog_collection.records = geog_collection.filter_records_by_subgeog_ownership(missing_geogs)
 
             temp_time_axis = TimeAxis.from_time_parts(list(missing_time_parts))
 
@@ -478,20 +494,22 @@ class CKANVariable(Variable):
         """
         results: list[Datum] = []
         parent_geog_lvl: Type['AdminRegion'] = geog_collection.geog_type
-        geogs: QuerySet['AdminRegion'] = geog_collection.all_subgeogs
+        sub_geogs: QuerySet['AdminRegion'] = geog_collection.all_subgeogs
 
         for time_part in time_axis.time_parts:
             source: CKANSource = self._get_source_for_time_part(time_part)
-            denom_select, denom_data = self._get_denom_data(source, geogs, time_part) if use_denom else (None, None)
+            denom_select, denom_data = self._get_denom_data(source, sub_geogs, time_part) if use_denom else (None, None)
 
             # get the raw data for this geog and time_part from CKAN
             query = source.get_data_query(
                 self,
-                geogs,
+                sub_geogs,
                 time_part,
                 parent_geog_lvl=parent_geog_lvl,
                 denom_select=denom_select
             )
+
+            # fixme: it's going wrong here!
 
             # get data from ckan and wrap it in our Datum class
             raw_data: list[dict] = source.query_datastore(query)
@@ -499,9 +517,9 @@ class CKANVariable(Variable):
 
             # for regional sources, we need to aggregate here for now
             if parent_geog_lvl and type(source) == CKANRegionalSource:
-                var_data = self._aggregate_data(var_data, type(geogs[0]), parent_geog_lvl)
+                var_data = self._aggregate_data(var_data, type(sub_geogs[0]), parent_geog_lvl)
                 if denom_data:
-                    denom_data = self._aggregate_data(denom_data, type(geogs[0]), parent_geog_lvl)
+                    denom_data = self._aggregate_data(denom_data, type(sub_geogs[0]), parent_geog_lvl)
 
             if denom_data:
                 # we need to link the data
@@ -509,11 +527,6 @@ class CKANVariable(Variable):
             else:
                 # either no denom at all, or denom was in same source, and captured using `denom_select`
                 results += var_data
-
-            # add blank Datums for records that weren't found.
-            missing_geogs, missing_time_parts = find_missing_geogs_and_time_parts(var_data, geog_collection, time_axis)
-            results += [Datum(geog=g, time=t, variable=self, value=None)
-                        for (g, t) in itertools.product(missing_geogs, missing_time_parts)]
 
         return results
 
@@ -551,6 +564,7 @@ class CKANVariable(Variable):
 
             if geog_key not in parent_data:
                 parent_data[geog_key] = {time_key: [datum]}
+
             else:
                 if time_key in parent_data[geog_key]:
                     parent_data[geog_key][time_key] += [datum]
@@ -558,11 +572,11 @@ class CKANVariable(Variable):
                     parent_data[geog_key][time_key] = [datum]
 
         results: list[Datum] = []
-        geog: 'AdminRegion'
+        parent_geog: 'AdminRegion'
         time_record: dict[TimeAxis.TimePart, list['Datum']]
-        for geog, time_record in parent_data.items():
+        for parent_geog, time_record in parent_data.items():
             for time, data in time_record.items():
-                values = [d.value for d in data]
+                values = [float(d.value) if d.value is not None else None for d in data]
                 denoms = [d.denom for d in data]
                 if len(data) == 1:
                     value = values[0]
@@ -570,18 +584,18 @@ class CKANVariable(Variable):
                 else:
                     if None in values:
                         raise AggregationError(
-                            f"Cannot aggregate data for '{geog.name}' since data is not available for all of "
+                            f"Cannot aggregate data for '{parent_geog.name}' since data is not available for all of "
                             f"its constituent '{base_geog_lvl.geog_type}'s.")
                     if None in denoms:
                         self._add_warning(ErrorRecord(
                             level=ErrorLevel.WARNING,
-                            message=f"Cannot aggregate denominator data for '{geog.name}' at '{time}' "
+                            message=f"Cannot aggregate denominator data for '{parent_geog.name}' at '{time}' "
                                     f"since data is not available for "
                                     f"all of its constituent '{base_geog_lvl.geog_type_title}'s"))
-                    value = sum(values)
-                    denom = sum(denoms) if len(denoms) and None not in denoms else None
+                    value = self.aggregation_method_fn(values)
+                    denom = self.aggregation_method_fn(denoms) if len(denoms) and None not in denoms else None
 
-                results.append(Datum(variable=self, geog=geog, time=time, value=value, denom=denom))
+                results.append(Datum(variable=self, geog=parent_geog, time=time, value=value, denom=denom))
         return results
 
     def _get_source_for_time_part(self, time_part: TimeAxis.TimePart) -> Optional[CKANSource]:

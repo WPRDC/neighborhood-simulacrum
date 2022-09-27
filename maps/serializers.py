@@ -1,12 +1,14 @@
 from rest_framework import serializers
 
-from maps.models import DataLayer
+from context.serializers import TagSerializer, ContextItemSerializer
+from maps.models import IndicatorLayer, CKANLayer, MapLayer
 
 
 class DataLayerSerializer(serializers.ModelSerializer):
     """ Basic information for DataLayer"""
+
     class Meta:
-        model = DataLayer
+        model = IndicatorLayer
         fields = (
             'id',
             'name',
@@ -15,13 +17,13 @@ class DataLayerSerializer(serializers.ModelSerializer):
         )
 
 
-class DataLayerDetailsSerializer(serializers.ModelSerializer):
+class IndicatorLayerDetailsSerializer(serializers.ModelSerializer):
     """ Includes the fields that require computation """
     sources = serializers.JSONField()
     layers = serializers.JSONField()
 
     class Meta:
-        model = DataLayer
+        model = IndicatorLayer
         fields = (
             'id',
             'name',
@@ -33,4 +35,38 @@ class DataLayerDetailsSerializer(serializers.ModelSerializer):
             'interactive_layer_ids',
             # our stuff
             'legend'
+        )
+
+
+class MapLayerBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MapLayer
+        fields = (
+            'slug',
+            'name',
+            'geog_type',
+            'description',
+        )
+
+
+class MapLayerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MapLayer
+        fields = (
+            'slug',
+            'name',
+            'description',
+            'geog_type',
+            'source',
+            'layers',
+            'legend',
+        )
+
+
+class CKANLayerSerializer(MapLayerSerializer):
+    class Meta:
+        model = CKANLayer
+        fields = MapLayerSerializer.Meta.fields + (
+            'resource',
+            'package',
         )
