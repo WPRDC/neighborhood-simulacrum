@@ -13,9 +13,6 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 import os
 import sys
 
-from .local_settings import LOCAL_SECRET_KEY, DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD, LOCAL_DEBUG, \
-    DATASTORE_HOST, DATASTORE_NAME, DATASTORE_PASSWORD, DATASTORE_PORT, DATASTORE_USER
-
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,10 +20,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = LOCAL_SECRET_KEY
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-KEYNOTSET')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = LOCAL_DEBUG
+DEBUG = os.environ.get('NS_DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['api.profiles.wprdc.org', '127.0.0.1', 'localhost']
 
@@ -59,8 +56,6 @@ INSTALLED_APPS = [
     'census_data',
     'maps',
     'parcels',
-    'public_housing',
-
 
     'drf_spectacular',
 ]
@@ -103,19 +98,20 @@ WSGI_APPLICATION = 'profiles.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'HOST': DB_HOST,
-        'PORT': DB_PORT,
-        'NAME': DB_NAME,
-        'USER': DB_USER,
-        'PASSWORD': DB_PASSWORD,
+        'HOST': os.environ.get('NS_DB_HOST', 'db'),
+        'PORT': os.environ.get('NS_DB_PORT', 5432),
+        'NAME': os.environ.get('NS_DB_NAME', 'simulacrum'),
+        'USER': os.environ.get('NS_DB_USER', 'simulacrum_user'),
+        'PASSWORD': os.environ.get('NS_DB_PASSWORD', 'p@ssw0rd-4-d3v'),
     },
+    # these environment variables must be set and kept secret, even for development
     'datastore': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'HOST': DATASTORE_HOST,
-        'PORT': DATASTORE_PORT,
-        'NAME': DATASTORE_NAME,
-        'USER': DATASTORE_USER,
-        'PASSWORD': DATASTORE_PASSWORD,
+        'HOST': os.environ.get('NS_DATASTORE_HOST'),
+        'PORT': os.environ.get('NS_DATASTORE_PORT', 5432),
+        'NAME': os.environ.get('NS_DATASTORE_NAME'),
+        'USER': os.environ.get('NS_DATASTORE_USER'),
+        'PASSWORD': os.environ.get('NS_DATASTORE_PASSWORD'),
     },
 }
 
@@ -243,8 +239,6 @@ LONG_TERM_CACHE_TTL = 0  # 60 * 60 * 24  # 24 hours
 
 USE_LONG_TERM_CACHE = False
 
-PUBLIC_HOUSING_PROJECT_LAYER_VIEW = 'all_public_housing_projects'
-
 APPEND_SLASH = True
 
 SPECTACULAR_SETTINGS = {
@@ -278,35 +272,6 @@ MAP_STYLES = {
 }
 
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
-
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'formatters': {
-#         'verbose': {
-#             'format': '{asctime} {module} {process:d} {thread:d} {message}',
-#             'style': '{',
-#         },
-#         'simple': {
-#             'format': '[{asctime}] {levelname} {message} ({name})',
-#             'style': '{',
-#         },
-#         'request': {
-#             'format': '{asctime}|{levelname}|{message}',
-#             'style': '{',
-#             'datefmt': '%Y-%m-%d %H:%M:%S',
-#         }
-#     },
-#     'handlers': {
-#     },
-#     'loggers': {
-#         'public_housing': {
-#             'handlers': ['console', 'public_housing_file'],
-#             'level': 'INFO',
-#         },
-#     },
-#
-# }
 
 CKAN_HOST = 'https://data.wprdc.org'
 

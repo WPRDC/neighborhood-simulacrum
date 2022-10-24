@@ -80,15 +80,6 @@ class CustomIndexDashboard(Dashboard):
         ))
 
         self.children.append(modules.ModelList(
-            title='🏡 Housing',
-            column=1,
-            models=(
-                'public_housing.models.Account',
-                'public_housing.models.Watchlist',
-            )
-        ))
-
-        self.children.append(modules.ModelList(
             title='🌎 Geographies',
             column=1,
             models=(

@@ -217,8 +217,11 @@ class Datum:
                      percent=percent)
 
     @staticmethod
-    def from_ckan_response_data(variable: 'CKANVariable', ckan_data: list[dict],
-                                time_part_lookup: dict[str, 'TimeAxis.TimePart']) -> List['Datum']:
+    def from_ckan_response_data(
+            variable: 'CKANVariable',
+            ckan_data: list[dict],
+            time_part_lookup: dict[str, 'TimeAxis.TimePart']
+    ) -> List['Datum']:
         return [Datum.from_ckan_response_datum(variable, ckan_datum, time_part_lookup) for ckan_datum in ckan_data]
 
     def update(self, **kwargs):

@@ -10,7 +10,6 @@ urlpatterns = [
     path('geo/', include('geo.urls')),
     path('maps/', include('maps.urls')),
     path('parcels/', include('parcels.urls')),
-    path('public-housing/', include('public_housing.urls')),
     path('', include('indicators.urls')),
     path('schema/', SpectacularAPIView.as_view(api_version='0.0.1'), name='schema'),
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),

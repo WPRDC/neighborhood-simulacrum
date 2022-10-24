@@ -1,0 +1,134 @@
+{
+  "domains": [
+    {
+      "name": "Physical Environment",
+      "index_field": "PhysEnvDomain_PR",
+      "subdomains": [
+        {
+          "name": "Pedestrian accessibility",
+          "index_field": "PR_PedXint"
+        },
+        {
+          "name": "Access to public open space",
+          "index_field": "PR_Park"
+        },
+        {
+          "name": "Public safety",
+          "index_field": "PR_NewPSafety"
+        },
+        {
+          "name": "Street safety",
+          "index_field": "PR_SafeSt"
+        },
+        {
+          "name": "Neighborhood quality",
+          "index_field": "PR_NeighQual"
+        }
+      ]
+    },
+    {
+      "name": "Housing",
+      "index_field": "HouseDomain_PR",
+      "subdomains": [
+        {
+          "name": "Housing burden",
+          "index_field": "PR_HBurden"
+        },
+        {
+          "name": "Assisted living",
+          "index_field": "PR_AssistLiv"
+        },
+        {
+          "name": "Housing stability",
+          "index_field": "PR_MedYrSameLoc"
+        },
+        {
+          "name": "Availability of newer housing",
+          "index_field": "PR_PerYoungerMed"
+        },
+        {
+          "name": "Availability of accessible housing",
+          "index_field": "PR_OneStory"
+        }
+      ]
+    },
+    {
+      "name": "Transport",
+      "index_field": "TransDomain_PR",
+      "subdomains": [
+        {
+          "name": "Automobile ownership",
+          "index_field": "PR_Pct2Car"
+        },
+        {
+          "name": "Public transit service",
+          "index_field": "PR_TranService"
+        },
+        {
+          "name": "Public tranisit usage",
+          "index_field": "PR_AvgRider"
+        },
+        {
+          "name": "Transportation burden",
+          "index_field": "PR_TranBurden"
+        },
+        {
+          "name": "Walkability",
+          "index_field": "PR_NWI"
+        }
+      ]
+    },
+    {
+      "name": "Social Participation",
+      "index_field": "SocParticDomain_PR",
+      "subdomains": [
+        {
+          "name": "Broadband connectivity",
+          "index_field": "PR_IntAccess"
+        },
+        {
+          "name": "Access to recreation",
+          "index_field": "PR_RecAccess"
+        },
+        {
+          "name": "Access to social and religious community",
+          "index_field": "PR_ReligOrg"
+        },
+        {
+          "name": "Workforce participation",
+          "index_field": "PR_Over65Work"
+        },
+        {
+          "name": "Community involvement",
+          "index_field": "PR_PerVote"
+        }
+      ]
+    },
+    {
+      "name": "Community Services",
+      "index_field": "CommServDomain_PR",
+      "subdomains": [
+        {
+          "name": "Proximity to emergency care",
+          "index_field": "PR_Ecare"
+        },
+        {
+          "name": "Healthcare availability",
+          "index_field": "PR_PhysOff"
+        },
+        {
+          "name": "Food environment",
+          "index_field": "PR_Grocery"
+        },
+        {
+          "name": "Elder Care Facilities",
+          "index_field": "PR_ResAgeCare"
+        },
+        {
+          "name": "Senior Dependency",
+          "index_field": "PR_SeniorSupport"
+        }
+      ]
+    }
+  ]
+}

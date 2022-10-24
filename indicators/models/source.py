@@ -5,7 +5,7 @@ from typing import Union, Type, Optional, TYPE_CHECKING
 
 import psycopg2
 from django.contrib.gis.db.models import Union as GeoUnion
-from django.db import models
+from django.db import models, connections
 from django.db.models import QuerySet
 from polymorphic.models import PolymorphicModel
 from psycopg2.extras import RealDictCursor, RealDictConnection
@@ -14,20 +14,11 @@ from context.models import WithTags, WithContext
 from geo.models import AdminRegion, Tract, County, BlockGroup, CountySubdivision, SchoolDistrict
 from indicators.models.time import TimeAxis
 from profiles.abstract_models import Described
-from profiles.local_settings import DATASTORE_NAME, DATASTORE_HOST, DATASTORE_USER, DATASTORE_PASSWORD, DATASTORE_PORT
-from profiles.settings import SQ_ALIAS, GEO_ALIAS, DENOM_DKEY
+from profiles.settings import SQ_ALIAS, GEO_ALIAS
 
 from profiles.settings import DENOM_DKEY, VALUE_DKEY, GEOG_DKEY, TIME_DKEY
 
 logger = logging.getLogger(__name__)
-
-datastore_settings = {
-    'host': DATASTORE_HOST,
-    'port': DATASTORE_PORT,
-    'dbname': DATASTORE_NAME,
-    'user': DATASTORE_USER,
-    'password': DATASTORE_PASSWORD,
-}
 
 if TYPE_CHECKING:
     from indicators.models.variable import CKANVariable
@@ -178,10 +169,11 @@ class CKANSource(Source, PolymorphicModel):
 
     @staticmethod
     def query_datastore(query: str):
-        conn: RealDictConnection = psycopg2.connect(**datastore_settings, cursor_factory=RealDictCursor)
-        cur: RealDictCursor = conn.cursor()
-        cur.execute(query)
-        return cur.fetchall()
+        conn = connections['datastore']
+        conn.ensure_connection()
+        with conn.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query)
+            return cursor.fetchall()
 
     # SQL Generators
     def _get_geog_filter_sql(self, geogs: QuerySet['AdminRegion']) -> str:

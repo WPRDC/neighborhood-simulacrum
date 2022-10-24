@@ -20,12 +20,16 @@ profiles/local_settings.py
 # old version of indicators app
 api.bak
 
-# for now at least
-bin/
-
 static/
 /pg_tileserv_latest_osx/
 
 community_explorer
 
 logs/**/*.log
+
+
+.env*
+!.env.example
+
+
+.archive
