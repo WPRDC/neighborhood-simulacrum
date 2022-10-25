@@ -166,7 +166,6 @@ class IndicatorWithDataSerializer(IndicatorSerializer):
 
     def get_geogs(self, obj: Indicator):
         geog_type: Type['AdminRegion'] = type(self.context['geography'])
-        print('GEOG', geog_type,  self.context.get('across_geogs'))
         if self.context.get('across_geogs'):
             all_geogs = all_geogs_in_extent(geog_type)
             return AdminRegionPolymorphicSerializer(all_geogs, many=True).data

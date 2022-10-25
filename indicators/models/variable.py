@@ -3,7 +3,7 @@ import logging
 import math
 import statistics
 from datetime import MINYEAR, MAXYEAR
-from typing import Dict, Optional, Type, List, Iterable, Union
+from typing import Dict, Optional, Type, List, Union
 
 from django.db import models
 from django.db.models import QuerySet, Sum, Manager, F, OuterRef, Subquery
@@ -24,10 +24,11 @@ from profiles.abstract_models import Described
 logger = logging.getLogger(__name__)
 
 
+
 def find_missing_geogs_and_time_parts(
         records: Union[QuerySet['CachedIndicatorData'], list['Datum']],
         geog_collection: GeogCollection,
-        time_axis: TimeAxis
+        time_axis: TimeAxis,
 ) -> ['AdminRegion', 'TimeAxis.TimePart']:
     cached_combos: dict[str, dict[str, bool]] = {}
     missing_geogs: set['AdminRegion'] = set()
@@ -158,6 +159,7 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
 
         :returns: a flat list of Datums of length len(time_axis) * len(geog_collection)
         """
+        print()
         using_denom: bool = use_denom
         if use_denom and not len(self.denominators.all()):
             print("!! `use_denom` set but there are no denominators !!")
@@ -179,15 +181,16 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
         missing_geogs, missing_time_parts = find_missing_geogs_and_time_parts(
             cached_data,
             geog_collection,
-            time_axis
+            time_axis,
         )
 
-        if missing_geogs:
+        if missing_geogs and len(missing_geogs) > (len(geog_collection.all_geogs) / 2):
             # generate temporary geog_collection and time_axis for the missing data
             # to send to source-specific value getter
             temp_geog_collection = GeogCollection(
                 geog_type=geog_collection.geog_type,
-                primary_geog=geog_collection.primary_geog
+                primary_geog=geog_collection.primary_geog,
+                geographic_extent=geog_collection.geographic_extent
             )
             # add records to geog collection by finding subgeogs
             temp_geog_collection.records = geog_collection.filter_records_by_subgeog_ownership(missing_geogs)
@@ -509,8 +512,6 @@ class CKANVariable(Variable):
                 denom_select=denom_select
             )
 
-            # fixme: it's going wrong here!
-
             # get data from ckan and wrap it in our Datum class
             raw_data: list[dict] = source.query_datastore(query)
             var_data: list[Datum] = Datum.from_ckan_response_data(self, raw_data, time_axis.time_part_lookup)
@@ -528,6 +529,7 @@ class CKANVariable(Variable):
                 # either no denom at all, or denom was in same source, and captured using `denom_select`
                 results += var_data
 
+        # at this point, results
         return results
 
     @property
@@ -546,13 +548,16 @@ class CKANVariable(Variable):
         """ Rolls up data to `parent_geog_lvl` using `self.aggregation_method` """
         # join parent join to base_geogs
         parent_sq = Subquery(parent_geog_lvl.objects.filter(geom__covers=OuterRef('geom')).values('global_geoid'))
+
         # filter to geoids found in data
         lookup_geogs: QuerySet[AdminRegion] = base_geog_lvl.objects.filter(
             global_geoid__in=[d.geog.global_geoid for d in data]
         ).annotate(parent_global_geoid=parent_sq)
+
         # make lookup dict from queryset
         parent_geog_lookup = {geog.global_geoid: AdminRegion.objects.get(global_geoid=geog.parent_global_geoid) for geog
                               in lookup_geogs}
+
         # using lookup, replace each datum's geog with the parent one
         joined_data = [datum.update(geog=parent_geog_lookup[datum.geog.global_geoid]) for datum in data]
 

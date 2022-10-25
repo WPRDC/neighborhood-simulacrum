@@ -40,11 +40,17 @@ class GeogCollection:
     """
     geog_type: Type[AdminRegion]
     primary_geog: AdminRegion
+    geographic_extent: Optional[AdminRegion]
     records: dict[str, 'GeogRecord'] = field(default_factory=dict)
     _divided: Optional[bool] = None
 
     @property
     def all_geogs(self) -> QuerySet['AdminRegion']:
+        if self.geographic_extent:
+            return AdminRegion.objects.filter(
+                global_geoid__in=self.records.keys(),
+                geom__coveredby=self.geographic_extent.geom.buffer(0.001)
+            )
         return AdminRegion.objects.filter(global_geoid__in=self.records.keys())
 
     @property

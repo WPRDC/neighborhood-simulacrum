@@ -38,6 +38,8 @@ class Source(PolymorphicModel, Described, WithTags, WithContext):
         choices=TimeAxis.UNIT_CHOICES
     )
 
+    geographic_extent = models.ForeignKey('geo.AdminRegion', on_delete=models.PROTECT, null=True, blank=True)
+
     @property
     def info_link(self):
         """ Link to external resource where user can find info on data source and/or the source itself."""

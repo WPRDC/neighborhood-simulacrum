@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import Optional, TYPE_CHECKING, List, TypedDict, Iterable
+from typing import Optional, TYPE_CHECKING, List, TypedDict
 
 from colorama import Fore, Style
 from django.conf import settings
@@ -14,14 +14,13 @@ from markdownx.models import MarkdownxField
 
 from context.models import WithContext, WithTags
 from geo.models import AdminRegion
-from geo.util import all_geogs_in_extent
 from indicators.data import Datum, GeogCollection, GeogRecord
 from indicators.errors import AggregationError, DataRetrievalError
+from indicators.models.source import Source
 from indicators.utils import ErrorRecord, DataResponse, ErrorLevel
+from maps.models import IndicatorLayer
 from maps.util import menu_view_name
 from profiles.abstract_models import Described
-from indicators.models.source import Source
-from maps.models import IndicatorLayer
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
@@ -177,6 +176,11 @@ class Indicator(WithTags, WithContext, Described):
                 and not self.is_singleton['geog']
         )
 
+    @property
+    def geographic_extent(self) -> 'AdminRegion':
+        # fixme: should actually determine it instead of depending on single source for single variable
+        return self.variables[0].sources.all()[0].geographic_extent
+
     def can_handle_geography(self, geog: 'AdminRegion') -> bool:
         """
         Returns `True` if the variables in this visualization and, in turn, their sources, work
@@ -266,7 +270,11 @@ class Indicator(WithTags, WithContext, Described):
 
             if neighbor_geogs:
                 # wrap all geographies in a GeogCollection which handles aggregation details
-                geog_collection = GeogCollection(geog_type=type(geog), primary_geog=geog)
+                geog_collection = GeogCollection(
+                    geog_type=type(geog),
+                    primary_geog=geog,
+                    geographic_extent=self.geographic_extent
+                )
                 subgeog_mapping: dict[str, list['AdminRegion']] = self.get_subgeogs(neighbor_geogs)
                 for neighbor_geog in neighbor_geogs:
                     geog_collection.records[neighbor_geog.global_geoid] = GeogRecord(

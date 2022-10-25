@@ -11,6 +11,7 @@ class CensusSourceAdmin(admin.ModelAdmin):
         'slug',
         'dataset',
     )
+    autocomplete_fields = ('geographic_extent',)
     prepopulated_fields = {"slug": ("name",)}
 
 
@@ -24,6 +25,7 @@ class CKANSourceAdmin(PolymorphicParentModelAdmin):
     )
     search_fields = ('name',)
     base_model = CKANSource
+    autocomplete_fields = ('geographic_extent',)
     child_models = (CKANGeomSource, CKANRegionalSource,)
     prepopulated_fields = {"slug": ("name",)}
 
@@ -39,6 +41,7 @@ class CKANGeomSourceAdmin(PolymorphicChildModelAdmin):
         'geom_field',
     )
     search_fields = ('name',)
+    autocomplete_fields = ('geographic_extent',)
     prepopulated_fields = {"slug": ("name",)}
 
 
@@ -53,3 +56,4 @@ class CKANRegionalSourceAdmin(PolymorphicChildModelAdmin):
     )
     search_fields = ('name',)
     prepopulated_fields = {"slug": ("name",)}
+    autocomplete_fields = ('geographic_extent',)

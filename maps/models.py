@@ -166,6 +166,7 @@ class IndicatorLayer(Described, TimeStamped):
 
     @staticmethod
     def get_or_create_updated_map(geog_collection: 'GeogCollection',
+                                  data: typing.Optional[list[list[list[dict]]]],
                                   time_axis: 'TimeAxis',
                                   variable: 'Variable',
                                   use_percent: bool) -> 'IndicatorLayer':
