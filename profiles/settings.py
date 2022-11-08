@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/2.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.2/ref/settings/
 """
-
+import json
 import os
 import sys
 
@@ -291,8 +291,6 @@ DATASTORE_SEARCH_SQL_ENDPOINT = 'action/datastore_search_sql'
 TILE_SERVER_URL = 'https://api.profiles.wprdc.org/tiles'
 MAPS_SCHEMA = 'maps'
 
-CORS_ALLOWED_ORIGINS = [
-    'https://profiles.wprdc.org'
-]
+CORS_ALLOWED_ORIGINS = json.loads(os.environ.get('NS_CORS_ALLOWED_ORIGINS', '["https://profiles.wprdc.org"]'))
 
 CORS_ALLOW_CREDENTIALS = True

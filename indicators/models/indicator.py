@@ -44,7 +44,7 @@ class IndicatorVariable(models.Model):
     order = models.IntegerField()
     total = models.BooleanField(help_text="total's will be hidden from certain charts", default=False)
 
-    def get_data_layer(self, geog_collection: 'GeogCollection'):
+    def get_data_map_layer(self, geog_collection: 'GeogCollection'):
         return IndicatorLayer.get_or_create_updated_map(
             geog_collection,
             self.indicator.time_axis,
@@ -181,6 +181,27 @@ class Indicator(WithTags, WithContext, Described):
         # fixme: should actually determine it instead of depending on single source for single variable
         return self.variables[0].sources.all()[0].geographic_extent
 
+    def get_neighbor_geogs(self, geog: 'AdminRegion', across_geogs):
+        making_map = self.is_mappable and across_geogs
+        if making_map:
+            # if making a map, we need all possible geographies of the target type
+            # for a lot of indicators, this is means all,
+            # for some, the list will be limited to the geographic extent of their data source
+            # fixme: this works for our current limited scope of only having single variable maps. this will change.
+            #   we eventually will need to handle indicators with multiple variables (maybe limit to 2) and also
+            #   possibly handle the odd case where a variable has 2 sources.
+            main_var: Variable = self.variables[0]
+            main_source: Source = main_var.sources.all()[0]
+            if main_source.geographic_extent:
+                neighbor_geogs = geog.__class__.objects.filter(geom__coveredby=main_source.geographic_extent.geom)
+            else:
+                neighbor_geogs = geog.__class__.objects.filter(in_extent=True, )
+
+        else:
+            # if not making a map, we only need the target geography
+            neighbor_geogs = geog.__class__.objects.filter(global_geoid=geog.global_geoid)
+        return neighbor_geogs
+
     def can_handle_geography(self, geog: 'AdminRegion') -> bool:
         """
         Returns `True` if the variables in this visualization and, in turn, their sources, work
@@ -261,12 +282,13 @@ class Indicator(WithTags, WithContext, Described):
         warnings: Optional[list[ErrorRecord]] = None
         making_map = self.is_mappable and across_geogs
 
+        # todo: limit this based on possible geographic domain
+        #   i.e. some sources only handle a certain extent, and we need to keep
+        #   this from check for geogs outside of that extent each time it's requested.
+
         try:
             # create set of geographies to pull data on
-            if making_map:
-                neighbor_geogs = geog.__class__.objects.filter(in_extent=True)
-            else:
-                neighbor_geogs = geog.__class__.objects.filter(global_geoid=geog.global_geoid)
+            neighbor_geogs = self.get_neighbor_geogs(geog, across_geogs)
 
             if neighbor_geogs:
                 # wrap all geographies in a GeogCollection which handles aggregation details
@@ -324,6 +346,7 @@ class Indicator(WithTags, WithContext, Described):
             else:
                 error = ErrorRecord(level=ErrorLevel.EMPTY,
                                     message=f'This visualization is not available for {geog.name}.')
+            print('👋 returning data response', data, dimensions, map_options, error, warnings)
             return DataResponse(data, dimensions, map_options, error, warnings=warnings)
 
         except DataRetrievalError as e:
@@ -350,7 +373,10 @@ class Indicator(WithTags, WithContext, Described):
             layer: 'IndicatorVariable' = self.vars.through.objects.get(variable=var, indicator=self)
             # todo: pass the data from get_data to this function
             #  then have layer.get_data_layer() use that data
-            data_layer: IndicatorLayer = layer.get_data_layer(geog_collection)
+            print('getting layer')
+            data_layer: IndicatorLayer = layer.get_data_map_layer(geog_collection)
+            print('got  layer')
+
             source, tmp_layers, interactive_layer_ids, legend_option = data_layer.get_map_options()
             sources.append(source)
             legend_options.append(legend_option)
@@ -374,7 +400,7 @@ class Indicator(WithTags, WithContext, Described):
         }
         sources.append(highlight_source)
         layers.append(highlight_layer)
-
+        print('map options done')
         return {
             'sources': sources,
             'layers': layers,

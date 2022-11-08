@@ -86,9 +86,7 @@ def is_geog_data_request(request: Request) -> bool:
 
 def get_geog_from_request(request: Request) -> AdminRegion:
     slug = request.query_params.get('geog')
-    return AdminRegion.objects \
-        .annotate(centroid=Centroid('geom')) \
-        .get(slug=slug)
+    return AdminRegion.objects.get(slug=slug)
 
 
 def tile_bbox(z, x, y, srid=3857):

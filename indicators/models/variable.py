@@ -24,7 +24,6 @@ from profiles.abstract_models import Described
 logger = logging.getLogger(__name__)
 
 
-
 def find_missing_geogs_and_time_parts(
         records: Union[QuerySet['CachedIndicatorData'], list['Datum']],
         geog_collection: GeogCollection,
@@ -185,6 +184,7 @@ class Variable(PolymorphicModel, Described, WithTags, WithContext):
         )
 
         if missing_geogs and len(missing_geogs) > (len(geog_collection.all_geogs) / 2):
+            print('👋 apparently missing data for', missing_geogs)
             # generate temporary geog_collection and time_axis for the missing data
             # to send to source-specific value getter
             temp_geog_collection = GeogCollection(
@@ -498,7 +498,7 @@ class CKANVariable(Variable):
         results: list[Datum] = []
         parent_geog_lvl: Type['AdminRegion'] = geog_collection.geog_type
         sub_geogs: QuerySet['AdminRegion'] = geog_collection.all_subgeogs
-
+        print('GETTING')
         for time_part in time_axis.time_parts:
             source: CKANSource = self._get_source_for_time_part(time_part)
             denom_select, denom_data = self._get_denom_data(source, sub_geogs, time_part) if use_denom else (None, None)

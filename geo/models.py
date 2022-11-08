@@ -14,12 +14,12 @@ from profiles.abstract_models import Described
 
 class Geography(models.Model):
     """
-    Abstract class to provide geographic data.
+    Abstract class with shared geographic data fields
     """
     geom = models.MultiPolygonField()
     mini_geom = models.MultiPolygonField(null=True)
     geom_webmercator = models.MultiPolygonField(srid=3857, null=True)
-
+    centroid = models.PointField(null=True)
     in_extent = models.BooleanField(null=True)
 
     @property
@@ -227,8 +227,8 @@ class BlockGroup(AdminRegion, CensusGeography):
     @property
     def hierarchy(self):
         return [
-            County.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}'),
-            Tract.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}{self.tractce}')
+            County.objects.get(geoid=f'{self.statefp}{self.countyfp}'),
+            Tract.objects.get(geoid=f'{self.statefp}{self.countyfp}{self.tractce}')
         ]
 
     @property
@@ -262,7 +262,7 @@ class Tract(AdminRegion, CensusGeography):
 
     @property
     def hierarchy(self):
-        return [County.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}')]
+        return [County.objects.get(geoid=f'{self.statefp}{self.countyfp}')]
 
     @property
     def census_geo(self):
@@ -296,7 +296,7 @@ class CountySubdivision(AdminRegion, CensusGeography):
 
     @property
     def hierarchy(self):
-        return [County.objects.annotate(centroid=Centroid('geom')).get(geoid=f'{self.statefp}{self.countyfp}')]
+        return [County.objects.get(geoid=f'{self.statefp}{self.countyfp}')]
 
     @property
     def census_geo(self):

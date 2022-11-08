@@ -1,14 +1,12 @@
 from functools import lru_cache
-from typing import Type
 
 from rest_framework import serializers
 
 from context.serializers import TagSerializer, ContextItemSerializer
 from geo.models import AdminRegion
-from geo.serializers import AdminRegionPolymorphicSerializer
-from geo.util import all_geogs_in_extent
-from .time import TimeAxisPolymorphicSerializer
+from geo.serializers import AdminRegionBriefSerializer
 from .source import SourceSerializer
+from .time import TimeAxisPolymorphicSerializer
 from .variable import IndicatorVariablePolymorphicSerializer
 from ..models.indicator import Indicator
 from ..utils import DataResponse
@@ -115,6 +113,8 @@ class IndicatorWithDataSerializer(IndicatorSerializer):
         return 'single-geog'
 
     def get_data(self, obj: Indicator):
+        print('getting data')
+
         if 'error' in self.context:
             return []
         data_response: DataResponse = self._get_data_response(
@@ -122,30 +122,39 @@ class IndicatorWithDataSerializer(IndicatorSerializer):
             self.context['geography'],
             across_geogs=self.context.get('across_geogs', False)
         )
+        print('done')
         return data_response.data
 
     def get_dimensions(self, obj: Indicator):
+        print('getting dimensions')
         if 'error' in self.context:
             return []
         data_response: DataResponse = self._get_data_response(
             obj, self.context['geography'],
             across_geogs=self.context.get('across_geogs', False)
         )
+        print('done')
         return data_response.dimensions.response_dict
 
     def get_map_options(self, obj: Indicator):
+        print('getting map options')
         if 'error' in self.context:
+            print('done')
             return []
         data_response: DataResponse = self._get_data_response(
             obj,
             self.context['geography'],
             across_geogs=self.context.get('across_geogs', False)
         )
+        print('done')
         return data_response.map_options
 
     def get_error(self, obj: Indicator):
+        print('getting errors')
         if 'error' in self.context:
+            print('done')
             return self.context['error']
+        print('done')
         return self._get_data_response(
             obj,
             self.context['geography'],
@@ -153,7 +162,9 @@ class IndicatorWithDataSerializer(IndicatorSerializer):
         ).error.as_dict()
 
     def get_warnings(self, obj: Indicator):
+        print('getting warnings')
         if 'error' in self.context:
+            print('done')
             return self.context['warnings']
         warnings = self._get_data_response(
             obj,
@@ -161,12 +172,17 @@ class IndicatorWithDataSerializer(IndicatorSerializer):
             across_geogs=self.context.get('across_geogs', False)
         ).warnings
         if warnings:
+            print('done')
             return [warning.as_dict() for warning in warnings]
+        print('done')
         return None
 
     def get_geogs(self, obj: Indicator):
-        geog_type: Type['AdminRegion'] = type(self.context['geography'])
+        primary_geog = self.context['geography']
+        print('getting geogs')
         if self.context.get('across_geogs'):
-            all_geogs = all_geogs_in_extent(geog_type)
-            return AdminRegionPolymorphicSerializer(all_geogs, many=True).data
-        return [AdminRegionPolymorphicSerializer(self.context['geography']).data]
+            all_geogs = obj.get_neighbor_geogs(primary_geog, True)
+            print('done')
+            return AdminRegionBriefSerializer(all_geogs, many=True).data
+        print('done')
+        return [AdminRegionBriefSerializer(self.context['geography']).data]

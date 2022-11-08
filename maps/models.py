@@ -166,7 +166,6 @@ class IndicatorLayer(Described, TimeStamped):
 
     @staticmethod
     def get_or_create_updated_map(geog_collection: 'GeogCollection',
-                                  data: typing.Optional[list[list[list[dict]]]],
                                   time_axis: 'TimeAxis',
                                   variable: 'Variable',
                                   use_percent: bool) -> 'IndicatorLayer':
@@ -182,12 +181,16 @@ class IndicatorLayer(Described, TimeStamped):
 
         """
         geog_ctype: ContentType = ContentType.objects.get_for_model(geog_collection.geog_type)
+        print('get_or_create_updated_map', 'starting')
+
         try:
             # check if we already have map data
             return IndicatorLayer.objects.get(geog_content_type=geog_ctype, variable=variable, time_axis=time_axis)
             # todo: do some freshness checks - and update data if necessary
         except IndicatorLayer.DoesNotExist:
             # if not, we need to get the data and register it with a new map record
+            print('get_or_create_updated_map', 'LAYER NOT FOUND')
+
             geog_type_id = geog_collection.geog_type.geog_type_id
             geog_type_title = geog_collection.geog_type.geog_type_title
             slug = 'dl_' + str(uuid.uuid4()).replace('-', '_')
