@@ -147,7 +147,7 @@ class IndicatorLayer(Described, TimeStamped):
             )
 
     def as_geojson(self) -> dict:
-        """ Return [geojson](https://geojson.org) representation of the map """
+        """ Return geojson representation of the map """
         query = f"""SELECT json_build_object(
                                     'type', 'FeatureCollection',
                                     'features', json_agg(ST_AsGeoJSON(v.*)::json)) 

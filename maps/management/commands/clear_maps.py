@@ -20,7 +20,7 @@ class Command(BaseCommand):
         print('Deleting all DataLayers')
         num, counts = IndicatorLayer.objects.all().delete()
         if num:
-            print(counts['maps.DataLayer'], 'DataLayers deleted.')
+            print(counts, 'DataLayers deleted.')
 
 
         print('Dropping orphaned map views and tables')

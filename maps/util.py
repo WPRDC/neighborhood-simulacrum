@@ -18,9 +18,10 @@ if TYPE_CHECKING:
 def refresh_tile_index():
     """ Signal tile server to register new view """
     try:
-        urllib.request.urlopen("http://127.0.0.1:3000/index.json")
+        urllib.request.urlopen(f"{settings.TILE_SERVER_URL}/index.json")
     except URLError:
         pass
+
 
 
 def as_tile_server_query(query: 'Query'):
