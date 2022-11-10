@@ -4,8 +4,7 @@ from typing import List, Type, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
-from django.contrib.gis.db.models.functions import Centroid
-from django.db.models import QuerySet, Index
+from django.db.models import Index
 from django.utils.text import slugify
 from polymorphic.models import PolymorphicModel
 
