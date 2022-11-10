@@ -375,7 +375,6 @@ default_color_options = [
     'Purples',
     'Blues',
     'Greens',
-    'Oranges',
 ]
 
 # currently just from color brewer
