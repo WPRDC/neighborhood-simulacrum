@@ -1,8 +1,8 @@
 from django.contrib import admin
-from django.contrib.admin import register
+from django.contrib.admin import register, ModelAdmin
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin
 
-from maps.models import CKANLayer, MapLayer
+from maps.models import CKANLayer, MapLayer, IndicatorLayer
 
 
 @register(MapLayer)
@@ -26,3 +26,8 @@ class MapLayerChildAdmin(PolymorphicChildModelAdmin):
 class CKANLayerAdmin(MapLayerChildAdmin):
     list_display = ('slug', 'name',)
     search_fields = ('name', 'slug',)
+
+
+@register(IndicatorLayer)
+class IndicatorLayerAdmin(ModelAdmin):
+    pass

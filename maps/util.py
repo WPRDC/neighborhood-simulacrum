@@ -23,7 +23,6 @@ def refresh_tile_index():
         pass
 
 
-
 def as_tile_server_query(query: 'Query'):
     import re
     query_str = as_geometry_query(query)
@@ -40,7 +39,7 @@ def as_geometry_query(query: 'Query'):
     return str(query).replace('::bytea', '')
 
 
-def menu_view_name(geog_type: Type['AdminRegion']):
+def make_menu_view_name(geog_type: Type['AdminRegion']):
     return f'maps.{geog_type.geog_type_id.lower()}'
 
 
@@ -106,7 +105,7 @@ def store_map_data(
 def store_menu_layer(geog_type: Type['AdminRegion']):
     """ Creates tables of geographies to be served by tile server for use in menus"""
     print('Adding menu view for', geog_type.geog_type_id)
-    view_name = menu_view_name(geog_type)
+    view_name = make_menu_view_name(geog_type)
     view_query = as_tile_server_query(geog_type.objects.filter(in_extent=True).query)
 
     # todo: make geog menu table with limited, standardized fields

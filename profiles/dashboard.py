@@ -76,6 +76,7 @@ class CustomIndexDashboard(Dashboard):
             column=1,
             models=(
                 'maps.models.MapLayer',
+                'maps.models.IndicatorLayer',
             )
         ))
 

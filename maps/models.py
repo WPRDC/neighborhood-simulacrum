@@ -10,8 +10,8 @@ from ckanapi import RemoteCKAN
 from colorfield.fields import ColorField
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres.fields import ArrayField
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import connection
 from django.db import models
 from django.db.models.signals import post_save
@@ -23,8 +23,8 @@ from context.models import WithTags
 from geo.models import AdminRegion
 from indicators.data import GeogCollection
 from indicators.errors import NotAvailableForGeogError
-from maps.color import color_brewer_choices
-from maps.util import store_map_data, refresh_tile_index, point_symbology
+from profiles.color import color_choices, color_ramps, default_color_options
+from maps.util import store_map_data, refresh_tile_index
 from profiles.abstract_models import Described, TimeStamped
 from profiles.types import CKANResource, CKANPackage
 
@@ -42,6 +42,10 @@ def random_color():
     return "#%06x" % random.randint(0, 0xFFFFFF)
 
 
+def random_color_scale():
+    return random.choice(default_color_options)
+
+
 class IndicatorLayer(Described, TimeStamped):
     """
     Record of each map stored, one per any geogType-variable-timePart combination.
@@ -55,11 +59,17 @@ class IndicatorLayer(Described, TimeStamped):
     time_axis = models.ForeignKey('indicators.TimeAxis', on_delete=models.CASCADE)
     number_format_options = models.JSONField(default=dict)
     use_percent = models.BooleanField(default=False)
-
+    color_scale = models.CharField(max_length=100, choices=color_choices, default=random_color_scale)
+    color_scale_buckets = models.IntegerField(validators=[MinValueValidator(3), MaxValueValidator(9)], default=5)
     _breaks = None
 
     class Meta:
         unique_together = ('geog_content_type', 'variable', 'time_axis')
+
+    @property
+    def color_scale_colors(self):
+        """ Returns the list of color for the scale at the selected length """
+        return color_ramps[self.color_scale][str(self.color_scale_buckets)]
 
     @property
     def database_map_view(self) -> str:
@@ -90,9 +100,11 @@ class IndicatorLayer(Described, TimeStamped):
     @property
     def legend(self):
         breaks = self.breaks
+        color_ramp = self.color_scale_colors
+        print('👋', breaks, color_ramp)
         legend_variant = 'scale'
         legend_items = [{'label': breaks[i],
-                         'marker': DEFAULT_CHOROPLETH_COLORS[i]} for i in range(len(breaks))]
+                         'marker': self.color_scale_colors[i]} for i in range(len(breaks))]
         return {'label': self.label,
                 'number_format_options': {'style': 'percent'} if self.use_percent else self.number_format_options,
                 'variant': legend_variant,
@@ -102,10 +114,11 @@ class IndicatorLayer(Described, TimeStamped):
     def layers(self):
         _id = self.slug
         breaks = self.breaks
+        color_ramp = self.color_scale_colors
         # zip breakpoints with colors
-        steps = list(itertools.chain.from_iterable(zip(breaks, DEFAULT_CHOROPLETH_COLORS[1:len(breaks)])))
+        steps = list(itertools.chain.from_iterable(zip(breaks, color_ramp[1:len(breaks)])))
         source_layer = self.database_map_view.replace('"', '')
-        fill_color = ["step", ["get", "value"], DEFAULT_CHOROPLETH_COLORS[0]] + steps
+        fill_color = ["step", ["get", "value"], color_ramp[0]] + steps
         return [{
             "id": f'{_id}/boundary',
             'type': 'line',
@@ -137,9 +150,11 @@ class IndicatorLayer(Described, TimeStamped):
         # todo: handle custom bucket counts
         try:
             if not self._breaks:
+                # fixme: this seems wasteful, definitely confusing
                 values = [feat['properties']['value'] for feat in self.as_geojson()['features'] if
                           feat['properties']['value'] is not None]
-                self._breaks = jenks_breaks(values, nb_class=min(len(values), 6))[0:]
+
+                self._breaks = jenks_breaks(values, nb_class=min(len(values), self.color_scale_buckets - 1))[0:]
             return self._breaks
         except ValueError as e:
             raise NotAvailableForGeogError(
@@ -168,7 +183,8 @@ class IndicatorLayer(Described, TimeStamped):
     def get_or_create_updated_map(geog_collection: 'GeogCollection',
                                   time_axis: 'TimeAxis',
                                   variable: 'Variable',
-                                  use_percent: bool) -> 'IndicatorLayer':
+                                  use_percent: bool,
+                                  color_scale: str) -> 'IndicatorLayer':
         """
         Returns a Map object associated with the args.
 
@@ -207,7 +223,9 @@ class IndicatorLayer(Described, TimeStamped):
                 geog_content_type=geog_ctype,
                 variable=variable,
                 use_percent=use_percent,
-                number_format_options=variable.number_format_options
+                number_format_options=variable.number_format_options,
+                color_scale=color_scale,
+                color_scale_buckets=5
             )
 
     def get_map_options(self):
@@ -250,7 +268,7 @@ class MapLayer(PolymorphicModel, Described, WithTags, TimeStamped):
     line_layout_override = models.JSONField(null=True, blank=True)
 
     primary_color = ColorField(default=random_color)
-    color_scale = models.CharField(max_length=100, choices=color_brewer_choices)
+    color_scale = models.CharField(max_length=100, choices=color_choices)
 
     @property
     def tile_json(self):

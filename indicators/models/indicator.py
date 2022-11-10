@@ -18,9 +18,10 @@ from indicators.data import Datum, GeogCollection, GeogRecord
 from indicators.errors import AggregationError, DataRetrievalError
 from indicators.models.source import Source
 from indicators.utils import ErrorRecord, DataResponse, ErrorLevel
-from maps.models import IndicatorLayer
-from maps.util import menu_view_name
+from maps.models import IndicatorLayer, random_color_scale
+from maps.util import make_menu_view_name
 from profiles.abstract_models import Described
+from profiles.color import color_choices
 
 if TYPE_CHECKING:
     from indicators.models.variable import Variable
@@ -43,13 +44,16 @@ class IndicatorVariable(models.Model):
     )
     order = models.IntegerField()
     total = models.BooleanField(help_text="total's will be hidden from certain charts", default=False)
+    color_scale = models.CharField(max_length=100, choices=color_choices, default=random_color_scale)
 
-    def get_data_map_layer(self, geog_collection: 'GeogCollection'):
+    def get_data_map_layer(self, geog_collection: 'GeogCollection') -> IndicatorLayer:
+        """ Returns an IndicatorLayer object that contains the data necessary to display a map layer """
         return IndicatorLayer.get_or_create_updated_map(
             geog_collection,
             self.indicator.time_axis,
             self.variable,
-            self.indicator.use_denominators
+            self.indicator.use_denominators,
+            color_scale=self.color_scale
         )
 
     class Meta:
@@ -389,7 +393,7 @@ class Indicator(WithTags, WithContext, Described):
         highlight_source = {
             'id': f'{highlight_id}',
             'type': 'vector',
-            'url': f"{settings.MAP_HOST}{menu_view_name(geog_collection.geog_type)}.json",
+            'url': f"{settings.MAP_HOST}{make_menu_view_name(geog_collection.geog_type)}.json",
         }
         highlight_layer = {
             'id': f'{highlight_id}/highlight',
